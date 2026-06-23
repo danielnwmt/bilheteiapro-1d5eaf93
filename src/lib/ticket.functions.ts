@@ -182,13 +182,40 @@ export const gerarBilhete = createServerFn({ method: "POST" })
       }
     }
 
-    const rows = (partidas ?? []) as PartidaRow[];
+    let rows = (partidas ?? []) as PartidaRow[];
     if (!rows.length) {
       throw new Error(
         data.periodo === "aovivo"
           ? "Nenhum jogo ao vivo encontrado agora na API-Football."
           : "Nenhum jogo encontrado nesse período na API-Football.",
       );
+    }
+
+    // Busca odds reais na API-Football para os jogos sem odds da casa escolhida.
+    const semOdds = rows.filter(
+      (r) => !r.odds.some((o) => normKey(o.casa) === normKey(data.casa)),
+    );
+    if (semOdds.length) {
+      try {
+        const { syncOdds } = await import("./football.server");
+        const gravadas = await syncOdds(
+          semOdds.map((r) => ({
+            id: r.id,
+            external_id: r.external_id,
+            time_casa: r.time_casa,
+            time_fora: r.time_fora,
+          })),
+          data.casa,
+        );
+        if (gravadas > 0) {
+          const recarregado = await lerPartidas();
+          if (!recarregado.error && recarregado.data?.length) {
+            rows = recarregado.data as PartidaRow[];
+          }
+        }
+      } catch (e) {
+        console.error("Falha ao sincronizar odds reais", e);
+      }
     }
 
     // Texto para a IA com jogos + odds reais disponíveis
