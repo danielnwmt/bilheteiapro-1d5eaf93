@@ -113,7 +113,7 @@ function Index() {
     setLoading(true);
     setTicket(null);
     try {
-      const r = await run({ data: { oddAlvo: odd, periodo, campeonatos: campSel } });
+      const r = await run({ data: { oddAlvo: odd, periodo, campeonatos: campSel, casa: casaAtual.nome } });
       setTicket(r);
     } catch (err: unknown) {
       console.error(err);
