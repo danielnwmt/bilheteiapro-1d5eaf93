@@ -111,6 +111,7 @@ function normKey(value: string) {
 type OddRow = { casa: string; mercado: string; selecao: string; valor: number; external_odd_id: string | null };
 type PartidaRow = {
   id: string;
+  external_id: string | null;
   liga: string | null;
   time_casa: string;
   time_fora: string;
