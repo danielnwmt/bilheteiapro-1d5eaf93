@@ -152,28 +152,41 @@ export const gerarBilhete = createServerFn({ method: "POST" })
     const now = new Date();
     const { from, to } = periodRange(data.periodo, now);
 
-    let query = supabase
-      .from("partidas")
-      .select("id, liga, time_casa, time_fora, inicio, status, odds(casa, mercado, selecao, valor, external_odd_id)")
-      .gte("inicio", new Date(from).toISOString())
-      .lte("inicio", new Date(to).toISOString())
-      .order("inicio", { ascending: true })
-      .limit(80);
+    const lerPartidas = async () => {
+      let query = supabase
+        .from("partidas")
+        .select("id, liga, time_casa, time_fora, inicio, status, odds(casa, mercado, selecao, valor, external_odd_id)")
+        .gte("inicio", new Date(from).toISOString())
+        .lte("inicio", new Date(to).toISOString())
+        .order("inicio", { ascending: true })
+        .limit(80);
+      if (data.campeonatos.length) query = query.in("liga", data.campeonatos);
+      return query;
+    };
 
-    if (data.campeonatos.length) query = query.in("liga", data.campeonatos);
-
-    const { data: partidas, error } = await query;
+    let { data: partidas, error } = await lerPartidas();
     if (error) {
       console.error("Erro ao ler partidas", error);
       throw new Error("Não foi possível ler os jogos do banco. Tente novamente.");
+    }
+
+    // Sem jogos no banco: busca na API-Football e tenta de novo.
+    if (!partidas?.length) {
+      try {
+        const { syncFixtures } = await import("./football.server");
+        await syncFixtures(data.periodo);
+        ({ data: partidas, error } = await lerPartidas());
+      } catch (e) {
+        console.error("Falha ao sincronizar com API-Football", e);
+      }
     }
 
     const rows = (partidas ?? []) as PartidaRow[];
     if (!rows.length) {
       throw new Error(
         data.periodo === "aovivo"
-          ? "Nenhum jogo ao vivo no banco agora. Rode o worker de ingestão."
-          : "Nenhum jogo encontrado nesse período. Verifique se o worker já ingeriu os dados.",
+          ? "Nenhum jogo ao vivo encontrado agora na API-Football."
+          : "Nenhum jogo encontrado nesse período na API-Football.",
       );
     }
 
