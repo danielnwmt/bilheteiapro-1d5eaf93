@@ -148,7 +148,7 @@ function Index() {
             Bilhete<span className="text-primary">IA</span>
           </h1>
           <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
-            Escolha a odd alvo e o período. Buscamos os jogos no FlashScore e a IA monta sua múltipla.
+            Escolha a odd alvo e o período. Lemos os jogos e odds do seu banco (API-Sports) e a IA monta sua múltipla.
           </p>
         </header>
 
