@@ -333,7 +333,7 @@ Responda SOMENTE com JSON válido neste formato:
       })),
       oddTotal,
       risco: riskFromPicks(picks, oddTotal),
-      observacoes: toText(raw.observacoes ?? raw.notes, "Odds são estimativas e podem variar."),
+      observacoes: toText(raw.observacoes ?? raw.notes, "Odds reais da API-Football; podem variar até a confirmação na casa."),
     };
 
     const parsed = TicketSchema.safeParse(ticket);
