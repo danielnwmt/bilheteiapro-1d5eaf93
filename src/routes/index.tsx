@@ -306,7 +306,7 @@ function Index() {
                     <div className="mt-3">
                       <Button asChild size="sm" variant="outline">
                         <a
-                          href={casaAtual.search(p.jogo)}
+                          href={p.deepLink ?? casaAtual.search(p.jogo)}
                           target="_blank"
                           rel="noopener noreferrer"
                         >
