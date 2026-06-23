@@ -14,7 +14,189 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      deep_links: {
+        Row: {
+          casa: string
+          created_at: string
+          id: string
+          mercado: string | null
+          updated_at: string
+          url_template: string
+        }
+        Insert: {
+          casa: string
+          created_at?: string
+          id?: string
+          mercado?: string | null
+          updated_at?: string
+          url_template: string
+        }
+        Update: {
+          casa?: string
+          created_at?: string
+          id?: string
+          mercado?: string | null
+          updated_at?: string
+          url_template?: string
+        }
+        Relationships: []
+      }
+      estatisticas: {
+        Row: {
+          created_at: string
+          id: string
+          partida_id: string | null
+          payload: Json
+          tipo: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          partida_id?: string | null
+          payload?: Json
+          tipo?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          partida_id?: string | null
+          payload?: Json
+          tipo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estatisticas_partida_id_fkey"
+            columns: ["partida_id"]
+            isOneToOne: false
+            referencedRelation: "partidas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      odds: {
+        Row: {
+          casa: string
+          created_at: string
+          external_odd_id: string | null
+          id: string
+          mercado: string
+          partida_id: string | null
+          selecao: string
+          updated_at: string
+          valor: number
+        }
+        Insert: {
+          casa: string
+          created_at?: string
+          external_odd_id?: string | null
+          id?: string
+          mercado: string
+          partida_id?: string | null
+          selecao: string
+          updated_at?: string
+          valor: number
+        }
+        Update: {
+          casa?: string
+          created_at?: string
+          external_odd_id?: string | null
+          id?: string
+          mercado?: string
+          partida_id?: string | null
+          selecao?: string
+          updated_at?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "odds_partida_id_fkey"
+            columns: ["partida_id"]
+            isOneToOne: false
+            referencedRelation: "partidas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      palpites: {
+        Row: {
+          confianca: number
+          created_at: string
+          deep_link: string | null
+          id: string
+          justificativa: string | null
+          mercado: string
+          odd: number
+          partida_id: string | null
+          selecao: string
+        }
+        Insert: {
+          confianca: number
+          created_at?: string
+          deep_link?: string | null
+          id?: string
+          justificativa?: string | null
+          mercado: string
+          odd: number
+          partida_id?: string | null
+          selecao: string
+        }
+        Update: {
+          confianca?: number
+          created_at?: string
+          deep_link?: string | null
+          id?: string
+          justificativa?: string | null
+          mercado?: string
+          odd?: number
+          partida_id?: string | null
+          selecao?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "palpites_partida_id_fkey"
+            columns: ["partida_id"]
+            isOneToOne: false
+            referencedRelation: "partidas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partidas: {
+        Row: {
+          created_at: string
+          external_id: string | null
+          id: string
+          inicio: string
+          liga: string | null
+          status: string
+          time_casa: string
+          time_fora: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          external_id?: string | null
+          id?: string
+          inicio: string
+          liga?: string | null
+          status?: string
+          time_casa: string
+          time_fora: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          external_id?: string | null
+          id?: string
+          inicio?: string
+          liga?: string | null
+          status?: string
+          time_casa?: string
+          time_fora?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
