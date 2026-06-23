@@ -280,7 +280,16 @@ Responda SOMENTE com JSON válido neste formato:
     const oddTotal = picks.reduce((t, p) => t * p.oddEstimada, 1);
     const ticket: Ticket = {
       resumo: toText(raw.resumo ?? raw.summary, `Bilhete montado buscando odd alvo ${data.oddAlvo}.`),
-      picks: picks.map(({ _partidaId, ...rest }) => rest),
+      picks: picks.map((p) => ({
+        jogo: p.jogo,
+        data: p.data,
+        mercado: p.mercado,
+        selecao: p.selecao,
+        oddEstimada: p.oddEstimada,
+        confianca: p.confianca,
+        justificativa: p.justificativa,
+        deepLink: p.deepLink,
+      })),
       oddTotal,
       risco: riskFromPicks(picks, oddTotal),
       observacoes: toText(raw.observacoes ?? raw.notes, "Odds são estimativas e podem variar."),
