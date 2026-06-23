@@ -32,6 +32,7 @@ type Ticket = {
     oddEstimada: number;
     confianca: number;
     justificativa: string;
+    deepLink?: string;
   }>;
   oddTotal: number;
   risco: "baixo" | "medio" | "alto";
@@ -112,7 +113,7 @@ function Index() {
     setLoading(true);
     setTicket(null);
     try {
-      const r = await run({ data: { oddAlvo: odd, periodo, campeonatos: campSel } });
+      const r = await run({ data: { oddAlvo: odd, periodo, campeonatos: campSel, casa: casaAtual.nome } });
       setTicket(r);
     } catch (err: unknown) {
       console.error(err);
@@ -147,7 +148,7 @@ function Index() {
             Bilhete<span className="text-primary">IA</span>
           </h1>
           <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
-            Escolha a odd alvo e o período. Buscamos os jogos no FlashScore e a IA monta sua múltipla.
+            Escolha a odd alvo e o período. Lemos os jogos e odds do seu banco (API-Sports) e a IA monta sua múltipla.
           </p>
         </header>
 
@@ -305,7 +306,7 @@ function Index() {
                     <div className="mt-3">
                       <Button asChild size="sm" variant="outline">
                         <a
-                          href={casaAtual.search(p.jogo)}
+                          href={p.deepLink ?? casaAtual.search(p.jogo)}
                           target="_blank"
                           rel="noopener noreferrer"
                         >
