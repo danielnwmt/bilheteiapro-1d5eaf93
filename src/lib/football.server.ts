@@ -118,3 +118,175 @@ export async function syncFixtures(periodo: Periodo): Promise<number> {
 
   return rows.length;
 }
+
+// ---------- Odds reais ----------
+
+// Mapeia o nome da casa (app) -> bookmaker id da API-Football.
+const BOOKMAKER_NAME_TO_ID: Record<string, number> = {
+  betano: 22,
+  bet365: 8,
+  betfair: 2,
+  "1xbet": 26,
+  pinnacle: 4,
+  marathonbet: 7,
+};
+
+function normCasa(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "");
+}
+
+interface ApiOddValue {
+  value: string;
+  odd: string;
+}
+interface ApiOddBet {
+  id: number;
+  name: string;
+  values: ApiOddValue[];
+}
+interface ApiOddBookmaker {
+  id: number;
+  name: string;
+  bets: ApiOddBet[];
+}
+interface ApiOddResponse {
+  fixture: { id: number };
+  bookmakers: ApiOddBookmaker[];
+}
+
+async function apiGetOdds(path: string, key: string): Promise<ApiOddResponse[]> {
+  const res = await fetch(`${API_BASE}${path}`, { headers: { "x-apisports-key": key } });
+  if (!res.ok) throw new Error(`API-Football odds ${res.status}: ${await res.text()}`);
+  const json = (await res.json()) as { errors?: unknown; response?: ApiOddResponse[] };
+  const hasErr = json.errors && (Array.isArray(json.errors) ? json.errors.length : Object.keys(json.errors).length);
+  if (hasErr) throw new Error(`API-Football odds erro: ${JSON.stringify(json.errors)}`);
+  return json.response ?? [];
+}
+
+// Traduz os mercados/seleções da API-Football para os nomes usados no app.
+function mapBetValue(betName: string, value: string, jogoCasa: string, jogoFora: string) {
+  const bn = betName.toLowerCase();
+  const v = value.toLowerCase();
+  // Match Winner
+  if (bn === "match winner" || bn === "1x2" || bn === "fulltime result") {
+    if (v === "home") return { mercado: "Resultado Final", selecao: `Vitória ${jogoCasa}` };
+    if (v === "away") return { mercado: "Resultado Final", selecao: `Vitória ${jogoFora}` };
+    if (v === "draw") return { mercado: "Resultado Final", selecao: "Empate" };
+  }
+  // Goals Over/Under
+  if (bn === "goals over/under" || bn === "over/under") {
+    return { mercado: "Total de Gols", selecao: value };
+  }
+  // Both Teams to Score
+  if (bn === "both teams to score" || bn === "btts") {
+    return { mercado: "Ambas Marcam", selecao: v === "yes" ? "Sim" : "Não" };
+  }
+  // Double Chance
+  if (bn === "double chance") {
+    const map: Record<string, string> = {
+      "home/draw": `${jogoCasa} ou Empate`,
+      "home/away": `${jogoCasa} ou ${jogoFora}`,
+      "draw/away": `Empate ou ${jogoFora}`,
+    };
+    return { mercado: "Dupla Chance", selecao: map[v] ?? value };
+  }
+  return null;
+}
+
+const WANTED_BETS = new Set([
+  "match winner",
+  "1x2",
+  "fulltime result",
+  "goals over/under",
+  "over/under",
+  "both teams to score",
+  "btts",
+  "double chance",
+]);
+
+/**
+ * Busca odds reais na API-Football para as partidas indicadas e grava em "odds".
+ * fixtures: lista de { id (uuid interno), external_id, time_casa, time_fora }.
+ * Retorna a quantidade de odds gravadas.
+ */
+export async function syncOdds(
+  fixtures: Array<{ id: string; external_id: string | null; time_casa: string; time_fora: string }>,
+  casa: string,
+  maxFixtures = 12,
+): Promise<number> {
+  const key = process.env.API_FOOTBALL_KEY;
+  if (!key) throw new Error("Missing API_FOOTBALL_KEY");
+
+  const targets = fixtures.filter((f) => f.external_id).slice(0, maxFixtures);
+  if (!targets.length) return 0;
+
+  const casaNorm = normCasa(casa);
+  const bookmakerId = BOOKMAKER_NAME_TO_ID[casaNorm];
+
+  const supabase = createClient<Database>(
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false, autoRefreshToken: false } },
+  );
+
+  const rows: Array<{
+    partida_id: string;
+    casa: string;
+    mercado: string;
+    selecao: string;
+    valor: number;
+    external_odd_id: string | null;
+  }> = [];
+
+  for (const f of targets) {
+    let resp: ApiOddResponse[];
+    try {
+      const q = bookmakerId ? `&bookmaker=${bookmakerId}` : "";
+      resp = await apiGetOdds(`/odds?fixture=${f.external_id}${q}`, key);
+    } catch (e) {
+      console.error("Falha ao buscar odds da partida", f.external_id, e);
+      continue;
+    }
+
+    const entry = resp[0];
+    if (!entry) continue;
+
+    // Escolhe o bookmaker: preferido por id/nome, senão o primeiro.
+    const bm =
+      entry.bookmakers.find((b) => b.id === bookmakerId || normCasa(b.name) === casaNorm) ??
+      entry.bookmakers[0];
+    if (!bm) continue;
+
+    for (const bet of bm.bets) {
+      if (!WANTED_BETS.has(bet.name.toLowerCase())) continue;
+      for (const val of bet.values) {
+        const mapped = mapBetValue(bet.name, val.value, f.time_casa, f.time_fora);
+        if (!mapped) continue;
+        const valor = Number(val.odd);
+        if (!Number.isFinite(valor)) continue;
+        rows.push({
+          partida_id: f.id,
+          casa,
+          mercado: mapped.mercado,
+          selecao: mapped.selecao,
+          valor,
+          external_odd_id: `${f.external_id}:${bm.id}:${bet.id}:${val.value}`,
+        });
+      }
+    }
+  }
+
+  if (!rows.length) return 0;
+
+  const { error } = await supabase
+    .from("odds")
+    .upsert(rows, { onConflict: "partida_id,casa,mercado,selecao" });
+
+  if (error) throw new Error(`Erro ao gravar odds: ${error.message}`);
+
+  return rows.length;
+}

@@ -111,6 +111,7 @@ function normKey(value: string) {
 type OddRow = { casa: string; mercado: string; selecao: string; valor: number; external_odd_id: string | null };
 type PartidaRow = {
   id: string;
+  external_id: string | null;
   liga: string | null;
   time_casa: string;
   time_fora: string;
@@ -155,7 +156,7 @@ export const gerarBilhete = createServerFn({ method: "POST" })
     const lerPartidas = async () => {
       let query = supabase
         .from("partidas")
-        .select("id, liga, time_casa, time_fora, inicio, status, odds(casa, mercado, selecao, valor, external_odd_id)")
+        .select("id, external_id, liga, time_casa, time_fora, inicio, status, odds(casa, mercado, selecao, valor, external_odd_id)")
         .gte("inicio", new Date(from).toISOString())
         .lte("inicio", new Date(to).toISOString())
         .order("inicio", { ascending: true })
@@ -181,13 +182,40 @@ export const gerarBilhete = createServerFn({ method: "POST" })
       }
     }
 
-    const rows = (partidas ?? []) as PartidaRow[];
+    let rows = (partidas ?? []) as PartidaRow[];
     if (!rows.length) {
       throw new Error(
         data.periodo === "aovivo"
           ? "Nenhum jogo ao vivo encontrado agora na API-Football."
           : "Nenhum jogo encontrado nesse período na API-Football.",
       );
+    }
+
+    // Busca odds reais na API-Football para os jogos sem odds da casa escolhida.
+    const semOdds = rows.filter(
+      (r) => !r.odds.some((o) => normKey(o.casa) === normKey(data.casa)),
+    );
+    if (semOdds.length) {
+      try {
+        const { syncOdds } = await import("./football.server");
+        const gravadas = await syncOdds(
+          semOdds.map((r) => ({
+            id: r.id,
+            external_id: r.external_id,
+            time_casa: r.time_casa,
+            time_fora: r.time_fora,
+          })),
+          data.casa,
+        );
+        if (gravadas > 0) {
+          const recarregado = await lerPartidas();
+          if (!recarregado.error && recarregado.data?.length) {
+            rows = recarregado.data as PartidaRow[];
+          }
+        }
+      } catch (e) {
+        console.error("Falha ao sincronizar odds reais", e);
+      }
     }
 
     // Texto para a IA com jogos + odds reais disponíveis
@@ -305,7 +333,7 @@ Responda SOMENTE com JSON válido neste formato:
       })),
       oddTotal,
       risco: riskFromPicks(picks, oddTotal),
-      observacoes: toText(raw.observacoes ?? raw.notes, "Odds são estimativas e podem variar."),
+      observacoes: toText(raw.observacoes ?? raw.notes, "Odds reais da API-Football; podem variar até a confirmação na casa."),
     };
 
     const parsed = TicketSchema.safeParse(ticket);
