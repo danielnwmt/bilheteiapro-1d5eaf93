@@ -32,6 +32,7 @@ type Ticket = {
     oddEstimada: number;
     confianca: number;
     justificativa: string;
+    deepLink?: string;
   }>;
   oddTotal: number;
   risco: "baixo" | "medio" | "alto";
