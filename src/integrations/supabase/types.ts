@@ -197,6 +197,24 @@ export type Database = {
         }
         Relationships: []
       }
+      sync_state: {
+        Row: {
+          id: string
+          last_sync_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          id: string
+          last_sync_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          last_sync_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
