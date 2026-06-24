@@ -255,7 +255,8 @@ Regras:
 - A multiplicação das odds individuais deve ficar a ±15% da odd alvo.
 - Considere forma recente, mando de campo, confrontos diretos e contexto.
 - Confiança de 0 a 100. Selecione APENAS entradas com confiança >= 90%.
-- Justificativas curtas e diretas, em português.`;
+- Justificativas curtas e diretas, em português.
+- IMPORTANTE: quando houver MAIS DE UMA seleção no mesmo jogo, inclua esse jogo em "analiseJogos" com estimativas de: escanteios (média e linha provável), gols (média de gols na partida), chutes ao gol (média por time), média de cartões dos times e média de cartões do árbitro da partida. Cada campo deve ser curto (1 frase com números).`;
 
     const periodoLabel = { hoje: "hoje", amanha: "amanhã", semana: "próximos dias", aovivo: "AO VIVO agora" }[data.periodo];
     const prompt = `Período: ${periodoLabel}
