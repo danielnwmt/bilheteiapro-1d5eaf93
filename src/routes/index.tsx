@@ -34,6 +34,14 @@ type Ticket = {
     justificativa: string;
     deepLink?: string;
   }>;
+  analiseJogos?: Array<{
+    jogo: string;
+    escanteios: string;
+    gols: string;
+    chutesAoGol: string;
+    cartoesTimes: string;
+    cartoesArbitro: string;
+  }>;
   oddTotal: number;
   risco: "baixo" | "medio" | "alto";
   observacoes: string;
