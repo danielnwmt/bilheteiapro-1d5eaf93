@@ -281,7 +281,7 @@ Responda SOMENTE com JSON válido neste formato:
       system,
       prompt,
       temperature: 0.2,
-      maxOutputTokens: 2500,
+      maxOutputTokens: 3500,
     });
 
     const raw = JSON.parse(extractJson(text)) as Record<string, unknown>;
