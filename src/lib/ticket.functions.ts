@@ -315,10 +315,10 @@ Responda SOMENTE com JSON válido neste formato:
       system,
       prompt,
       temperature: 0.2,
-      maxOutputTokens: 3500,
+      maxOutputTokens: 6000,
     });
 
-    const raw = JSON.parse(extractJson(text)) as Record<string, unknown>;
+    const raw = parseAiJson(text);
     const rawPicks = Array.isArray(raw.picks) ? raw.picks : [];
 
     // Tabela de tradução de deep links
