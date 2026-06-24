@@ -3,7 +3,7 @@ import { generateText } from "ai";
 import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
-import { createLovableAiGatewayProvider } from "./ai-gateway.server";
+import { getAiModel } from "./ai-gateway.server";
 
 const InputSchema = z.object({
   oddAlvo: z.number().min(1.1).max(1000),
@@ -151,8 +151,7 @@ function buildDeepLink(
 export const gerarBilhete = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => InputSchema.parse(d))
   .handler(async ({ data }) => {
-    const key = process.env.LOVABLE_API_KEY;
-    if (!key) throw new Error("Missing LOVABLE_API_KEY");
+    const aiModel = getAiModel();
 
     const supabase = createClient<Database>(
       process.env.SUPABASE_URL!,
@@ -243,7 +242,7 @@ export const gerarBilhete = createServerFn({ method: "POST" })
       .join("\n")
       .slice(0, 14000);
 
-    const gateway = createLovableAiGatewayProvider(key);
+    
 
     const system = `Você é um analista esportivo de futebol especializado em apostas.
 Receberá uma lista de jogos com odds reais disponíveis na casa "${data.casa}".
@@ -277,7 +276,7 @@ Responda SOMENTE com JSON válido neste formato:
 }`;
 
     const { text } = await generateText({
-      model: gateway("google/gemini-3-flash-preview"),
+      model: aiModel,
       system,
       prompt,
       temperature: 0.2,
