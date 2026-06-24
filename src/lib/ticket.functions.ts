@@ -151,8 +151,7 @@ function buildDeepLink(
 export const gerarBilhete = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => InputSchema.parse(d))
   .handler(async ({ data }) => {
-    const key = process.env.LOVABLE_API_KEY;
-    if (!key) throw new Error("Missing LOVABLE_API_KEY");
+    const aiModel = getAiModel();
 
     const supabase = createClient<Database>(
       process.env.SUPABASE_URL!,
