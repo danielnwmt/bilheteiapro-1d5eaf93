@@ -339,7 +339,7 @@ Casa de aposta: ${data.casa}
 Jogos disponíveis no banco:
 ${jogosTexto}
 
-Selecione APENAS entradas com confiança >= 90%. Se nenhuma atingir, retorne picks vazio.
+Monte o bilhete combinando seleções suficientes para ATINGIR a odd alvo (±15%). Informe a confiança real de cada seleção.
 
 Responda SOMENTE com JSON válido neste formato:
 {
