@@ -16,10 +16,12 @@ PORT="3000"
 cd "$APP_DIR"
 
 # 1) Garante o arquivo .env com as chaves secretas (pede só na 1a vez)
-need_keys=(LOVABLE_API_KEY API_FOOTBALL_KEY FIRECRAWL_API_KEY INGEST_SECRET)
+#    GEMINI_API_KEY: pegue em https://aistudio.google.com/apikey
+need_keys=(GEMINI_API_KEY API_FOOTBALL_KEY FIRECRAWL_API_KEY INGEST_SECRET)
 
 if [ ! -f "$ENV_FILE" ]; then
-  echo ">> Primeira vez: cole as chaves (pegue em Project Settings > Secrets no Lovable)."
+  echo ">> Primeira vez: cole as chaves."
+  echo ">> GEMINI_API_KEY = pegue em https://aistudio.google.com/apikey"
   : > "$ENV_FILE"
   for k in "${need_keys[@]}"; do
     read -rp "$k = " v
