@@ -242,7 +242,7 @@ export const gerarBilhete = createServerFn({ method: "POST" })
       .join("\n")
       .slice(0, 14000);
 
-    const gateway = createLovableAiGatewayProvider(key);
+    
 
     const system = `Você é um analista esportivo de futebol especializado em apostas.
 Receberá uma lista de jogos com odds reais disponíveis na casa "${data.casa}".
