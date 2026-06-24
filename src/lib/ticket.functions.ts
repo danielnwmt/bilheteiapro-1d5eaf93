@@ -424,8 +424,23 @@ Responda SOMENTE com JSON válido neste formato:
       })
       .filter((a) => a.jogo && jogosMultiplos.has(normKey(a.jogo)));
 
+    // Verifica se a odd atingida ficou perto da odd alvo (±15%). Caso contrário,
+    // gera resumo/observação honestos em vez de afirmar que bateu a meta.
+    const desvio = Math.abs(oddTotal - data.oddAlvo) / data.oddAlvo;
+    const dentroDaMargem = desvio <= 0.15;
+    const oddFmt = oddTotal.toFixed(2);
+
+    const resumoBase = dentroDaMargem
+      ? `Aposta múltipla de ${picks.length} ${picks.length === 1 ? "seleção" : "seleções"} com odd total ${oddFmt}, dentro da margem de 15% da odd alvo (${data.oddAlvo}).`
+      : `Não foi possível atingir a odd alvo (${data.oddAlvo}) com os jogos disponíveis: a melhor combinação possível chegou a ${oddFmt} com ${picks.length} ${picks.length === 1 ? "seleção" : "seleções"} de alta confiança. Amplie os campeonatos ou o período para alcançar odds maiores.`;
+
+    const obsBase = toText(raw.observacoes ?? raw.notes, "Odds reais da API-Football; podem variar até a confirmação na casa.");
+    const observacoes = dentroDaMargem
+      ? obsBase
+      : `Odd alvo ${data.oddAlvo} não alcançável com o filtro atual (poucos jogos/mercados de alta confiança). ${obsBase}`;
+
     const ticket: Ticket = {
-      resumo: toText(raw.resumo ?? raw.summary, `Bilhete montado buscando odd alvo ${data.oddAlvo}.`),
+      resumo: resumoBase,
       analiseJogos,
       picks: picks.map((p) => ({
         jogo: p.jogo,
@@ -439,8 +454,9 @@ Responda SOMENTE com JSON válido neste formato:
       })),
       oddTotal,
       risco: riskFromPicks(picks, oddTotal),
-      observacoes: toText(raw.observacoes ?? raw.notes, "Odds reais da API-Football; podem variar até a confirmação na casa."),
+      observacoes,
     };
+
 
     const parsed = TicketSchema.safeParse(ticket);
     if (!parsed.success) {
