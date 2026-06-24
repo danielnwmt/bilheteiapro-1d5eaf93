@@ -19,6 +19,8 @@ const LEAGUE_ID_TO_NAME: Record<number, string> = {
   61: "Ligue 1",
   2: "Champions League",
   3: "Europa League",
+  848: "Conference League",
+  1: "Copa do Mundo",
 };
 
 type Periodo = "hoje" | "amanha" | "semana" | "aovivo";

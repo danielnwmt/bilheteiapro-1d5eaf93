@@ -99,6 +99,8 @@ const CAMPEONATOS = [
   "Ligue 1",
   "Champions League",
   "Europa League",
+  "Conference League",
+  "Copa do Mundo",
 ];
 
 function Index() {
