@@ -24,9 +24,19 @@ const PickSchema = z.object({
   deepLink: z.string().optional(),
 });
 
+const AnaliseJogoSchema = z.object({
+  jogo: z.string(),
+  escanteios: z.string(),
+  gols: z.string(),
+  chutesAoGol: z.string(),
+  cartoesTimes: z.string(),
+  cartoesArbitro: z.string(),
+});
+
 const TicketSchema = z.object({
   resumo: z.string(),
   picks: z.array(PickSchema),
+  analiseJogos: z.array(AnaliseJogoSchema).default([]),
   oddTotal: z.number(),
   risco: z.enum(["baixo", "medio", "alto"]),
   observacoes: z.string(),
