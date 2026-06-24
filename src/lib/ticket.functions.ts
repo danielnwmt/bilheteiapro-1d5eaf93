@@ -272,6 +272,7 @@ Responda SOMENTE com JSON válido neste formato:
 {
   "resumo": "texto curto",
   "picks": [{ "jogo": "Time A x Time B", "data": "horário/data", "mercado": "mercado", "selecao": "palpite", "oddEstimada": 1.5, "confianca": 90, "justificativa": "motivo curto" }],
+  "analiseJogos": [{ "jogo": "Time A x Time B", "escanteios": "média ~9.5, linha +8.5", "gols": "média 2.7 gols", "chutesAoGol": "Time A 5.2 / Time B 4.1", "cartoesTimes": "Time A 2.1 / Time B 1.8", "cartoesArbitro": "árbitro média 4.3 cartões/jogo" }],
   "observacoes": "texto curto"
 }`;
 
