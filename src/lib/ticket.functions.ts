@@ -331,8 +331,30 @@ Responda SOMENTE com JSON válido neste formato:
     }
 
     const oddTotal = picks.reduce((t, p) => t * p.oddEstimada, 1);
+
+    // Jogos que aparecem em mais de uma seleção do bilhete (múltiplas opções no mesmo jogo)
+    const contagemJogos = new Map<string, number>();
+    for (const p of picks) contagemJogos.set(normKey(p.jogo), (contagemJogos.get(normKey(p.jogo)) ?? 0) + 1);
+    const jogosMultiplos = new Set([...contagemJogos.entries()].filter(([, n]) => n > 1).map(([k]) => k));
+
+    const rawAnalises = Array.isArray(raw.analiseJogos) ? raw.analiseJogos : [];
+    const analiseJogos = rawAnalises
+      .map((item) => {
+        const a = item as Record<string, unknown>;
+        return {
+          jogo: toText(a.jogo ?? a.partida, ""),
+          escanteios: toText(a.escanteios ?? a.corners, "Sem dados de escanteios."),
+          gols: toText(a.gols ?? a.goals, "Sem dados de gols."),
+          chutesAoGol: toText(a.chutesAoGol ?? a.chutes ?? a.shotsOnTarget, "Sem dados de chutes ao gol."),
+          cartoesTimes: toText(a.cartoesTimes ?? a.cartoes, "Sem dados de cartões dos times."),
+          cartoesArbitro: toText(a.cartoesArbitro ?? a.arbitro, "Sem dados do árbitro."),
+        };
+      })
+      .filter((a) => a.jogo && jogosMultiplos.has(normKey(a.jogo)));
+
     const ticket: Ticket = {
       resumo: toText(raw.resumo ?? raw.summary, `Bilhete montado buscando odd alvo ${data.oddAlvo}.`),
+      analiseJogos,
       picks: picks.map((p) => ({
         jogo: p.jogo,
         data: p.data,
