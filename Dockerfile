@@ -1,6 +1,16 @@
 # ---- Build stage ----
 FROM oven/bun:1 AS build
 WORKDIR /app
+
+# Public (publishable) backend config — safe to bake into the image.
+# Override at build time with --build-arg if needed.
+ARG VITE_SUPABASE_URL="https://zzjrfmiqhlwomablszdj.supabase.co"
+ARG VITE_SUPABASE_PUBLISHABLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp6anJmbWlxaGx3b21hYmxzemRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxNzg5NDksImV4cCI6MjA5Nzc1NDk0OX0.ycHZosTLK6KClr0o0TPlVptwteEWhzc5W9Vu2uixABI"
+ARG VITE_SUPABASE_PROJECT_ID="zzjrfmiqhlwomablszdj"
+ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
+ENV VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
+ENV VITE_SUPABASE_PROJECT_ID=$VITE_SUPABASE_PROJECT_ID
+
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 COPY . .
@@ -12,6 +22,12 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOST=0.0.0.0
+
+# Public backend config available to the server at runtime too.
+ENV SUPABASE_URL="https://zzjrfmiqhlwomablszdj.supabase.co"
+ENV SUPABASE_PUBLISHABLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp6anJmbWlxaGx3b21hYmxzemRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxNzg5NDksImV4cCI6MjA5Nzc1NDk0OX0.ycHZosTLK6KClr0o0TPlVptwteEWhzc5W9Vu2uixABI"
+ENV SUPABASE_PROJECT_ID="zzjrfmiqhlwomablszdj"
+
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/serve.mjs ./serve.mjs
 EXPOSE 3000
