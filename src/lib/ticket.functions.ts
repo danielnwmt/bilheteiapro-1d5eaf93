@@ -231,16 +231,19 @@ export const gerarBilhete = createServerFn({ method: "POST" })
     const { from, to } = periodRange(data.periodo, now);
 
     const lerPartidas = async () => {
-      let query = supabase
+      const query = supabase
         .from("partidas")
         .select("id, external_id, liga, time_casa, time_fora, inicio, status, odds(casa, mercado, selecao, valor, external_odd_id)")
         .gte("inicio", new Date(from).toISOString())
         .lte("inicio", new Date(to).toISOString())
         .order("inicio", { ascending: true })
-        .limit(80);
-      if (data.campeonatos.length) query = query.in("liga", data.campeonatos);
-      return query;
+        .limit(120);
+      const res = await query;
+      if (res.error) return res;
+      const filtradas = (res.data ?? []).filter((p) => ligaMatchesSelecao(p.liga, data.campeonatos));
+      return { ...res, data: filtradas };
     };
+
 
     let { data: partidas, error } = await lerPartidas();
     if (error) {
