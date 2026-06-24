@@ -322,11 +322,12 @@ Monte uma aposta múltipla (bilhete) cuja odd total combinada se aproxime ao má
 Regras:
 - Use SOMENTE jogos e mercados/seleções presentes na lista. Nunca invente.
 - Quando houver odd listada para a seleção escolhida, use exatamente esse valor em oddEstimada.
-- OBJETIVO PRINCIPAL: a MULTIPLICAÇÃO de todas as odds individuais deve ficar a ±15% da odd alvo. Continue adicionando seleções até o produto chegar perto da odd alvo.
+- OBJETIVO PRINCIPAL: a MULTIPLICAÇÃO de todas as odds individuais deve bater a odd alvo (ficar a ±15% dela). Continue adicionando seleções até o produto chegar na odd alvo.
 - Para alcançar a odd alvo combine VÁRIAS seleções: use vários jogos e, quando necessário, mais de um mercado INDEPENDENTE do MESMO jogo (ex.: resultado + escanteios + cartões). Nunca combine seleções contraditórias do mesmo mercado.
+- Priorize sempre as seleções de MAIOR confiança possível, mas o mais importante é ATINGIR a odd alvo. Não descarte o bilhete por causa da confiança.
+- Sempre informe a confiança real (0 a 100) de cada seleção em "confianca". Esse percentual será exibido ao usuário.
 - Se mesmo usando todos os jogos/mercados disponíveis o produto não chegar à odd alvo, retorne o bilhete possível mais próximo e diga isso claramente no campo "observacoes".
 - Considere forma recente, mando de campo, confrontos diretos e contexto.
-- Confiança de 0 a 100. Selecione APENAS entradas com confiança >= 90%.
 - Justificativas curtas e diretas, em português.
 - IMPORTANTE: quando houver MAIS DE UMA seleção no mesmo jogo, inclua esse jogo em "analiseJogos" com estimativas de: escanteios (média e linha provável), gols (média de gols na partida), chutes ao gol (média por time), média de cartões dos times e média de cartões do árbitro da partida. Cada campo deve ser curto (1 frase com números).`;
 
@@ -338,7 +339,7 @@ Casa de aposta: ${data.casa}
 Jogos disponíveis no banco:
 ${jogosTexto}
 
-Selecione APENAS entradas com confiança >= 90%. Se nenhuma atingir, retorne picks vazio.
+Monte o bilhete combinando seleções suficientes para ATINGIR a odd alvo (±15%). Informe a confiança real de cada seleção.
 
 Responda SOMENTE com JSON válido neste formato:
 {
@@ -396,11 +397,12 @@ Responda SOMENTE com JSON válido neste formato:
           _partidaId: partida?.id,
         };
       })
-      .filter((p) => p.confianca >= Math.max(90, data.minConfianca));
+      .filter((p) => p.confianca >= data.minConfianca);
 
     if (!picks.length) {
-      throw new Error("Nenhuma entrada com confiança >= 90% nesse período. Tente outro filtro.");
+      throw new Error("Nenhuma entrada encontrada para esse filtro. Tente outro período ou campeonato.");
     }
+
 
     const oddTotal = picks.reduce((t, p) => t * p.oddEstimada, 1);
 
