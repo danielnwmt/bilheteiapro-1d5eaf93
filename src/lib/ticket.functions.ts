@@ -153,6 +153,39 @@ function normKey(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
+// Aliases (PT + nomes da API em inglês) para casar o filtro de campeonato com o
+// que foi gravado na coluna "liga" (que pode vir em inglês quando o id da liga
+// não está no mapa de tradução).
+const LIGA_ALIASES: Record<string, string[]> = {
+  "brasileirao serie a": ["brasileirao serie a", "serie a brazil", "brazil serie a", "brasileirao"],
+  "brasileirao serie b": ["brasileirao serie b", "serie b brazil", "brazil serie b"],
+  "copa do brasil": ["copa do brasil", "brazil cup"],
+  "libertadores": ["libertadores", "copa libertadores", "conmebol libertadores"],
+  "sul americana": ["sul americana", "copa sudamericana", "conmebol sudamericana", "sudamericana"],
+  "premier league": ["premier league", "english premier league", "epl"],
+  "la liga": ["la liga", "laliga", "primera division"],
+  "serie a italia": ["serie a italia", "serie a", "italy serie a"],
+  "bundesliga": ["bundesliga", "1 bundesliga", "germany bundesliga"],
+  "ligue 1": ["ligue 1", "france ligue 1"],
+  "champions league": ["champions league", "uefa champions league", "liga dos campeoes"],
+  "europa league": ["europa league", "uefa europa league", "liga europa"],
+  "conference league": ["conference league", "uefa europa conference league", "europa conference league"],
+  "copa do mundo": ["copa do mundo", "world cup", "fifa world cup", "copa do mundo fifa"],
+};
+
+function ligaMatchesSelecao(liga: string | null, campeonatos: string[]) {
+  if (!campeonatos.length) return true;
+  if (!liga) return false;
+  const ligaKey = normKey(liga);
+  return campeonatos.some((c) => {
+    const ck = normKey(c);
+    if (ligaKey === ck) return true;
+    const aliases = LIGA_ALIASES[ck];
+    return aliases ? aliases.some((a) => ligaKey === a) : false;
+  });
+}
+
+
 type OddRow = { casa: string; mercado: string; selecao: string; valor: number; external_odd_id: string | null };
 type PartidaRow = {
   id: string;
