@@ -114,6 +114,41 @@ function extractJson(text: string) {
   return cleaned.slice(start, end + 1);
 }
 
+// Remove trailing commas e tenta fechar JSON truncado (saída da IA cortada)
+function repairJson(input: string) {
+  let s = input.replace(/,\s*([}\]])/g, "$1");
+  const opens: string[] = [];
+  let inString = false;
+  let escaped = false;
+  for (const ch of s) {
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === "{" || ch === "[") opens.push(ch);
+    else if (ch === "}" || ch === "]") opens.pop();
+  }
+  if (inString) s += '"';
+  while (opens.length) {
+    const o = opens.pop();
+    s += o === "{" ? "}" : "]";
+  }
+  return s.replace(/,\s*([}\]])/g, "$1");
+}
+
+function parseAiJson(text: string): Record<string, unknown> {
+  const extracted = extractJson(text);
+  try {
+    return JSON.parse(extracted) as Record<string, unknown>;
+  } catch {
+    return JSON.parse(repairJson(extracted)) as Record<string, unknown>;
+  }
+}
+
+
 function normKey(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
@@ -280,10 +315,10 @@ Responda SOMENTE com JSON válido neste formato:
       system,
       prompt,
       temperature: 0.2,
-      maxOutputTokens: 3500,
+      maxOutputTokens: 6000,
     });
 
-    const raw = JSON.parse(extractJson(text)) as Record<string, unknown>;
+    const raw = parseAiJson(text);
     const rawPicks = Array.isArray(raw.picks) ? raw.picks : [];
 
     // Tabela de tradução de deep links
