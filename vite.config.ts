@@ -7,6 +7,9 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
+  // Fora do Lovable (Docker/VPS), força saída Node nativa em vez de gerar bundle Cloudflare.
+  // Isso evita 500 no container Node tentando adaptar runtime errado.
+  nitro: { preset: "node-server" },
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
