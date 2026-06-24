@@ -2,11 +2,21 @@
 // on a plain Node server, serving static assets from dist/client.
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { join, extname, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import handler from './dist/server/index.mjs';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
+
+// The SSR entry filename varies by build (index.mjs / server.js). Detect it.
+const SERVER_DIR = join(ROOT, 'dist', 'server');
+const ENTRY_CANDIDATES = ['index.mjs', 'server.js', 'server.mjs', 'index.js'];
+const entryName = ENTRY_CANDIDATES.find((f) => existsSync(join(SERVER_DIR, f)));
+if (!entryName) {
+  console.error('No SSR entry found in', SERVER_DIR);
+  process.exit(1);
+}
+const handler = (await import(join(SERVER_DIR, entryName))).default;
 const CLIENT = join(ROOT, 'dist', 'client');
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
