@@ -10,11 +10,18 @@ ARG VITE_SUPABASE_PROJECT_ID="zzjrfmiqhlwomablszdj"
 ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
 ENV VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
 ENV VITE_SUPABASE_PROJECT_ID=$VITE_SUPABASE_PROJECT_ID
+ENV SUPABASE_URL=$VITE_SUPABASE_URL
+ENV SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
+ENV SUPABASE_PROJECT_ID=$VITE_SUPABASE_PROJECT_ID
 
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 COPY . .
-RUN bun run build
+RUN bun run build && \
+    mkdir -p /app/runtime && \
+    if [ -d .output ]; then cp -R .output /app/runtime/.output; fi && \
+    if [ -d dist ]; then cp -R dist /app/runtime/dist; fi && \
+    cp serve.mjs /app/runtime/serve.mjs
 
 # ---- Runtime stage ----
 FROM node:20-alpine AS runtime
@@ -28,7 +35,6 @@ ENV SUPABASE_URL="https://zzjrfmiqhlwomablszdj.supabase.co"
 ENV SUPABASE_PUBLISHABLE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp6anJmbWlxaGx3b21hYmxzemRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxNzg5NDksImV4cCI6MjA5Nzc1NDk0OX0.ycHZosTLK6KClr0o0TPlVptwteEWhzc5W9Vu2uixABI"
 ENV SUPABASE_PROJECT_ID="zzjrfmiqhlwomablszdj"
 
-COPY --from=build /app/dist ./dist
-COPY --from=build /app/serve.mjs ./serve.mjs
+COPY --from=build /app/runtime ./
 EXPOSE 3000
-CMD ["node", "serve.mjs"]
+CMD ["sh", "-c", "if [ -f .output/server/index.mjs ]; then node .output/server/index.mjs; else node serve.mjs; fi"]
