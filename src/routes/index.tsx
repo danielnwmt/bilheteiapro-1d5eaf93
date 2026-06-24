@@ -140,6 +140,13 @@ function Index() {
 
   const casaAtual = CASAS.find((c) => c.id === casa)!;
   const premioPotencial = ticket ? (parseFloat(valorAposta) || 0) * ticket.oddTotal : 0;
+  const riscoPct =
+    ticket && ticket.picks.length
+      ? Math.round(
+          100 -
+            ticket.picks.reduce((acc, p) => acc + (p.confianca || 0), 0) / ticket.picks.length,
+        )
+      : 0;
 
   function toggleCamp(c: string) {
     setCampSel((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
@@ -281,7 +288,7 @@ function Index() {
                   </h2>
                 </div>
                 <Badge className={`${riscoColor[ticket.risco]} border px-3 py-1 text-xs uppercase`}>
-                  Risco {ticket.risco}
+                  Risco {ticket.risco} · {riscoPct}%
                 </Badge>
               </div>
               <p className="mt-3 text-sm text-muted-foreground">{ticket.resumo}</p>
