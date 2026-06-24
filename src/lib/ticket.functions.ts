@@ -276,7 +276,7 @@ Responda SOMENTE com JSON válido neste formato:
 }`;
 
     const { text } = await generateText({
-      model: gateway("google/gemini-3-flash-preview"),
+      model: aiModel,
       system,
       prompt,
       temperature: 0.2,
