@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      bilhetes: {
+        Row: {
+          casa: string
+          created_at: string
+          id: string
+          observacoes: string | null
+          odd_total: number
+          periodo: string | null
+          resumo: string
+          risco: string
+          updated_at: string
+        }
+        Insert: {
+          casa?: string
+          created_at?: string
+          id?: string
+          observacoes?: string | null
+          odd_total?: number
+          periodo?: string | null
+          resumo?: string
+          risco?: string
+          updated_at?: string
+        }
+        Update: {
+          casa?: string
+          created_at?: string
+          id?: string
+          observacoes?: string | null
+          odd_total?: number
+          periodo?: string | null
+          resumo?: string
+          risco?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       deep_links: {
         Row: {
           casa: string
@@ -119,6 +155,7 @@ export type Database = {
       }
       palpites: {
         Row: {
+          bilhete_id: string | null
           confianca: number
           created_at: string
           deep_link: string | null
@@ -130,6 +167,7 @@ export type Database = {
           selecao: string
         }
         Insert: {
+          bilhete_id?: string | null
           confianca: number
           created_at?: string
           deep_link?: string | null
@@ -141,6 +179,7 @@ export type Database = {
           selecao: string
         }
         Update: {
+          bilhete_id?: string | null
           confianca?: number
           created_at?: string
           deep_link?: string | null
@@ -152,6 +191,13 @@ export type Database = {
           selecao?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "palpites_bilhete_id_fkey"
+            columns: ["bilhete_id"]
+            isOneToOne: false
+            referencedRelation: "bilhetes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "palpites_partida_id_fkey"
             columns: ["partida_id"]

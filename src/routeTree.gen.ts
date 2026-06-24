@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiPublicIngestRouteImport } from './routes/api/public/ingest'
 import { Route as ApiPublicHooksSyncFootballRouteImport } from './routes/api/public/hooks/sync-football'
+import { Route as ApiPublicHooksGerarBilhetesRouteImport } from './routes/api/public/hooks/gerar-bilhetes'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -29,38 +30,57 @@ const ApiPublicHooksSyncFootballRoute =
     path: '/api/public/hooks/sync-football',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksGerarBilhetesRoute =
+  ApiPublicHooksGerarBilhetesRouteImport.update({
+    id: '/api/public/hooks/gerar-bilhetes',
+    path: '/api/public/hooks/gerar-bilhetes',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/api/public/ingest': typeof ApiPublicIngestRoute
+  '/api/public/hooks/gerar-bilhetes': typeof ApiPublicHooksGerarBilhetesRoute
   '/api/public/hooks/sync-football': typeof ApiPublicHooksSyncFootballRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/public/ingest': typeof ApiPublicIngestRoute
+  '/api/public/hooks/gerar-bilhetes': typeof ApiPublicHooksGerarBilhetesRoute
   '/api/public/hooks/sync-football': typeof ApiPublicHooksSyncFootballRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/api/public/ingest': typeof ApiPublicIngestRoute
+  '/api/public/hooks/gerar-bilhetes': typeof ApiPublicHooksGerarBilhetesRoute
   '/api/public/hooks/sync-football': typeof ApiPublicHooksSyncFootballRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/public/ingest' | '/api/public/hooks/sync-football'
+  fullPaths:
+    | '/'
+    | '/api/public/ingest'
+    | '/api/public/hooks/gerar-bilhetes'
+    | '/api/public/hooks/sync-football'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/public/ingest' | '/api/public/hooks/sync-football'
+  to:
+    | '/'
+    | '/api/public/ingest'
+    | '/api/public/hooks/gerar-bilhetes'
+    | '/api/public/hooks/sync-football'
   id:
     | '__root__'
     | '/'
     | '/api/public/ingest'
+    | '/api/public/hooks/gerar-bilhetes'
     | '/api/public/hooks/sync-football'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApiPublicIngestRoute: typeof ApiPublicIngestRoute
+  ApiPublicHooksGerarBilhetesRoute: typeof ApiPublicHooksGerarBilhetesRoute
   ApiPublicHooksSyncFootballRoute: typeof ApiPublicHooksSyncFootballRoute
 }
 
@@ -87,12 +107,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksSyncFootballRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/gerar-bilhetes': {
+      id: '/api/public/hooks/gerar-bilhetes'
+      path: '/api/public/hooks/gerar-bilhetes'
+      fullPath: '/api/public/hooks/gerar-bilhetes'
+      preLoaderRoute: typeof ApiPublicHooksGerarBilhetesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApiPublicIngestRoute: ApiPublicIngestRoute,
+  ApiPublicHooksGerarBilhetesRoute: ApiPublicHooksGerarBilhetesRoute,
   ApiPublicHooksSyncFootballRoute: ApiPublicHooksSyncFootballRoute,
 }
 export const routeTree = rootRouteImport
