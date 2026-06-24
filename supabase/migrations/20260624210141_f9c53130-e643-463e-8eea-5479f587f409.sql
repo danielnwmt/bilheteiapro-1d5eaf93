@@ -1,0 +1,1 @@
+ALTER TABLE public.bilhetes ADD COLUMN IF NOT EXISTS tipo text NOT NULL DEFAULT 'padrao';

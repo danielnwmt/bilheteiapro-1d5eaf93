@@ -6,9 +6,9 @@ export const Route = createFileRoute("/api/public/hooks/gerar-bilhetes")({
     handlers: {
       POST: async () => {
         try {
-          const { gerarBilheteAutomatico } = await import("@/lib/auto-bilhete.server");
-          const result = await gerarBilheteAutomatico();
-          return Response.json(result);
+          const { gerarTodosBilhetes } = await import("@/lib/auto-bilhete.server");
+          const results = await gerarTodosBilhetes();
+          return Response.json({ ok: true, results });
         } catch (e) {
           console.error("Erro no robô de bilhetes:", e);
           return Response.json({ ok: false, error: String(e) }, { status: 500 });
