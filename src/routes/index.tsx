@@ -408,6 +408,48 @@ function Index() {
               </aside>
             </div>
 
+            {ticket.analiseJogos && ticket.analiseJogos.length > 0 && (
+              <div className="border-t border-border/60 bg-card p-5">
+                <h3 className="mb-1 text-sm font-bold uppercase tracking-wider text-primary">
+                  Análise dos jogos com várias seleções
+                </h3>
+                <p className="mb-4 text-xs text-muted-foreground">
+                  Estimativas de escanteios, gols, chutes ao gol e cartões (times e árbitro) para jogos com mais de uma opção no bilhete.
+                </p>
+                <div className="grid gap-4 md:grid-cols-2">
+                  {ticket.analiseJogos.map((a, i) => (
+                    <div key={`${a.jogo}-${i}`} className="rounded-lg border border-border/70 bg-muted/20 p-4">
+                      <h4 className="mb-3 text-sm font-semibold">{a.jogo}</h4>
+                      <ul className="space-y-2 text-xs">
+                        <li>
+                          <span className="font-semibold text-foreground/90">⚑ Escanteios: </span>
+                          <span className="text-muted-foreground">{a.escanteios}</span>
+                        </li>
+                        <li>
+                          <span className="font-semibold text-foreground/90">⚽ Gols: </span>
+                          <span className="text-muted-foreground">{a.gols}</span>
+                        </li>
+                        <li>
+                          <span className="font-semibold text-foreground/90">🎯 Chutes ao gol: </span>
+                          <span className="text-muted-foreground">{a.chutesAoGol}</span>
+                        </li>
+                        <li>
+                          <span className="font-semibold text-foreground/90">🟨 Cartões (times): </span>
+                          <span className="text-muted-foreground">{a.cartoesTimes}</span>
+                        </li>
+                        <li>
+                          <span className="font-semibold text-foreground/90">🧑‍⚖️ Cartões (árbitro): </span>
+                          <span className="text-muted-foreground">{a.cartoesArbitro}</span>
+                        </li>
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+
+
             {ticket.observacoes && (
               <div className="border-t border-border/60 bg-muted/30 p-5 text-sm text-muted-foreground">
                 <strong className="text-foreground">Observações: </strong>
