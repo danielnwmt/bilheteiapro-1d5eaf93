@@ -288,7 +288,7 @@ function Index() {
                   </h2>
                 </div>
                 <Badge className={`${riscoColor[ticket.risco]} border px-3 py-1 text-xs uppercase`}>
-                  Risco {ticket.risco}
+                  Risco {ticket.risco} · {riscoPct}%
                 </Badge>
               </div>
               <p className="mt-3 text-sm text-muted-foreground">{ticket.resumo}</p>
