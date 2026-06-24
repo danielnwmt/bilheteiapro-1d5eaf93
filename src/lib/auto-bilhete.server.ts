@@ -7,14 +7,55 @@ import type { Database } from "@/integrations/supabase/types";
 import { getAiModel } from "./ai-gateway.server";
 import { syncFixtures, syncOdds } from "./football.server";
 
-// Regras fixas do robô (definidas pelo dono do app).
-const JANELA_HORAS = 4;
-const ODD_MIN_JOGO = 1.4;
-const ODD_MAX_TOTAL = 3.5;
-const MAX_JOGOS = 3;
+// Configuração de cada tipo de bilhete que o robô monta.
+export interface BilheteConfig {
+  tipo: string;
+  janelaHoras: number;
+  oddMinJogo: number;
+  oddMaxJogo: number; // Infinity = sem limite superior por jogo
+  oddMinTotal: number; // 1 = sem mínimo
+  oddMaxTotal: number;
+  minJogos: number;
+  maxJogos: number;
+  mercados: string[] | null; // palavras-chave de mercados; null = qualquer
+}
+
 const CASA = "Betano";
 // Ligas principais: Brasileirão Série A e Série B (nomes gravados na coluna "liga").
 const LIGAS_FOCO = ["Brasileirão Série A", "Brasileirão Série B"];
+
+// Bilhete padrão (conservador).
+const CONFIG_PADRAO: BilheteConfig = {
+  tipo: "padrao",
+  janelaHoras: 4,
+  oddMinJogo: 1.4,
+  oddMaxJogo: Infinity,
+  oddMinTotal: 1,
+  oddMaxTotal: 3.5,
+  minJogos: 1,
+  maxJogos: 3,
+  mercados: null,
+};
+
+// Super Múltipla: 4-5 jogos de alta confiança, odds individuais 1.60-2.20,
+// odd total combinada entre 15.00 e 30.00, mercados de vitória/ambos marcam/cartões/escanteios/gols.
+const CONFIG_SUPER: BilheteConfig = {
+  tipo: "super_multipla",
+  janelaHoras: 4,
+  oddMinJogo: 1.6,
+  oddMaxJogo: 2.2,
+  oddMinTotal: 15,
+  oddMaxTotal: 30,
+  minJogos: 4,
+  maxJogos: 5,
+  mercados: ["vitoria", "vencedor", "resultado", "match winner", "1x2", "ambos marcam", "both teams", "cartoes", "cartao", "card", "escanteio", "corner", "gol", "goal", "over", "under", "total"],
+};
+
+function mercadoPermitido(cfg: BilheteConfig, mercado: string, selecao: string) {
+  if (!cfg.mercados) return true;
+  const alvo = `${normKey(mercado)} ${normKey(selecao)}`;
+  return cfg.mercados.some((m) => alvo.includes(normKey(m)));
+}
 
 type OddRow = {
   casa: string;
