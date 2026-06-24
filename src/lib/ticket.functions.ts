@@ -397,11 +397,12 @@ Responda SOMENTE com JSON válido neste formato:
           _partidaId: partida?.id,
         };
       })
-      .filter((p) => p.confianca >= Math.max(90, data.minConfianca));
+      .filter((p) => p.confianca >= data.minConfianca);
 
     if (!picks.length) {
-      throw new Error("Nenhuma entrada com confiança >= 90% nesse período. Tente outro filtro.");
+      throw new Error("Nenhuma entrada encontrada para esse filtro. Tente outro período ou campeonato.");
     }
+
 
     const oddTotal = picks.reduce((t, p) => t * p.oddEstimada, 1);
 
