@@ -3,7 +3,7 @@ import { generateText } from "ai";
 import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
-import { createLovableAiGatewayProvider } from "./ai-gateway.server";
+import { getAiModel } from "./ai-gateway.server";
 
 const InputSchema = z.object({
   oddAlvo: z.number().min(1.1).max(1000),
