@@ -1,0 +1,291 @@
+// Robô autônomo: varre a API-Football por jogos nas próximas 4h (ligas principais),
+// busca odds reais, chama o Gemini e salva o bilhete + palpites no banco.
+// Server-only (service role + chave da IA).
+import { generateText } from "ai";
+import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
+import { getAiModel } from "./ai-gateway.server";
+import { syncFixtures, syncOdds } from "./football.server";
+
+// Regras fixas do robô (definidas pelo dono do app).
+const JANELA_HORAS = 4;
+const ODD_MIN_JOGO = 1.4;
+const ODD_MAX_TOTAL = 3.5;
+const MAX_JOGOS = 3;
+const CASA = "Betano";
+// Ligas principais: Brasileirão Série A e Série B (nomes gravados na coluna "liga").
+const LIGAS_FOCO = ["Brasileirão Série A", "Brasileirão Série B"];
+
+type OddRow = {
+  casa: string;
+  mercado: string;
+  selecao: string;
+  valor: number;
+  external_odd_id: string | null;
+};
+type PartidaRow = {
+  id: string;
+  external_id: string | null;
+  liga: string | null;
+  time_casa: string;
+  time_fora: string;
+  inicio: string;
+  status: string;
+  odds: OddRow[];
+};
+
+function normKey(v: string) {
+  return v
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function formatMatchDate(iso: string) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date(iso));
+}
+
+function extractJson(text: string) {
+  const cleaned = text.replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
+  if (start === -1 || end === -1 || end <= start) throw new Error("JSON não encontrado");
+  return cleaned.slice(start, end + 1);
+}
+
+function admin() {
+  return createClient<Database>(
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false, autoRefreshToken: false } },
+  );
+}
+
+export interface AutoResult {
+  ok: boolean;
+  bilheteId?: string;
+  jogosAnalisados: number;
+  picks: number;
+  oddTotal?: number;
+  motivo?: string;
+}
+
+export async function gerarBilheteAutomatico(): Promise<AutoResult> {
+  const supabase = admin();
+  const now = Date.now();
+  const from = new Date(now).toISOString();
+  const to = new Date(now + JANELA_HORAS * 3600_000).toISOString();
+
+  // 1) Garante fixtures de hoje no banco.
+  try {
+    await syncFixtures("hoje");
+  } catch (e) {
+    console.error("auto-bilhete: falha ao sincronizar fixtures", e);
+  }
+
+  const lerPartidas = async () =>
+    supabase
+      .from("partidas")
+      .select(
+        "id, external_id, liga, time_casa, time_fora, inicio, status, odds(casa, mercado, selecao, valor, external_odd_id)",
+      )
+      .in("liga", LIGAS_FOCO)
+      .or(`status.eq.ao_vivo,and(inicio.gte.${from},inicio.lte.${to})`)
+      .order("inicio", { ascending: true })
+      .limit(20);
+
+  let { data: partidas } = await lerPartidas();
+  let rows = (partidas ?? []) as PartidaRow[];
+
+  if (!rows.length) {
+    return { ok: true, jogosAnalisados: 0, picks: 0, motivo: "Nenhum jogo nas próximas 4h nas ligas principais." };
+  }
+
+  // 2) Busca odds reais (Betano) dos jogos sem odds dessa casa.
+  const semOdds = rows.filter((r) => !r.odds.some((o) => normKey(o.casa) === normKey(CASA)));
+  if (semOdds.length) {
+    try {
+      const gravadas = await syncOdds(
+        semOdds.map((r) => ({
+          id: r.id,
+          external_id: r.external_id,
+          time_casa: r.time_casa,
+          time_fora: r.time_fora,
+        })),
+        CASA,
+      );
+      if (gravadas > 0) {
+        const reload = await lerPartidas();
+        if (reload.data?.length) rows = reload.data as PartidaRow[];
+      }
+    } catch (e) {
+      console.error("auto-bilhete: falha ao sincronizar odds", e);
+    }
+  }
+
+  // Só jogos que têm pelo menos uma odd >= mínimo na casa escolhida.
+  const elegiveis = rows.filter((r) =>
+    r.odds.some((o) => normKey(o.casa) === normKey(CASA) && o.valor >= ODD_MIN_JOGO),
+  );
+  if (!elegiveis.length) {
+    return { ok: true, jogosAnalisados: rows.length, picks: 0, motivo: "Sem odds elegíveis (>= 1.40) nos jogos da janela." };
+  }
+
+  // 3) Monta o texto e chama o Gemini.
+  const jogosTexto = elegiveis
+    .map((r) => {
+      const jogo = `${r.time_casa} x ${r.time_fora}`;
+      const odds = r.odds
+        .filter((o) => normKey(o.casa) === normKey(CASA) && o.valor >= ODD_MIN_JOGO)
+        .map((o) => `${o.mercado} - ${o.selecao}: @${o.valor.toFixed(2)}`)
+        .join(" | ");
+      return `- ${jogo} (${r.liga}, ${formatMatchDate(r.inicio)}): ${odds}`;
+    })
+    .join("\n");
+
+  const prompt = `Você é um analista de apostas esportivas. Monte UM ÚNICO bilhete múltiplo a partir das odds reais abaixo.
+
+REGRAS OBRIGATÓRIAS:
+- Use SOMENTE seleções listadas abaixo (mesmo jogo, mercado, seleção).
+- Cada seleção deve ter odd >= ${ODD_MIN_JOGO}.
+- No máximo ${MAX_JOGOS} jogos no bilhete (um jogo só pode aparecer uma vez).
+- A odd total (produto das odds) deve ser <= ${ODD_MAX_TOTAL}.
+- Priorize as entradas mais seguras.
+
+JOGOS E ODDS DISPONÍVEIS:
+${jogosTexto}
+
+Responda APENAS em JSON, sem texto fora do JSON:
+{
+  "resumo": "string curta",
+  "risco": "baixo" | "medio" | "alto",
+  "observacoes": "string",
+  "picks": [
+    { "jogo": "Time A x Time B", "mercado": "...", "selecao": "...", "confianca": 0-100, "justificativa": "..." }
+  ]
+}`;
+
+  let raw: Record<string, unknown>;
+  try {
+    const { text } = await generateText({ model: getAiModel(), prompt });
+    raw = JSON.parse(extractJson(text)) as Record<string, unknown>;
+  } catch (e) {
+    console.error("auto-bilhete: falha na IA", e);
+    return { ok: false, jogosAnalisados: elegiveis.length, picks: 0, motivo: "Falha ao gerar/parsear resposta da IA." };
+  }
+
+  // 4) Valida picks contra o banco e aplica as regras.
+  const rawPicks = Array.isArray(raw.picks) ? (raw.picks as Record<string, unknown>[]) : [];
+  const usados = new Set<string>();
+  type Pick = {
+    partida_id: string;
+    jogo: string;
+    mercado: string;
+    selecao: string;
+    odd: number;
+    confianca: number;
+    justificativa: string;
+    external_odd_id: string | null;
+  };
+  const picks: Pick[] = [];
+
+  for (const item of rawPicks) {
+    const jogo = String(item.jogo ?? "").trim();
+    const mercado = String(item.mercado ?? "").trim();
+    const selecao = String(item.selecao ?? "").trim();
+    if (!jogo || !selecao) continue;
+
+    const partida = elegiveis.find((r) => normKey(`${r.time_casa} x ${r.time_fora}`) === normKey(jogo));
+    if (!partida || usados.has(partida.id)) continue;
+
+    const oddRow = partida.odds.find(
+      (o) => normKey(o.casa) === normKey(CASA) && normKey(o.selecao) === normKey(selecao) && o.valor >= ODD_MIN_JOGO,
+    );
+    if (!oddRow) continue;
+
+    usados.add(partida.id);
+    picks.push({
+      partida_id: partida.id,
+      jogo,
+      mercado: oddRow.mercado,
+      selecao: oddRow.selecao,
+      odd: oddRow.valor,
+      confianca: Math.max(0, Math.min(100, Number(item.confianca) || 60)),
+      justificativa: String(item.justificativa ?? "Entrada baseada nas odds reais."),
+      external_odd_id: oddRow.external_odd_id,
+    });
+    if (picks.length >= MAX_JOGOS) break;
+  }
+
+  // Garante odd total <= máximo: remove a maior odd até caber.
+  let escolhidos = [...picks].sort((a, b) => b.confianca - a.confianca);
+  const oddTotalDe = (arr: Pick[]) => arr.reduce((t, p) => t * p.odd, 1);
+  while (escolhidos.length > 1 && oddTotalDe(escolhidos) > ODD_MAX_TOTAL) {
+    escolhidos.sort((a, b) => b.odd - a.odd);
+    escolhidos.shift();
+  }
+
+  if (!escolhidos.length || oddTotalDe(escolhidos) > ODD_MAX_TOTAL) {
+    return { ok: true, jogosAnalisados: elegiveis.length, picks: 0, motivo: "Não foi possível montar bilhete dentro das regras." };
+  }
+
+  const oddTotal = Number(oddTotalDe(escolhidos).toFixed(2));
+  const avg = escolhidos.reduce((s, p) => s + p.confianca, 0) / escolhidos.length;
+  const risco: string =
+    typeof raw.risco === "string" && ["baixo", "medio", "alto"].includes(raw.risco)
+      ? (raw.risco as string)
+      : oddTotal <= 2.2 && avg >= 70
+        ? "baixo"
+        : avg < 55
+          ? "alto"
+          : "medio";
+
+  // 5) Salva bilhete + palpites.
+  const { data: bilhete, error: errBilhete } = await supabase
+    .from("bilhetes")
+    .insert({
+      resumo: String(raw.resumo ?? `Bilhete automático (odd total ${oddTotal}).`),
+      odd_total: oddTotal,
+      risco,
+      observacoes: String(raw.observacoes ?? "Odds reais da API-Football; podem variar até a confirmação na casa."),
+      casa: CASA,
+      periodo: "aovivo",
+    })
+    .select("id")
+    .single();
+
+  if (errBilhete || !bilhete) {
+    console.error("auto-bilhete: erro ao salvar bilhete", errBilhete);
+    return { ok: false, jogosAnalisados: elegiveis.length, picks: 0, motivo: "Erro ao salvar bilhete." };
+  }
+
+  const { error: errPalpites } = await supabase.from("palpites").insert(
+    escolhidos.map((p) => ({
+      bilhete_id: bilhete.id,
+      partida_id: p.partida_id,
+      mercado: p.mercado,
+      selecao: p.selecao,
+      odd: p.odd,
+      confianca: p.confianca,
+      justificativa: p.justificativa,
+    })),
+  );
+  if (errPalpites) console.error("auto-bilhete: erro ao salvar palpites", errPalpites);
+
+  return {
+    ok: true,
+    bilheteId: bilhete.id,
+    jogosAnalisados: elegiveis.length,
+    picks: escolhidos.length,
+    oddTotal,
+  };
+}
