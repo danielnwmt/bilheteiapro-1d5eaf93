@@ -17,6 +17,7 @@ export type Database = {
       bilhetes: {
         Row: {
           casa: string
+          confianca: number
           created_at: string
           id: string
           observacoes: string | null
@@ -26,9 +27,11 @@ export type Database = {
           risco: string
           tipo: string
           updated_at: string
+          url_deeplink: string | null
         }
         Insert: {
           casa?: string
+          confianca?: number
           created_at?: string
           id?: string
           observacoes?: string | null
@@ -38,9 +41,11 @@ export type Database = {
           risco?: string
           tipo?: string
           updated_at?: string
+          url_deeplink?: string | null
         }
         Update: {
           casa?: string
+          confianca?: number
           created_at?: string
           id?: string
           observacoes?: string | null
@@ -50,6 +55,7 @@ export type Database = {
           risco?: string
           tipo?: string
           updated_at?: string
+          url_deeplink?: string | null
         }
         Relationships: []
       }

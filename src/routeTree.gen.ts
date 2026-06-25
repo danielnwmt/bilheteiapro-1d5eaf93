@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiPublicIngestRouteImport } from './routes/api/public/ingest'
+import { Route as ApiPublicHooksSyncOddsDiarioRouteImport } from './routes/api/public/hooks/sync-odds-diario'
 import { Route as ApiPublicHooksSyncFootballRouteImport } from './routes/api/public/hooks/sync-football'
 import { Route as ApiPublicHooksGerarBilhetesRouteImport } from './routes/api/public/hooks/gerar-bilhetes'
 
@@ -24,6 +25,12 @@ const ApiPublicIngestRoute = ApiPublicIngestRouteImport.update({
   path: '/api/public/ingest',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksSyncOddsDiarioRoute =
+  ApiPublicHooksSyncOddsDiarioRouteImport.update({
+    id: '/api/public/hooks/sync-odds-diario',
+    path: '/api/public/hooks/sync-odds-diario',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksSyncFootballRoute =
   ApiPublicHooksSyncFootballRouteImport.update({
     id: '/api/public/hooks/sync-football',
@@ -42,12 +49,14 @@ export interface FileRoutesByFullPath {
   '/api/public/ingest': typeof ApiPublicIngestRoute
   '/api/public/hooks/gerar-bilhetes': typeof ApiPublicHooksGerarBilhetesRoute
   '/api/public/hooks/sync-football': typeof ApiPublicHooksSyncFootballRoute
+  '/api/public/hooks/sync-odds-diario': typeof ApiPublicHooksSyncOddsDiarioRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/api/public/ingest': typeof ApiPublicIngestRoute
   '/api/public/hooks/gerar-bilhetes': typeof ApiPublicHooksGerarBilhetesRoute
   '/api/public/hooks/sync-football': typeof ApiPublicHooksSyncFootballRoute
+  '/api/public/hooks/sync-odds-diario': typeof ApiPublicHooksSyncOddsDiarioRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -55,6 +64,7 @@ export interface FileRoutesById {
   '/api/public/ingest': typeof ApiPublicIngestRoute
   '/api/public/hooks/gerar-bilhetes': typeof ApiPublicHooksGerarBilhetesRoute
   '/api/public/hooks/sync-football': typeof ApiPublicHooksSyncFootballRoute
+  '/api/public/hooks/sync-odds-diario': typeof ApiPublicHooksSyncOddsDiarioRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -63,18 +73,21 @@ export interface FileRouteTypes {
     | '/api/public/ingest'
     | '/api/public/hooks/gerar-bilhetes'
     | '/api/public/hooks/sync-football'
+    | '/api/public/hooks/sync-odds-diario'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/api/public/ingest'
     | '/api/public/hooks/gerar-bilhetes'
     | '/api/public/hooks/sync-football'
+    | '/api/public/hooks/sync-odds-diario'
   id:
     | '__root__'
     | '/'
     | '/api/public/ingest'
     | '/api/public/hooks/gerar-bilhetes'
     | '/api/public/hooks/sync-football'
+    | '/api/public/hooks/sync-odds-diario'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -82,6 +95,7 @@ export interface RootRouteChildren {
   ApiPublicIngestRoute: typeof ApiPublicIngestRoute
   ApiPublicHooksGerarBilhetesRoute: typeof ApiPublicHooksGerarBilhetesRoute
   ApiPublicHooksSyncFootballRoute: typeof ApiPublicHooksSyncFootballRoute
+  ApiPublicHooksSyncOddsDiarioRoute: typeof ApiPublicHooksSyncOddsDiarioRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -98,6 +112,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/ingest'
       fullPath: '/api/public/ingest'
       preLoaderRoute: typeof ApiPublicIngestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/sync-odds-diario': {
+      id: '/api/public/hooks/sync-odds-diario'
+      path: '/api/public/hooks/sync-odds-diario'
+      fullPath: '/api/public/hooks/sync-odds-diario'
+      preLoaderRoute: typeof ApiPublicHooksSyncOddsDiarioRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/hooks/sync-football': {
@@ -122,6 +143,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicIngestRoute: ApiPublicIngestRoute,
   ApiPublicHooksGerarBilhetesRoute: ApiPublicHooksGerarBilhetesRoute,
   ApiPublicHooksSyncFootballRoute: ApiPublicHooksSyncFootballRoute,
+  ApiPublicHooksSyncOddsDiarioRoute: ApiPublicHooksSyncOddsDiarioRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
