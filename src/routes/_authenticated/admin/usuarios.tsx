@@ -249,8 +249,9 @@ function UsuariosPage() {
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <div className="space-y-3">
-            {(clientes ?? []).map((c) => {
+          <div className="space-y-8">
+            {(() => {
+              const renderCard = (c: any) => {
               const cur = edit[c.id] ?? {
                 plano: (c.plano as Plano) ?? "start",
                 status: (c.status as "ativo" | "inativo") ?? "inativo",
