@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Loader2, KeyRound } from "lucide-react";
-import { PLANOS, PLANO_INFO, type Plano } from "@/lib/planos";
+import { PLANOS, type Plano } from "@/lib/planos";
+import { usePlanos } from "@/hooks/usePlanos";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin/usuarios")({
