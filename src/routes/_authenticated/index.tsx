@@ -137,11 +137,13 @@ function Index() {
   const [loading, setLoading] = useState(false);
   const [ticket, setTicket] = useState<Ticket | null>(null);
 
+  const { byPlano } = usePlanos();
   const roles = access?.roles ?? [];
   const isStaff = roles.includes("admin") || roles.includes("operador");
   const plano = access?.plano ?? null;
+  const planoCfg = plano ? byPlano?.[plano] ?? null : null;
   const temAcesso = isStaff || !!plano;
-  const isElite = isStaff || plano === "elite";
+  const permiteAoVivo = isStaff || !!planoCfg?.recursos?.tempoReal;
 
   // Volta do checkout: atualiza o plano.
   useEffect(() => {
@@ -155,8 +157,9 @@ function Index() {
   }, [refetchAccess]);
 
   function podeUsarLiga(c: string) {
-    return isStaff || ligaLiberada(plano, c);
+    return isStaff || ligaLiberada(planoCfg, c);
   }
+
 
   async function handleSignOut() {
     await supabase.auth.signOut();
