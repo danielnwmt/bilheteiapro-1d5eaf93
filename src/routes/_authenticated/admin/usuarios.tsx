@@ -35,6 +35,7 @@ function UsuariosPage() {
       salvar({ data: v }),
     onSuccess: () => {
       toast.success("Cliente atualizado");
+      setOpenId(null);
       qc.invalidateQueries({ queryKey: ["clientes"] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
