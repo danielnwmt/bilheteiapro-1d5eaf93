@@ -62,12 +62,13 @@ function ApisPage() {
   });
 
   const existentes = new Map((config ?? []).map((c) => [c.chave, c.descricao]));
+  const chavesPagamento = new Set(CHAVES_PAGAMENTO.map((c) => c.chave));
   const todasChaves = Array.from(
     new Set([
       ...CHAVES_PADRAO.map((c) => c.chave),
       ...(config ?? []).map((c) => c.chave),
     ]),
-  );
+  ).filter((c) => !chavesPagamento.has(c));
 
   if (error) {
     return (
