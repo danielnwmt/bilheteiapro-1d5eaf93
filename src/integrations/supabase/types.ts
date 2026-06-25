@@ -255,6 +255,48 @@ export type Database = {
         }
         Relationships: []
       }
+      plano_config: {
+        Row: {
+          created_at: string
+          descricao: string
+          historico_dias: number
+          ligas: Json
+          nivel: number
+          nome: string
+          plano: Database["public"]["Enums"]["plano_tipo"]
+          preco: string
+          price_id: string
+          recursos: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          descricao: string
+          historico_dias?: number
+          ligas?: Json
+          nivel: number
+          nome: string
+          plano: Database["public"]["Enums"]["plano_tipo"]
+          preco: string
+          price_id: string
+          recursos?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          descricao?: string
+          historico_dias?: number
+          ligas?: Json
+          nivel?: number
+          nome?: string
+          plano?: Database["public"]["Enums"]["plano_tipo"]
+          preco?: string
+          price_id?: string
+          recursos?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
