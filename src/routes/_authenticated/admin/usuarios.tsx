@@ -2,7 +2,7 @@ import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { listClientes, setClientePlano, updateClienteProfile } from "@/lib/access.functions";
+import { listClientes, setClientePlano, updateClienteProfile, setClientePassword } from "@/lib/access.functions";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -25,10 +25,12 @@ function UsuariosPage() {
   const fetchClientes = useServerFn(listClientes);
   const salvar = useServerFn(setClientePlano);
   const salvarPerfil = useServerFn(updateClienteProfile);
+  const salvarSenha = useServerFn(setClientePassword);
   const [edit, setEdit] = useState<Record<string, { plano: Plano; status: "ativo" | "inativo" }>>({});
   const [perfil, setPerfil] = useState<
     Record<string, { nome: string; email: string; cpf: string; data_nascimento: string }>
   >({});
+  const [senhas, setSenhas] = useState<Record<string, string>>({});
   const [openId, setOpenId] = useState<string | null>(null);
 
   const formatCpf = (v: string) =>
@@ -68,6 +70,15 @@ function UsuariosPage() {
       qc.invalidateQueries({ queryKey: ["clientes"] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar cadastro"),
+  });
+
+  const mutSenha = useMutation({
+    mutationFn: (v: { clienteId: string; senha: string }) => salvarSenha({ data: v }),
+    onSuccess: (_d, v) => {
+      toast.success("Senha alterada");
+      setSenhas((s) => ({ ...s, [v.clienteId]: "" }));
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao alterar senha"),
   });
 
   const handleSalvar = (c: any, cur: { plano: Plano; status: "ativo" | "inativo" }) => {
@@ -220,6 +231,33 @@ function UsuariosPage() {
                           />
                         </div>
                       </div>
+
+                      <div className="mt-4 border-t border-border/60 pt-4">
+                        <Label className="text-xs">Nova senha</Label>
+                        <div className="mt-1 flex flex-wrap items-end gap-2">
+                          <Input
+                            type="text"
+                            placeholder="Mínimo 6 caracteres"
+                            value={senhas[c.id] ?? ""}
+                            onChange={(e) =>
+                              setSenhas((s) => ({ ...s, [c.id]: e.target.value }))
+                            }
+                            className="max-w-xs"
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={mutSenha.isPending || (senhas[c.id] ?? "").length < 6}
+                            onClick={() => mutSenha.mutate({ clienteId: c.id, senha: senhas[c.id] ?? "" })}
+                          >
+                            <KeyRound className="mr-2 h-4 w-4" /> Alterar senha
+                          </Button>
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Define uma nova senha para o cliente (somente admin).
+                        </p>
+                      </div>
+
                       <div className="mt-4 flex gap-2">
                         <Button
                           size="sm"
