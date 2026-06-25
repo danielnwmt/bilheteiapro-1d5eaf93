@@ -12,11 +12,6 @@ DO $$ BEGIN CREATE ROLE service_role NOLOGIN NOINHERIT; EXCEPTION WHEN duplicate
 -- superusuário e quebra o setup. O schema cria políticas explícitas para
 -- service_role acessar tudo sem depender desse atributo.
 
-DO $$ BEGIN
-  GRANT anon, authenticated, service_role TO CURRENT_USER;
-EXCEPTION WHEN OTHERS THEN NULL; END $$;
-
-
 -- Schemas
 CREATE SCHEMA IF NOT EXISTS auth;
 CREATE SCHEMA IF NOT EXISTS private;
