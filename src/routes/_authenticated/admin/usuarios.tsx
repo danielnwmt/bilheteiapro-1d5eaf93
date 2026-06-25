@@ -117,20 +117,27 @@ function UsuariosPage() {
                 plano: (c.plano as Plano) ?? "start",
                 status: (c.status as "ativo" | "inativo") ?? "inativo",
               };
+              const pf = perfil[c.id] ?? {
+                nome: c.nome ?? "",
+                email: c.email ?? "",
+                cpf: c.cpf ?? "",
+                data_nascimento: c.data_nascimento ?? "",
+              };
+              const isOpen = openId === c.id;
               return (
                 <Card key={c.id} className="border-border/60 bg-card p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate font-semibold">{c.nome || c.email || c.id}</p>
                       <p className="truncate text-xs text-muted-foreground">{c.email}</p>
-                      <div className="mt-1 flex gap-1">
+                      <div className="mt-1 flex flex-wrap gap-1">
                         {c.roles.map((r) => (
                           <Badge key={r} variant="secondary" className="text-[10px]">{r}</Badge>
                         ))}
                       </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      {openId === c.id ? (
+                      {isOpen ? (
                         <>
                           <select
                             value={cur.plano}
@@ -156,18 +163,6 @@ function UsuariosPage() {
                             <option value="ativo">ativo</option>
                             <option value="inativo">inativo</option>
                           </select>
-                          <Button
-                            size="sm"
-                            disabled={mut.isPending}
-                            onClick={() =>
-                              mut.mutate({ clienteId: c.id, plano: cur.plano, status: cur.status })
-                            }
-                          >
-                            Salvar
-                          </Button>
-                          <Button variant="ghost" size="sm" onClick={() => setOpenId(null)}>
-                            Cancelar
-                          </Button>
                         </>
                       ) : (
                         <>
@@ -182,6 +177,63 @@ function UsuariosPage() {
                       )}
                     </div>
                   </div>
+
+                  {isOpen && (
+                    <div className="mt-4 border-t border-border/60 pt-4">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Nome completo</Label>
+                          <Input
+                            value={pf.nome}
+                            onChange={(e) =>
+                              setPerfil((s) => ({ ...s, [c.id]: { ...pf, nome: e.target.value } }))
+                            }
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">E-mail</Label>
+                          <Input
+                            type="email"
+                            value={pf.email}
+                            onChange={(e) =>
+                              setPerfil((s) => ({ ...s, [c.id]: { ...pf, email: e.target.value } }))
+                            }
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">CPF</Label>
+                          <Input
+                            value={formatCpf(pf.cpf)}
+                            onChange={(e) =>
+                              setPerfil((s) => ({ ...s, [c.id]: { ...pf, cpf: e.target.value } }))
+                            }
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Data de nascimento</Label>
+                          <Input
+                            type="date"
+                            value={pf.data_nascimento ?? ""}
+                            onChange={(e) =>
+                              setPerfil((s) => ({ ...s, [c.id]: { ...pf, data_nascimento: e.target.value } }))
+                            }
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-4 flex gap-2">
+                        <Button
+                          size="sm"
+                          disabled={mut.isPending || mutPerfil.isPending}
+                          onClick={() => handleSalvar(c, cur)}
+                        >
+                          Salvar
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setOpenId(null)}>
+                          Cancelar
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </Card>
               );
             })}
