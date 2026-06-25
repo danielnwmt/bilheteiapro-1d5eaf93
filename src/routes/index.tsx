@@ -125,6 +125,7 @@ function Index() {
   const [periodo, setPeriodo] = useState<"hoje" | "amanha" | "semana" | "aovivo">("hoje");
   const [casa, setCasa] = useState<(typeof CASAS)[number]["id"]>("bet365");
   const [campSel, setCampSel] = useState<string[]>([]);
+  const [mercSel, setMercSel] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [ticket, setTicket] = useState<Ticket | null>(null);
 
