@@ -80,6 +80,11 @@ function AuthPage() {
           }
           throw error;
         }
+        try {
+          await ensureAdmin();
+        } catch {
+          /* ignore */
+        }
         router.navigate({ to: "/", replace: true });
       } else {
         const { error } = await supabase.auth.signUp({
