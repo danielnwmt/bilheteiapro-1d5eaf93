@@ -36,23 +36,19 @@ function PlanosPage() {
   const { data: access } = useAccess();
   const { list, byPlano, isLoading } = usePlanos();
   const [checkout, setCheckout] = useState<Plano | null>(null);
-  const [carregando, setCarregando] = useState<"stripe" | "mp" | null>(null);
+  const [carregando, setCarregando] = useState(false);
 
-  const stripeCheckout = useServerFn(createStripeCheckout);
-  const mpCheckout = useServerFn(createMercadoPagoCheckout);
+  const infinitePayCheckout = useServerFn(createInfinitePayCheckout);
 
   const planoAtual = access?.plano ?? null;
   const checkoutCfg = checkout ? byPlano[checkout] : null;
 
-  async function pagar(provedor: "stripe" | "mp") {
+  async function pagar() {
     if (!checkout) return;
-    setCarregando(provedor);
+    setCarregando(true);
     try {
       const returnUrl = `${window.location.origin}/?checkout=success`;
-      const result =
-        provedor === "stripe"
-          ? await stripeCheckout({ data: { plano: checkout, returnUrl } })
-          : await mpCheckout({ data: { plano: checkout, returnUrl } });
+      const result = await infinitePayCheckout({ data: { plano: checkout, returnUrl } });
       if ("error" in result) {
         toast.error(result.error);
         return;
@@ -61,7 +57,7 @@ function PlanosPage() {
     } catch (e: any) {
       toast.error(e?.message ?? "Não foi possível iniciar o pagamento");
     } finally {
-      setCarregando(null);
+      setCarregando(false);
     }
   }
 
