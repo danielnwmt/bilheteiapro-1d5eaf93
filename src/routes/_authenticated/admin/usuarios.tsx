@@ -23,6 +23,7 @@ function UsuariosPage() {
   const fetchClientes = useServerFn(listClientes);
   const salvar = useServerFn(setClientePlano);
   const [edit, setEdit] = useState<Record<string, { plano: Plano; status: "ativo" | "inativo" }>>({});
+  const [openId, setOpenId] = useState<string | null>(null);
 
   const { data: clientes, isLoading } = useQuery({
     queryKey: ["clientes"],
