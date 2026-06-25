@@ -292,3 +292,154 @@ export async function syncOdds(
 
   return rows.length;
 }
+
+// ---------- Coleta de odds 1x por dia, por liga ----------
+
+// Mapa reverso: nome da liga (app) -> id da API-Football.
+const LEAGUE_NAME_TO_ID: Record<string, number> = Object.fromEntries(
+  Object.entries(LEAGUE_ID_TO_NAME).map(([id, name]) => [name, Number(id)]),
+);
+
+// Temporada (ano) usada pela API-Football para uma data.
+function seasonForDate(dateStr: string): number {
+  return Number(dateStr.slice(0, 4));
+}
+
+/**
+ * Coleta as odds disponíveis de TODAS as partidas do dia fazendo
+ * apenas UMA chamada por liga (em vez de uma por jogo).
+ *
+ * 1. Lê as partidas de "hoje" no banco e descobre quais ligas têm jogos.
+ * 2. Para cada liga, chama /odds?date=...&league=...&season=... (com paginação).
+ * 3. Mapeia o fixture (external_id) -> partida interna e grava as odds.
+ *
+ * Retorna { ligas, chamadas, odds } com a contagem do processamento.
+ */
+export async function syncOddsByLeagueToday(
+  casa: string = "betano",
+): Promise<{ ligas: number; chamadas: number; odds: number }> {
+  const key = process.env.API_FOOTBALL_KEY;
+  if (!key) throw new Error("Missing API_FOOTBALL_KEY");
+
+  const supabase = createClient<Database>(
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false, autoRefreshToken: false } },
+  );
+
+  const date = spDateString(0);
+  const start = `${date}T00:00:00-03:00`;
+  const end = `${date}T23:59:59-03:00`;
+
+  // Partidas de hoje com external_id (agendadas ou ao vivo).
+  const { data: partidas, error: pErr } = await supabase
+    .from("partidas")
+    .select("id, external_id, liga, time_casa, time_fora")
+    .gte("inicio", start)
+    .lte("inicio", end)
+    .not("external_id", "is", null);
+
+  if (pErr) throw new Error(`Erro ao ler partidas: ${pErr.message}`);
+  if (!partidas?.length) return { ligas: 0, chamadas: 0, odds: 0 };
+
+  // Indexa partidas por external_id (fixture id da API).
+  const byFixture = new Map<string, (typeof partidas)[number]>();
+  for (const p of partidas) {
+    if (p.external_id) byFixture.set(String(p.external_id), p);
+  }
+
+  // Descobre as ligas com jogos hoje (que estão mapeadas para um id).
+  const ligaIds = new Set<number>();
+  for (const p of partidas) {
+    const id = p.liga ? LEAGUE_NAME_TO_ID[p.liga] : undefined;
+    if (id) ligaIds.add(id);
+  }
+
+  const casaNorm = normCasa(casa);
+  const bookmakerId = BOOKMAKER_NAME_TO_ID[casaNorm];
+  const season = seasonForDate(date);
+
+  const rows: Array<{
+    partida_id: string;
+    casa: string;
+    mercado: string;
+    selecao: string;
+    valor: number;
+    external_odd_id: string | null;
+  }> = [];
+
+  let chamadas = 0;
+
+  // Uma chamada por liga (com paginação interna da API).
+  for (const leagueId of ligaIds) {
+    let page = 1;
+    let totalPages = 1;
+    do {
+      let resp: ApiOddResponse[];
+      let raw: { paging?: { current: number; total: number } } = {};
+      try {
+        const q = bookmakerId ? `&bookmaker=${bookmakerId}` : "";
+        const res = await fetch(
+          `${API_BASE}/odds?date=${date}&league=${leagueId}&season=${season}${q}&page=${page}&timezone=America/Sao_Paulo`,
+          { headers: { "x-apisports-key": key } },
+        );
+        chamadas++;
+        if (!res.ok) throw new Error(`API-Football odds ${res.status}: ${await res.text()}`);
+        const json = (await res.json()) as {
+          errors?: unknown;
+          response?: ApiOddResponse[];
+          paging?: { current: number; total: number };
+        };
+        const hasErr =
+          json.errors && (Array.isArray(json.errors) ? json.errors.length : Object.keys(json.errors).length);
+        if (hasErr) throw new Error(`API-Football odds erro: ${JSON.stringify(json.errors)}`);
+        resp = json.response ?? [];
+        raw = json;
+      } catch (e) {
+        console.error("Falha ao buscar odds da liga", leagueId, "pág", page, e);
+        break;
+      }
+
+      totalPages = raw.paging?.total ?? 1;
+
+      for (const entry of resp) {
+        const f = byFixture.get(String(entry.fixture.id));
+        if (!f) continue; // fixture não está entre as partidas do banco
+        const bm =
+          entry.bookmakers.find((b) => b.id === bookmakerId || normCasa(b.name) === casaNorm) ??
+          entry.bookmakers[0];
+        if (!bm) continue;
+
+        for (const bet of bm.bets) {
+          if (!WANTED_BETS.has(bet.name.toLowerCase())) continue;
+          for (const val of bet.values) {
+            const mapped = mapBetValue(bet.name, val.value, f.time_casa, f.time_fora);
+            if (!mapped) continue;
+            const valor = Number(val.odd);
+            if (!Number.isFinite(valor)) continue;
+            rows.push({
+              partida_id: f.id,
+              casa,
+              mercado: mapped.mercado,
+              selecao: mapped.selecao,
+              valor,
+              external_odd_id: `${f.external_id}:${bm.id}:${bet.id}:${val.value}`,
+            });
+          }
+        }
+      }
+
+      page++;
+    } while (page <= totalPages);
+  }
+
+  if (!rows.length) return { ligas: ligaIds.size, chamadas, odds: 0 };
+
+  const { error } = await supabase
+    .from("odds")
+    .upsert(rows, { onConflict: "partida_id,casa,mercado,selecao" });
+
+  if (error) throw new Error(`Erro ao gravar odds: ${error.message}`);
+
+  return { ligas: ligaIds.size, chamadas, odds: rows.length };
+}
