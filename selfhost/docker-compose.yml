@@ -1,0 +1,105 @@
+# ============================================================
+#  Supabase self-hosted (100% local na VPS) + App BilheteIA
+#  Subir com:  bash setup.sh
+# ============================================================
+
+services:
+  # ---------- Banco de dados Postgres (com schema auth e roles do Supabase) ----------
+  db:
+    image: supabase/postgres:15.14.1.139
+    container_name: bia-db
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: postgres
+    volumes:
+      - bia-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # ---------- Autenticação (GoTrue) ----------
+  auth:
+    image: supabase/gotrue:v2.191.0
+    container_name: bia-auth
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      API_EXTERNAL_URL: ${SUPABASE_PUBLIC_URL}
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@db:5432/postgres
+      GOTRUE_SITE_URL: ${SITE_URL}
+      GOTRUE_URI_ALLOW_LIST: "*"
+      GOTRUE_DISABLE_SIGNUP: "false"
+      GOTRUE_JWT_SECRET: ${JWT_SECRET}
+      GOTRUE_JWT_EXP: "3600"
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
+      GOTRUE_MAILER_AUTOCONFIRM: "true"
+      GOTRUE_SMTP_ADMIN_EMAIL: ${ADMIN_EMAIL}
+      GOTRUE_LOG_LEVEL: info
+
+  # ---------- Data API (PostgREST) ----------
+  rest:
+    image: postgrest/postgrest:v14.13
+    container_name: bia-rest
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGRST_DB_URI: postgres://postgres:${POSTGRES_PASSWORD}@db:5432/postgres
+      PGRST_DB_SCHEMAS: public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+
+  # ---------- Gateway (Kong) — expõe /auth/v1 e /rest/v1 numa única URL ----------
+  kong:
+    image: kong:2.8.1
+    container_name: bia-kong
+    restart: always
+    depends_on:
+      - auth
+      - rest
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_PLUGINS: request-transformer,cors
+    volumes:
+      - ./kong.yml:/home/kong/kong.yml:ro
+    ports:
+      - "${SUPABASE_PORT}:8000"
+
+  # ---------- App BilheteIA PRO ----------
+  app:
+    build:
+      context: ..
+      args:
+        VITE_SUPABASE_URL: ${SUPABASE_PUBLIC_URL}
+        VITE_SUPABASE_PUBLISHABLE_KEY: ${ANON_KEY}
+        VITE_SUPABASE_PROJECT_ID: local
+    container_name: bia-app
+    restart: always
+    depends_on:
+      - kong
+    environment:
+      SUPABASE_URL: http://kong:8000
+      SUPABASE_PUBLISHABLE_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+      SUPABASE_PROJECT_ID: local
+      INGEST_SECRET: ${INGEST_SECRET}
+    ports:
+      - "${APP_PORT}:3000"
+
+volumes:
+  bia-db-data:
