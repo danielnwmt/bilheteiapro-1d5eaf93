@@ -16,6 +16,7 @@ import { Route as AuthenticatedPlanosRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/admin/route'
 import { Route as ApiPublicIngestRouteImport } from './routes/api/public/ingest'
 import { Route as AuthenticatedAdminUsuariosRouteImport } from './routes/_authenticated/admin/usuarios'
+import { Route as AuthenticatedAdminConfiguracoesRouteImport } from './routes/_authenticated/admin/configuracoes'
 import { Route as AuthenticatedAdminApisRouteImport } from './routes/_authenticated/admin/apis'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as ApiPublicHooksSyncOddsDiarioRouteImport } from './routes/api/public/hooks/sync-odds-diario'
@@ -57,6 +58,12 @@ const AuthenticatedAdminUsuariosRoute =
     path: '/usuarios',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const AuthenticatedAdminConfiguracoesRoute =
+  AuthenticatedAdminConfiguracoesRouteImport.update({
+    id: '/configuracoes',
+    path: '/configuracoes',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const AuthenticatedAdminApisRoute = AuthenticatedAdminApisRouteImport.update({
   id: '/apis',
   path: '/apis',
@@ -93,6 +100,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AuthenticatedAdminRouteRouteWithChildren
   '/planos': typeof AuthenticatedPlanosRoute
   '/admin/apis': typeof AuthenticatedAdminApisRoute
+  '/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/api/public/ingest': typeof ApiPublicIngestRoute
   '/api/public/hooks/gerar-bilhetes': typeof ApiPublicHooksGerarBilhetesRoute
@@ -106,6 +114,7 @@ export interface FileRoutesByTo {
   '/planos': typeof AuthenticatedPlanosRoute
   '/': typeof AuthenticatedIndexRoute
   '/admin/apis': typeof AuthenticatedAdminApisRoute
+  '/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/api/public/ingest': typeof ApiPublicIngestRoute
   '/api/public/hooks/gerar-bilhetes': typeof ApiPublicHooksGerarBilhetesRoute
@@ -121,6 +130,7 @@ export interface FileRoutesById {
   '/_authenticated/planos': typeof AuthenticatedPlanosRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/admin/apis': typeof AuthenticatedAdminApisRoute
+  '/_authenticated/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
   '/_authenticated/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/api/public/ingest': typeof ApiPublicIngestRoute
   '/api/public/hooks/gerar-bilhetes': typeof ApiPublicHooksGerarBilhetesRoute
@@ -136,6 +146,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/planos'
     | '/admin/apis'
+    | '/admin/configuracoes'
     | '/admin/usuarios'
     | '/api/public/ingest'
     | '/api/public/hooks/gerar-bilhetes'
@@ -149,6 +160,7 @@ export interface FileRouteTypes {
     | '/planos'
     | '/'
     | '/admin/apis'
+    | '/admin/configuracoes'
     | '/admin/usuarios'
     | '/api/public/ingest'
     | '/api/public/hooks/gerar-bilhetes'
@@ -163,6 +175,7 @@ export interface FileRouteTypes {
     | '/_authenticated/planos'
     | '/_authenticated/'
     | '/_authenticated/admin/apis'
+    | '/_authenticated/admin/configuracoes'
     | '/_authenticated/admin/usuarios'
     | '/api/public/ingest'
     | '/api/public/hooks/gerar-bilhetes'
@@ -232,6 +245,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminUsuariosRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/admin/configuracoes': {
+      id: '/_authenticated/admin/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/admin/configuracoes'
+      preLoaderRoute: typeof AuthenticatedAdminConfiguracoesRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/admin/apis': {
       id: '/_authenticated/admin/apis'
       path: '/apis'
@@ -272,12 +292,14 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminApisRoute: typeof AuthenticatedAdminApisRoute
+  AuthenticatedAdminConfiguracoesRoute: typeof AuthenticatedAdminConfiguracoesRoute
   AuthenticatedAdminUsuariosRoute: typeof AuthenticatedAdminUsuariosRoute
 }
 
 const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren =
   {
     AuthenticatedAdminApisRoute: AuthenticatedAdminApisRoute,
+    AuthenticatedAdminConfiguracoesRoute: AuthenticatedAdminConfiguracoesRoute,
     AuthenticatedAdminUsuariosRoute: AuthenticatedAdminUsuariosRoute,
   }
 
