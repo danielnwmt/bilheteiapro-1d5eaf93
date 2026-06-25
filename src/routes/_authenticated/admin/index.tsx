@@ -61,6 +61,14 @@ function AdminDashboard() {
     router.navigate({ to: "/auth", replace: true });
   }
 
+  const atualizar = useServerFn(deploySystem);
+  const mutDeploy = useMutation({
+    mutationFn: () => atualizar(),
+    onSuccess: () => toast.success("Atualização iniciada. Aguarde alguns instantes."),
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao atualizar o sistema"),
+  });
+
+
 
   const { data: stats, isLoading } = useQuery({
     queryKey: ["client-stats"],
