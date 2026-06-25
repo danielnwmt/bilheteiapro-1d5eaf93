@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Loader2, KeyRound, Settings, Pencil, UserPlus } from "lucide-react";
+import { ArrowLeft, Loader2, KeyRound, Settings, Pencil, UserPlus, ShieldPlus } from "lucide-react";
 import { PLANOS, type Plano } from "@/lib/planos";
 import { usePlanos } from "@/hooks/usePlanos";
 import { toast } from "sonner";
@@ -34,6 +34,7 @@ function UsuariosPage() {
   const [senhas, setSenhas] = useState<Record<string, string>>({});
   const [openId, setOpenId] = useState<string | null>(null);
   const [showNovo, setShowNovo] = useState(false);
+  const [novoTipo, setNovoTipo] = useState<"cliente" | "admin">("cliente");
   const [novo, setNovo] = useState({
     nome: "",
     email: "",
@@ -93,7 +94,7 @@ function UsuariosPage() {
   });
 
   const mutNovo = useMutation({
-    mutationFn: (v: typeof novo) =>
+    mutationFn: (v: typeof novo & { isAdmin: boolean }) =>
       criarCliente({
         data: {
           nome: v.nome,
@@ -103,15 +104,16 @@ function UsuariosPage() {
           data_nascimento: v.data_nascimento || null,
           plano: v.plano,
           status: v.status,
+          isAdmin: v.isAdmin,
         },
       }),
-    onSuccess: () => {
-      toast.success("Cliente criado");
+    onSuccess: (_d, v) => {
+      toast.success(v.isAdmin ? "Admin criado" : "Cliente criado");
       setShowNovo(false);
       setNovo({ nome: "", email: "", senha: "", cpf: "", data_nascimento: "", plano: "start", status: "ativo" });
       qc.invalidateQueries({ queryKey: ["clientes"] });
     },
-    onError: (e: any) => toast.error(e?.message ?? "Erro ao criar cliente"),
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao criar usuário"),
   });
 
   const handleSalvar = (c: any, cur: { plano: Plano; status: "ativo" | "inativo" }) => {
@@ -149,15 +151,33 @@ function UsuariosPage() {
         </div>
 
         <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-2xl font-bold">Clientes</h1>
-          <Button size="sm" onClick={() => setShowNovo((v) => !v)}>
-            <UserPlus className="mr-2 h-4 w-4" /> Adicionar usuário
-          </Button>
+          <h1 className="text-2xl font-bold">Usuários</h1>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              onClick={() => {
+                setNovoTipo("cliente");
+                setShowNovo(true);
+              }}
+            >
+              <UserPlus className="mr-2 h-4 w-4" /> Adicionar cliente
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setNovoTipo("admin");
+                setShowNovo(true);
+              }}
+            >
+              <ShieldPlus className="mr-2 h-4 w-4" /> Criar admin
+            </Button>
+          </div>
         </div>
 
         {showNovo && (
           <Card className="mb-6 border-border/60 bg-card p-4">
-            <p className="mb-3 font-semibold">Novo cliente</p>
+            <p className="mb-3 font-semibold">{novoTipo === "admin" ? "Novo admin" : "Novo cliente"}</p>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1">
                 <Label className="text-xs">Nome completo</Label>
@@ -179,39 +199,42 @@ function UsuariosPage() {
                 <Label className="text-xs">Data de nascimento</Label>
                 <Input type="date" value={novo.data_nascimento} onChange={(e) => setNovo((s) => ({ ...s, data_nascimento: e.target.value }))} />
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-xs">Plano</Label>
-                  <select
-                    value={novo.plano}
-                    onChange={(e) => setNovo((s) => ({ ...s, plano: e.target.value as Plano }))}
-                    className="w-full rounded-md border border-border bg-input/40 px-2 py-2 text-sm"
-                  >
-                    {PLANOS.map((p) => (
-                      <option key={p} value={p}>{byPlano[p]?.nome ?? p}</option>
-                    ))}
-                  </select>
+              {novoTipo === "cliente" && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Plano</Label>
+                    <select
+                      value={novo.plano}
+                      onChange={(e) => setNovo((s) => ({ ...s, plano: e.target.value as Plano }))}
+                      className="w-full rounded-md border border-border bg-input/40 px-2 py-2 text-sm"
+                    >
+                      {PLANOS.map((p) => (
+                        <option key={p} value={p}>{byPlano[p]?.nome ?? p}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Status</Label>
+                    <select
+                      value={novo.status}
+                      onChange={(e) => setNovo((s) => ({ ...s, status: e.target.value as "ativo" | "inativo" }))}
+                      className="w-full rounded-md border border-border bg-input/40 px-2 py-2 text-sm"
+                    >
+                      <option value="ativo">ativo</option>
+                      <option value="inativo">inativo</option>
+                    </select>
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Status</Label>
-                  <select
-                    value={novo.status}
-                    onChange={(e) => setNovo((s) => ({ ...s, status: e.target.value as "ativo" | "inativo" }))}
-                    className="w-full rounded-md border border-border bg-input/40 px-2 py-2 text-sm"
-                  >
-                    <option value="ativo">ativo</option>
-                    <option value="inativo">inativo</option>
-                  </select>
-                </div>
-              </div>
+              )}
             </div>
             <div className="mt-4 flex gap-2">
               <Button
                 size="sm"
                 disabled={mutNovo.isPending || !novo.email.trim() || novo.senha.length < 6}
-                onClick={() => mutNovo.mutate(novo)}
+                onClick={() => mutNovo.mutate({ ...novo, isAdmin: novoTipo === "admin" })}
               >
-                {mutNovo.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Criar cliente
+                {mutNovo.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {novoTipo === "admin" ? "Criar admin" : "Criar cliente"}
               </Button>
               <Button variant="ghost" size="sm" onClick={() => setShowNovo(false)}>Cancelar</Button>
             </div>
@@ -220,13 +243,15 @@ function UsuariosPage() {
 
 
 
+
         {isLoading ? (
           <div className="flex justify-center py-16">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <div className="space-y-3">
-            {(clientes ?? []).map((c) => {
+          <div className="space-y-8">
+            {(() => {
+              const renderCard = (c: any) => {
               const cur = edit[c.id] ?? {
                 plano: (c.plano as Plano) ?? "start",
                 status: (c.status as "ativo" | "inativo") ?? "inativo",
@@ -245,7 +270,7 @@ function UsuariosPage() {
                       <p className="truncate font-semibold">{c.nome || c.email || c.id}</p>
                       <p className="truncate text-xs text-muted-foreground">{c.email}</p>
                       <div className="mt-1 flex flex-wrap gap-1">
-                        {c.roles.map((r) => (
+                        {c.roles.map((r: string) => (
                           <Badge key={r} variant="secondary" className="text-[10px]">{r}</Badge>
                         ))}
                       </div>
@@ -376,11 +401,36 @@ function UsuariosPage() {
                     </div>
                   )}
                 </Card>
+                );
+              };
+
+              const all = clientes ?? [];
+              const admins = all.filter((c) => c.roles.includes("admin") || c.roles.includes("operador"));
+              const clis = all.filter((c) => !c.roles.includes("admin") && !c.roles.includes("operador"));
+
+              return (
+                <>
+                  <section>
+                    <h2 className="mb-3 text-lg font-semibold">Administradores</h2>
+                    <div className="space-y-3">
+                      {admins.map(renderCard)}
+                      {admins.length === 0 && (
+                        <p className="py-6 text-center text-sm text-muted-foreground">Nenhum admin ainda.</p>
+                      )}
+                    </div>
+                  </section>
+                  <section>
+                    <h2 className="mb-3 text-lg font-semibold">Clientes</h2>
+                    <div className="space-y-3">
+                      {clis.map(renderCard)}
+                      {clis.length === 0 && (
+                        <p className="py-6 text-center text-sm text-muted-foreground">Nenhum cliente ainda.</p>
+                      )}
+                    </div>
+                  </section>
+                </>
               );
-            })}
-            {(clientes ?? []).length === 0 && (
-              <p className="py-10 text-center text-sm text-muted-foreground">Nenhum cliente ainda.</p>
-            )}
+            })()}
           </div>
         )}
       </div>
