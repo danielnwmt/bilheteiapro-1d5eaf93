@@ -30,6 +30,8 @@ import {
   Pie,
   Cell,
   Legend,
+  AreaChart,
+  Area,
 } from "recharts";
 
 export const Route = createFileRoute("/_authenticated/admin/")({
@@ -189,6 +191,52 @@ function AdminDashboard() {
                 </div>
               </Card>
             </div>
+
+            <div className="mt-6">
+              <Card className="border-border/60 bg-card p-5">
+                <h2 className="mb-4 text-sm font-semibold text-muted-foreground">
+                  Faturamento por mês (últimos 6 meses)
+                </h2>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={stats?.faturamentoPorMes ?? []}>
+                      <defs>
+                        <linearGradient id="fatGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.5} />
+                          <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                      <XAxis dataKey="mes" stroke="var(--muted-foreground)" fontSize={12} />
+                      <YAxis
+                        stroke="var(--muted-foreground)"
+                        fontSize={12}
+                        tickFormatter={(v) => `R$ ${v}`}
+                      />
+                      <Tooltip
+                        formatter={(v: number) =>
+                          `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
+                        }
+                        contentStyle={{
+                          background: "var(--card)",
+                          border: "1px solid var(--border)",
+                          borderRadius: 8,
+                          color: "var(--foreground)",
+                        }}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="total"
+                        stroke="var(--primary)"
+                        strokeWidth={2}
+                        fill="url(#fatGrad)"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+            </div>
+
           </>
         )}
       </div>
