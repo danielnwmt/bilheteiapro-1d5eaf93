@@ -212,8 +212,6 @@ export const createCliente = createServerFn({ method: "POST" })
     return { ok: true, id: newId };
   });
 
-    return { ok: true, id: newId };
-  });
 
 export const getClientStats = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
