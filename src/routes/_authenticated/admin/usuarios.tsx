@@ -92,7 +92,27 @@ function UsuariosPage() {
     onError: (e: any) => toast.error(e?.message ?? "Erro ao alterar senha"),
   });
 
-  const handleSalvar = (c: any, cur: { plano: Plano; status: "ativo" | "inativo" }) => {
+  const mutNovo = useMutation({
+    mutationFn: (v: typeof novo) =>
+      criarCliente({
+        data: {
+          nome: v.nome,
+          email: v.email,
+          senha: v.senha,
+          cpf: v.cpf,
+          data_nascimento: v.data_nascimento || null,
+          plano: v.plano,
+          status: v.status,
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Cliente criado");
+      setShowNovo(false);
+      setNovo({ nome: "", email: "", senha: "", cpf: "", data_nascimento: "", plano: "start", status: "ativo" });
+      qc.invalidateQueries({ queryKey: ["clientes"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao criar cliente"),
+  });
     const p = perfil[c.id] ?? {
       nome: c.nome ?? "",
       email: c.email ?? "",
