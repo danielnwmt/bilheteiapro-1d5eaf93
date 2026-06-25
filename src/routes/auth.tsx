@@ -24,6 +24,9 @@ export const Route = createFileRoute("/auth")({
 function AuthPage() {
   const router = useRouter();
   const [mode, setMode] = useState<"login" | "signup">("login");
+  const [nome, setNome] = useState("");
+  const [cpf, setCpf] = useState("");
+  const [nascimento, setNascimento] = useState("");
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [loading, setLoading] = useState(false);
@@ -34,8 +37,23 @@ function AuthPage() {
     });
   }, [router]);
 
+  function formatCpf(v: string) {
+    const d = v.replace(/\D/g, "").slice(0, 11);
+    return d
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (mode === "signup") {
+      const cpfDigits = cpf.replace(/\D/g, "");
+      if (!nome.trim() || cpfDigits.length !== 11 || !nascimento) {
+        toast.error("Preencha nome, CPF e data de nascimento");
+        return;
+      }
+    }
     if (!email || !senha) {
       toast.error("Preencha e-mail e senha");
       return;
@@ -50,7 +68,14 @@ function AuthPage() {
         const { error } = await supabase.auth.signUp({
           email,
           password: senha,
-          options: { emailRedirectTo: window.location.origin },
+          options: {
+            emailRedirectTo: window.location.origin,
+            data: {
+              nome: nome.trim(),
+              cpf: cpf.replace(/\D/g, ""),
+              data_nascimento: nascimento,
+            },
+          },
         });
         if (error) throw error;
         toast.success("Conta criada! Verifique seu e-mail para confirmar.");
@@ -88,6 +113,43 @@ function AuthPage() {
           </p>
 
           <form onSubmit={onSubmit} className="mt-6 space-y-4">
+            {mode === "signup" && (
+              <>
+                <div>
+                  <Label htmlFor="nome" className="mb-2 block text-sm">Nome completo</Label>
+                  <Input
+                    id="nome"
+                    type="text"
+                    autoComplete="name"
+                    value={nome}
+                    onChange={(e) => setNome(e.target.value)}
+                    className="bg-input/40"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="cpf" className="mb-2 block text-sm">CPF</Label>
+                  <Input
+                    id="cpf"
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="000.000.000-00"
+                    value={cpf}
+                    onChange={(e) => setCpf(formatCpf(e.target.value))}
+                    className="bg-input/40"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="nascimento" className="mb-2 block text-sm">Data de nascimento</Label>
+                  <Input
+                    id="nascimento"
+                    type="date"
+                    value={nascimento}
+                    onChange={(e) => setNascimento(e.target.value)}
+                    className="bg-input/40"
+                  />
+                </div>
+              </>
+            )}
             <div>
               <Label htmlFor="email" className="mb-2 block text-sm">E-mail</Label>
               <Input
