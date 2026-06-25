@@ -151,15 +151,33 @@ function UsuariosPage() {
         </div>
 
         <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-2xl font-bold">Clientes</h1>
-          <Button size="sm" onClick={() => setShowNovo((v) => !v)}>
-            <UserPlus className="mr-2 h-4 w-4" /> Adicionar usuário
-          </Button>
+          <h1 className="text-2xl font-bold">Usuários</h1>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              onClick={() => {
+                setNovoTipo("cliente");
+                setShowNovo(true);
+              }}
+            >
+              <UserPlus className="mr-2 h-4 w-4" /> Adicionar cliente
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setNovoTipo("admin");
+                setShowNovo(true);
+              }}
+            >
+              <ShieldPlus className="mr-2 h-4 w-4" /> Criar admin
+            </Button>
+          </div>
         </div>
 
         {showNovo && (
           <Card className="mb-6 border-border/60 bg-card p-4">
-            <p className="mb-3 font-semibold">Novo cliente</p>
+            <p className="mb-3 font-semibold">{novoTipo === "admin" ? "Novo admin" : "Novo cliente"}</p>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1">
                 <Label className="text-xs">Nome completo</Label>
@@ -181,44 +199,48 @@ function UsuariosPage() {
                 <Label className="text-xs">Data de nascimento</Label>
                 <Input type="date" value={novo.data_nascimento} onChange={(e) => setNovo((s) => ({ ...s, data_nascimento: e.target.value }))} />
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-xs">Plano</Label>
-                  <select
-                    value={novo.plano}
-                    onChange={(e) => setNovo((s) => ({ ...s, plano: e.target.value as Plano }))}
-                    className="w-full rounded-md border border-border bg-input/40 px-2 py-2 text-sm"
-                  >
-                    {PLANOS.map((p) => (
-                      <option key={p} value={p}>{byPlano[p]?.nome ?? p}</option>
-                    ))}
-                  </select>
+              {novoTipo === "cliente" && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Plano</Label>
+                    <select
+                      value={novo.plano}
+                      onChange={(e) => setNovo((s) => ({ ...s, plano: e.target.value as Plano }))}
+                      className="w-full rounded-md border border-border bg-input/40 px-2 py-2 text-sm"
+                    >
+                      {PLANOS.map((p) => (
+                        <option key={p} value={p}>{byPlano[p]?.nome ?? p}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Status</Label>
+                    <select
+                      value={novo.status}
+                      onChange={(e) => setNovo((s) => ({ ...s, status: e.target.value as "ativo" | "inativo" }))}
+                      className="w-full rounded-md border border-border bg-input/40 px-2 py-2 text-sm"
+                    >
+                      <option value="ativo">ativo</option>
+                      <option value="inativo">inativo</option>
+                    </select>
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Status</Label>
-                  <select
-                    value={novo.status}
-                    onChange={(e) => setNovo((s) => ({ ...s, status: e.target.value as "ativo" | "inativo" }))}
-                    className="w-full rounded-md border border-border bg-input/40 px-2 py-2 text-sm"
-                  >
-                    <option value="ativo">ativo</option>
-                    <option value="inativo">inativo</option>
-                  </select>
-                </div>
-              </div>
+              )}
             </div>
             <div className="mt-4 flex gap-2">
               <Button
                 size="sm"
                 disabled={mutNovo.isPending || !novo.email.trim() || novo.senha.length < 6}
-                onClick={() => mutNovo.mutate(novo)}
+                onClick={() => mutNovo.mutate({ ...novo, isAdmin: novoTipo === "admin" })}
               >
-                {mutNovo.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Criar cliente
+                {mutNovo.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {novoTipo === "admin" ? "Criar admin" : "Criar cliente"}
               </Button>
               <Button variant="ghost" size="sm" onClick={() => setShowNovo(false)}>Cancelar</Button>
             </div>
           </Card>
         )}
+
 
 
 
