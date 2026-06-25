@@ -20,8 +20,6 @@ import { Route as ApiPublicIngestRouteImport } from './routes/api/public/ingest'
 import { Route as AuthenticatedAdminUsuariosRouteImport } from './routes/_authenticated/admin/usuarios'
 import { Route as AuthenticatedAdminConfiguracoesRouteImport } from './routes/_authenticated/admin/configuracoes'
 import { Route as AuthenticatedAdminApisRouteImport } from './routes/_authenticated/admin/apis'
-import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
-import { Route as ApiPublicPaymentsMercadopagoRouteImport } from './routes/api/public/payments/mercadopago'
 import { Route as ApiPublicPaymentsInfinitepayRouteImport } from './routes/api/public/payments/infinitepay'
 import { Route as ApiPublicHooksSyncOddsDiarioRouteImport } from './routes/api/public/hooks/sync-odds-diario'
 import { Route as ApiPublicHooksSyncFootballRouteImport } from './routes/api/public/hooks/sync-football'
@@ -83,18 +81,6 @@ const AuthenticatedAdminApisRoute = AuthenticatedAdminApisRouteImport.update({
   path: '/apis',
   getParentRoute: () => AuthenticatedAdminRouteRoute,
 } as any)
-const ApiPublicPaymentsWebhookRoute =
-  ApiPublicPaymentsWebhookRouteImport.update({
-    id: '/api/public/payments/webhook',
-    path: '/api/public/payments/webhook',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicPaymentsMercadopagoRoute =
-  ApiPublicPaymentsMercadopagoRouteImport.update({
-    id: '/api/public/payments/mercadopago',
-    path: '/api/public/payments/mercadopago',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const ApiPublicPaymentsInfinitepayRoute =
   ApiPublicPaymentsInfinitepayRouteImport.update({
     id: '/api/public/payments/infinitepay',
@@ -135,8 +121,6 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/sync-football': typeof ApiPublicHooksSyncFootballRoute
   '/api/public/hooks/sync-odds-diario': typeof ApiPublicHooksSyncOddsDiarioRoute
   '/api/public/payments/infinitepay': typeof ApiPublicPaymentsInfinitepayRoute
-  '/api/public/payments/mercadopago': typeof ApiPublicPaymentsMercadopagoRoute
-  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
@@ -152,8 +136,6 @@ export interface FileRoutesByTo {
   '/api/public/hooks/sync-football': typeof ApiPublicHooksSyncFootballRoute
   '/api/public/hooks/sync-odds-diario': typeof ApiPublicHooksSyncOddsDiarioRoute
   '/api/public/payments/infinitepay': typeof ApiPublicPaymentsInfinitepayRoute
-  '/api/public/payments/mercadopago': typeof ApiPublicPaymentsMercadopagoRoute
-  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -172,8 +154,6 @@ export interface FileRoutesById {
   '/api/public/hooks/sync-football': typeof ApiPublicHooksSyncFootballRoute
   '/api/public/hooks/sync-odds-diario': typeof ApiPublicHooksSyncOddsDiarioRoute
   '/api/public/payments/infinitepay': typeof ApiPublicPaymentsInfinitepayRoute
-  '/api/public/payments/mercadopago': typeof ApiPublicPaymentsMercadopagoRoute
-  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -192,8 +172,6 @@ export interface FileRouteTypes {
     | '/api/public/hooks/sync-football'
     | '/api/public/hooks/sync-odds-diario'
     | '/api/public/payments/infinitepay'
-    | '/api/public/payments/mercadopago'
-    | '/api/public/payments/webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
@@ -209,8 +187,6 @@ export interface FileRouteTypes {
     | '/api/public/hooks/sync-football'
     | '/api/public/hooks/sync-odds-diario'
     | '/api/public/payments/infinitepay'
-    | '/api/public/payments/mercadopago'
-    | '/api/public/payments/webhook'
   id:
     | '__root__'
     | '/_authenticated'
@@ -228,8 +204,6 @@ export interface FileRouteTypes {
     | '/api/public/hooks/sync-football'
     | '/api/public/hooks/sync-odds-diario'
     | '/api/public/payments/infinitepay'
-    | '/api/public/payments/mercadopago'
-    | '/api/public/payments/webhook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -240,8 +214,6 @@ export interface RootRouteChildren {
   ApiPublicHooksSyncFootballRoute: typeof ApiPublicHooksSyncFootballRoute
   ApiPublicHooksSyncOddsDiarioRoute: typeof ApiPublicHooksSyncOddsDiarioRoute
   ApiPublicPaymentsInfinitepayRoute: typeof ApiPublicPaymentsInfinitepayRoute
-  ApiPublicPaymentsMercadopagoRoute: typeof ApiPublicPaymentsMercadopagoRoute
-  ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -323,20 +295,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminApisRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
-    '/api/public/payments/webhook': {
-      id: '/api/public/payments/webhook'
-      path: '/api/public/payments/webhook'
-      fullPath: '/api/public/payments/webhook'
-      preLoaderRoute: typeof ApiPublicPaymentsWebhookRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/payments/mercadopago': {
-      id: '/api/public/payments/mercadopago'
-      path: '/api/public/payments/mercadopago'
-      fullPath: '/api/public/payments/mercadopago'
-      preLoaderRoute: typeof ApiPublicPaymentsMercadopagoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/payments/infinitepay': {
       id: '/api/public/payments/infinitepay'
       path: '/api/public/payments/infinitepay'
@@ -413,8 +371,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksSyncFootballRoute: ApiPublicHooksSyncFootballRoute,
   ApiPublicHooksSyncOddsDiarioRoute: ApiPublicHooksSyncOddsDiarioRoute,
   ApiPublicPaymentsInfinitepayRoute: ApiPublicPaymentsInfinitepayRoute,
-  ApiPublicPaymentsMercadopagoRoute: ApiPublicPaymentsMercadopagoRoute,
-  ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

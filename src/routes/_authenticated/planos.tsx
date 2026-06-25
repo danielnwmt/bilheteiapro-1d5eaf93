@@ -8,7 +8,7 @@ import { Check, X, Loader2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { TODAS_LIGAS, RECURSO_LABELS, type Plano } from "@/lib/planos";
 import { usePlanos } from "@/hooks/usePlanos";
-import { createStripeCheckout, createMercadoPagoCheckout } from "@/lib/payments.functions";
+import { createInfinitePayCheckout } from "@/lib/payments.functions";
 import { useAccess } from "@/hooks/useAccess";
 
 export const Route = createFileRoute("/_authenticated/planos")({
