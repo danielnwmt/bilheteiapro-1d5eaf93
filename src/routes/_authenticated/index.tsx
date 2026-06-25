@@ -16,9 +16,9 @@ import logo from "@/assets/bilheteia-logo.png.asset.json";
 export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
     meta: [
-      { title: "BilheteIA — Análise de futebol e múltiplas com IA" },
+      { title: "BilheteIA PRO — Análise de futebol e múltiplas com IA" },
       { name: "description", content: "Cole os jogos, defina a odd alvo e a IA monta a múltipla ideal com análise jogo a jogo." },
-      { property: "og:title", content: "BilheteIA — Múltiplas analisadas por IA" },
+      { property: "og:title", content: "BilheteIA PRO — Múltiplas analisadas por IA" },
       { property: "og:description", content: "Análise de jogos de futebol e montagem automática de bilhetes." },
     ],
   }),
