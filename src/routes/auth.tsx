@@ -24,6 +24,9 @@ export const Route = createFileRoute("/auth")({
 function AuthPage() {
   const router = useRouter();
   const [mode, setMode] = useState<"login" | "signup">("login");
+  const [nome, setNome] = useState("");
+  const [cpf, setCpf] = useState("");
+  const [nascimento, setNascimento] = useState("");
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [loading, setLoading] = useState(false);
@@ -34,8 +37,23 @@ function AuthPage() {
     });
   }, [router]);
 
+  function formatCpf(v: string) {
+    const d = v.replace(/\D/g, "").slice(0, 11);
+    return d
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (mode === "signup") {
+      const cpfDigits = cpf.replace(/\D/g, "");
+      if (!nome.trim() || cpfDigits.length !== 11 || !nascimento) {
+        toast.error("Preencha nome, CPF e data de nascimento");
+        return;
+      }
+    }
     if (!email || !senha) {
       toast.error("Preencha e-mail e senha");
       return;
@@ -50,7 +68,14 @@ function AuthPage() {
         const { error } = await supabase.auth.signUp({
           email,
           password: senha,
-          options: { emailRedirectTo: window.location.origin },
+          options: {
+            emailRedirectTo: window.location.origin,
+            data: {
+              nome: nome.trim(),
+              cpf: cpf.replace(/\D/g, ""),
+              data_nascimento: nascimento,
+            },
+          },
         });
         if (error) throw error;
         toast.success("Conta criada! Verifique seu e-mail para confirmar.");
