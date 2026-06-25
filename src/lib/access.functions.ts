@@ -48,7 +48,7 @@ export const listClientes = createServerFn({ method: "GET" })
     await assertStaff(supabase, userId);
 
     const [{ data: profiles }, { data: roles }, { data: subs }] = await Promise.all([
-      supabase.from("profiles").select("id, nome, email, created_at"),
+      supabase.from("profiles").select("id, nome, email, cpf, data_nascimento, created_at"),
       supabase.from("user_roles").select("user_id, role"),
       supabase.from("subscriptions").select("user_id, plano, status, periodo_fim"),
     ]);
