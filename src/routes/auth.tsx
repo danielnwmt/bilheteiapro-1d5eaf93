@@ -13,6 +13,7 @@ import { checkEmailExists } from "@/lib/auth-check.functions";
 import { bootstrapDefaultAdmin, ensureAdmin } from "@/lib/admin-bootstrap.functions";
 
 export const Route = createFileRoute("/auth")({
+  ssr: "data-only",
   head: () => ({
     meta: [
       { title: "Entrar — BilheteIA PRO" },
