@@ -13,11 +13,14 @@ export const deploySystem = createServerFn({ method: "POST" })
     if (!roles.includes("admin")) throw new Error("Apenas admin pode atualizar o sistema");
 
     const { spawn } = await import("child_process");
-    const child = spawn(
-      "bash",
-      ["-lc", "cd ~/app && bash deploy.sh > deploy.log 2>&1"],
-      { detached: true, stdio: "ignore" },
-    );
+    const cmd =
+      'DIR="$(find /opt/lovable/app /root/app /home/*/app -maxdepth 1 -name deploy.sh 2>/dev/null | head -n1 | xargs -r dirname)"; ' +
+      'if [ -z "$DIR" ]; then echo "deploy.sh nao encontrado" > /tmp/deploy.log; exit 1; fi; ' +
+      'cd "$DIR" && bash deploy.sh > deploy.log 2>&1';
+    const child = spawn("bash", ["-lc", cmd], {
+      detached: true,
+      stdio: "ignore",
+    });
     child.unref();
 
     return { ok: true };
