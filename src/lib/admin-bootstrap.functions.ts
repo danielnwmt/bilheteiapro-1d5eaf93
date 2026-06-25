@@ -29,12 +29,14 @@ export const bootstrapDefaultAdmin = createServerFn({ method: "POST" })
 
     let user = listed.users.find((u) => String(u.email ?? "").toLowerCase() === ADMIN_EMAIL);
 
-    if ((adminCount ?? 0) > 0 && user) {
+    if ((adminCount ?? 0) > 0) {
+      if (!user) return { ok: false, created: false };
       const { data: roles } = await supabaseAdmin
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id);
       if ((roles ?? []).some((r) => r.role === "admin")) return { ok: true, created: false };
+      return { ok: false, created: false };
     }
 
     if (!user) {
