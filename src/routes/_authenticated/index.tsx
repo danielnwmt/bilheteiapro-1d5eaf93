@@ -2,20 +2,23 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { gerarBilhete } from "@/lib/ticket.functions";
+import { supabase } from "@/integrations/supabase/client";
+import { useRouter } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Sparkles, Target, TrendingUp, Trophy, Building2, ExternalLink, ListChecks } from "lucide-react";
+import { Loader2, Sparkles, Target, TrendingUp, Trophy, Building2, ExternalLink, ListChecks, LogOut } from "lucide-react";
 import { toast } from "sonner";
+import logo from "@/assets/bilheteia-logo.png.asset.json";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
     meta: [
-      { title: "BilheteIA — Análise de futebol e múltiplas com IA" },
+      { title: "BilheteIA PRO — Análise de futebol e múltiplas com IA" },
       { name: "description", content: "Cole os jogos, defina a odd alvo e a IA monta a múltipla ideal com análise jogo a jogo." },
-      { property: "og:title", content: "BilheteIA — Múltiplas analisadas por IA" },
+      { property: "og:title", content: "BilheteIA PRO — Múltiplas analisadas por IA" },
       { property: "og:description", content: "Análise de jogos de futebol e montagem automática de bilhetes." },
     ],
   }),
@@ -119,6 +122,7 @@ const MERCADOS = [
 ];
 
 function Index() {
+  const router = useRouter();
   const run = useServerFn(gerarBilhete);
   const [oddAlvo, setOddAlvo] = useState("5");
   const [valorAposta, setValorAposta] = useState("20");
@@ -128,6 +132,12 @@ function Index() {
   const [mercSel, setMercSel] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [ticket, setTicket] = useState<Ticket | null>(null);
+
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+    router.navigate({ to: "/auth", replace: true });
+  }
+
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -177,17 +187,20 @@ function Index() {
   return (
     <main className="min-h-screen bg-background">
       <div className="mx-auto max-w-5xl px-4 py-10 md:py-16">
-        <header className="mb-10 text-center">
-          <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-            <Sparkles className="h-3.5 w-3.5" /> Jogos ao vivo + IA
+        <header className="mb-10">
+          <div className="mb-6 flex justify-end">
+            <Button variant="outline" size="sm" onClick={handleSignOut}>
+              <LogOut className="mr-2 h-4 w-4" /> Sair
+            </Button>
           </div>
-          <h1 className="mt-4 text-4xl font-bold md:text-6xl">
-            Bilhete<span className="text-primary">IA</span>
-          </h1>
-          <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
-            Escolha a odd alvo e o período. Lemos os jogos e odds do seu banco (API-Sports) e a IA monta sua múltipla.
-          </p>
+          <div className="text-center">
+            <img src={logo.url} alt="BilheteIA PRO" className="mx-auto mb-4 w-64 max-w-full md:w-80" />
+            <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
+              Escolha a odd alvo e o período. Lemos os jogos e odds do seu banco (API-Sports) e a IA monta sua múltipla.
+            </p>
+          </div>
         </header>
+
 
         <Card className="border-border/60 bg-card p-6 md:p-8">
           <form onSubmit={onSubmit} className="space-y-5">
