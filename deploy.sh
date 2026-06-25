@@ -7,11 +7,18 @@ set -euo pipefail
 #  Faz tudo sozinho: pull, build, e sobe o container com restart automático.
 # ============================================================
 
-APP_DIR="$HOME/app"
-ENV_FILE="$APP_DIR/.env"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+APP_DIR="${APP_DIR:-$SCRIPT_DIR}"
+ENV_FILE="${ENV_FILE:-$APP_DIR/.env}"
 IMAGE="lovable-app"
 CONTAINER="lovable-app"
 PORT="3000"
+
+if [ ! -d "$APP_DIR" ]; then
+  echo "ERRO: pasta do app não encontrada: $APP_DIR"
+  echo "Entre na pasta onde está o deploy.sh e rode: bash deploy.sh"
+  exit 1
+fi
 
 cd "$APP_DIR"
 
