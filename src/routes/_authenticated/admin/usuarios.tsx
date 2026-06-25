@@ -25,10 +25,12 @@ function UsuariosPage() {
   const fetchClientes = useServerFn(listClientes);
   const salvar = useServerFn(setClientePlano);
   const salvarPerfil = useServerFn(updateClienteProfile);
+  const salvarSenha = useServerFn(setClientePassword);
   const [edit, setEdit] = useState<Record<string, { plano: Plano; status: "ativo" | "inativo" }>>({});
   const [perfil, setPerfil] = useState<
     Record<string, { nome: string; email: string; cpf: string; data_nascimento: string }>
   >({});
+  const [senhas, setSenhas] = useState<Record<string, string>>({});
   const [openId, setOpenId] = useState<string | null>(null);
 
   const formatCpf = (v: string) =>
