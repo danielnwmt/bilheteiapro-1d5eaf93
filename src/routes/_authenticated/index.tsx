@@ -391,7 +391,7 @@ function Index() {
 
             <Button
               type="submit"
-              disabled={loading}
+              disabled={loading || !temAcesso}
               size="lg"
               className="w-full font-semibold"
             >
@@ -399,12 +399,17 @@ function Index() {
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Buscando jogos e analisando...
                 </>
+              ) : !temAcesso ? (
+                <>
+                  <Lock className="mr-2 h-4 w-4" /> Assine um plano para gerar
+                </>
               ) : (
                 <>
                   <Sparkles className="mr-2 h-4 w-4" /> Buscar jogos e gerar bilhete
                 </>
               )}
             </Button>
+
           </form>
         </Card>
 
