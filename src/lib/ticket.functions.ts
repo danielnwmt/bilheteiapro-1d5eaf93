@@ -251,14 +251,22 @@ export const gerarBilhete = createServerFn({ method: "POST" })
       }
     }
 
-    // Ligas liberadas: staff vê tudo; cliente, conforme o plano.
-    const ligasLiberadas = isStaff
-      ? null
-      : LIGAS_POR_PLANO[plano as Plano];
+    // Ligas/recursos liberados: staff vê tudo; cliente, conforme o plano (lido do banco).
+    let ligasLiberadas: string[] | null = null;
+    let permiteTempoReal = true;
+    if (!isStaff) {
+      const { data: cfg } = await context.supabase
+        .from("plano_config")
+        .select("ligas, recursos")
+        .eq("plano", plano as Plano)
+        .maybeSingle();
+      ligasLiberadas = Array.isArray(cfg?.ligas) ? (cfg!.ligas as string[]) : [];
+      permiteTempoReal = !!(cfg?.recursos as Record<string, boolean> | null)?.tempoReal;
+    }
 
-    // Tempo real (ao vivo) é exclusivo do Elite.
-    if (!isStaff && data.periodo === "aovivo" && plano !== "elite") {
-      throw new Error("Atualização em tempo real é exclusiva do plano Elite.");
+    // Tempo real (ao vivo) só se o plano liberar o recurso.
+    if (!isStaff && data.periodo === "aovivo" && !permiteTempoReal) {
+      throw new Error("Atualização em tempo real não está incluída no seu plano.");
     }
 
     // Restringe campeonatos selecionados aos liberados pelo plano.
