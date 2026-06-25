@@ -387,6 +387,8 @@ export async function syncOddsByLeagueToday(
   const bookmakerId = BOOKMAKER_NAME_TO_ID[casaNorm];
   const season = seasonForDate(date);
 
+  const resolveDeep = await buildDeepLinkResolver(supabase, casa);
+
   const rows: Array<{
     partida_id: string;
     casa: string;
@@ -394,6 +396,7 @@ export async function syncOddsByLeagueToday(
     selecao: string;
     valor: number;
     external_odd_id: string | null;
+    deep_link: string | null;
   }> = [];
 
   let chamadas = 0;
