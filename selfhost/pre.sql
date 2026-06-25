@@ -15,7 +15,9 @@ EXCEPTION WHEN insufficient_privilege OR feature_not_supported THEN
   RAISE NOTICE 'service_role sem BYPASSRLS (usuário não é superusuário); seguindo sem isso.';
 END $$;
 
-GRANT anon, authenticated, service_role TO postgres;
+DO $$ BEGIN
+  GRANT anon, authenticated, service_role TO CURRENT_USER;
+EXCEPTION WHEN OTHERS THEN NULL; END $$;
 
 
 -- Schemas
