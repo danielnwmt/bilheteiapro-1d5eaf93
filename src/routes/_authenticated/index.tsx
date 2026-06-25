@@ -187,17 +187,20 @@ function Index() {
   return (
     <main className="min-h-screen bg-background">
       <div className="mx-auto max-w-5xl px-4 py-10 md:py-16">
-        <header className="mb-10 text-center">
-          <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-            <Sparkles className="h-3.5 w-3.5" /> Jogos ao vivo + IA
+        <header className="mb-10">
+          <div className="mb-6 flex justify-end">
+            <Button variant="outline" size="sm" onClick={handleSignOut}>
+              <LogOut className="mr-2 h-4 w-4" /> Sair
+            </Button>
           </div>
-          <h1 className="mt-4 text-4xl font-bold md:text-6xl">
-            Bilhete<span className="text-primary">IA</span>
-          </h1>
-          <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
-            Escolha a odd alvo e o período. Lemos os jogos e odds do seu banco (API-Sports) e a IA monta sua múltipla.
-          </p>
+          <div className="text-center">
+            <img src={logo.url} alt="BilheteIA PRO" className="mx-auto mb-4 w-64 max-w-full md:w-80" />
+            <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
+              Escolha a odd alvo e o período. Lemos os jogos e odds do seu banco (API-Sports) e a IA monta sua múltipla.
+            </p>
+          </div>
         </header>
+
 
         <Card className="border-border/60 bg-card p-6 md:p-8">
           <form onSubmit={onSubmit} className="space-y-5">
