@@ -151,6 +151,40 @@ function ApisPage() {
                 </Button>
               </div>
             </Card>
+
+            {/* API de pagamento (banco) — seção separada das demais */}
+            <div className="pt-6">
+              <h2 className="mb-1 text-lg font-bold">API de pagamento (banco)</h2>
+              <p className="mb-4 text-sm text-muted-foreground">
+                Credenciais de recebimento. Mantidas separadas das demais integrações.
+              </p>
+              <div className="space-y-4">
+                {CHAVES_PAGAMENTO.map(({ chave, descricao: desc }) => {
+                  const descricao = existentes.get(chave) ?? desc ?? "";
+                  return (
+                    <Card key={chave} className="border-primary/30 bg-card p-4">
+                      <Label className="text-sm font-semibold">{chave}</Label>
+                      {descricao && <p className="mb-2 text-xs text-muted-foreground">{descricao}</p>}
+                      <div className="flex gap-2">
+                        <Input
+                          type="text"
+                          placeholder="sua-infinitetag"
+                          value={vals[chave] ?? ""}
+                          onChange={(e) => setVals((v) => ({ ...v, [chave]: e.target.value }))}
+                          className="bg-input/40"
+                        />
+                        <Button
+                          disabled={mut.isPending}
+                          onClick={() => mut.mutate({ chave, valor: vals[chave] ?? "", descricao })}
+                        >
+                          Salvar
+                        </Button>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         )}
       </div>
