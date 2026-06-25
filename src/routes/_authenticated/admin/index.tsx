@@ -84,6 +84,9 @@ function AdminDashboard() {
             <Button size="sm" onClick={() => router.navigate({ to: "/" })}>
               Modo cliente
             </Button>
+            <Button variant="outline" size="sm" onClick={handleSignOut}>
+              <LogOut className="mr-2 h-4 w-4" /> Sair
+            </Button>
           </div>
         </div>
 
