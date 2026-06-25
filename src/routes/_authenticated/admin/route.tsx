@@ -1,5 +1,6 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
+import { ensureAdmin } from "@/lib/admin-bootstrap.functions";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   beforeLoad: async () => {
@@ -11,9 +12,19 @@ export const Route = createFileRoute("/_authenticated/admin")({
       .select("role")
       .eq("user_id", uid);
     const list = (roles ?? []).map((r) => r.role);
-    const isStaff = list.includes("admin") || list.includes("operador");
+    let isStaff = list.includes("admin") || list.includes("operador");
+    let isAdmin = list.includes("admin");
+    if (!isStaff) {
+      try {
+        const fixed = await ensureAdmin();
+        isAdmin = !!fixed.isAdmin;
+        isStaff = isAdmin;
+      } catch {
+        // sem reparo: segue o bloqueio normal
+      }
+    }
     if (!isStaff) throw redirect({ to: "/" });
-    return { isAdmin: list.includes("admin") };
+    return { isAdmin };
   },
   component: () => <Outlet />,
 });

@@ -3,10 +3,12 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export type AppRole = "admin" | "operador" | "cliente";
 
+const ADMIN_EMAIL = "contato@protenexus.com";
+
 export const getMyAccess = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabase, userId } = context;
+    const { supabase, userId, claims } = context;
     const [{ data: roles }, { data: sub }] = await Promise.all([
       supabase.from("user_roles").select("role").eq("user_id", userId),
       supabase
@@ -18,12 +20,49 @@ export const getMyAccess = createServerFn({ method: "GET" })
         .maybeSingle(),
     ]);
 
+    let accessRoles = (roles ?? []).map((r) => r.role as AppRole);
+    const email = String((claims as any)?.email ?? "").trim().toLowerCase();
+
+    // Reparo automático para instalações locais: se o admin padrão entrou mas
+    // ficou sem papel, corrige na hora em qualquer carregamento do sistema.
+    if (!accessRoles.includes("admin") && (email === ADMIN_EMAIL || accessRoles.length === 0)) {
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { count } = await supabaseAdmin
+          .from("user_roles")
+          .select("user_id", { count: "exact", head: true })
+          .eq("role", "admin");
+
+        if (email === ADMIN_EMAIL || (count ?? 0) === 0) {
+          await supabaseAdmin.from("profiles").upsert(
+            {
+              id: userId,
+              email: email || null,
+              ...(email === ADMIN_EMAIL ? { nome: "Administrador" } : {}),
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "id" },
+          );
+          await supabaseAdmin
+            .from("user_roles")
+            .upsert({ user_id: userId, role: "admin" }, { onConflict: "user_id,role" });
+          if (email === ADMIN_EMAIL) {
+            await supabaseAdmin.from("user_roles").delete().eq("user_id", userId).eq("role", "cliente");
+            accessRoles = accessRoles.filter((role) => role !== "cliente");
+          }
+          accessRoles = Array.from(new Set<AppRole>(["admin", ...accessRoles]));
+        }
+      } catch (error) {
+        console.error("Falha ao corrigir admin automaticamente", error);
+      }
+    }
+
     const ativo =
       sub?.status === "ativo" &&
       (!sub?.periodo_fim || new Date(sub.periodo_fim) > new Date());
 
     return {
-      roles: (roles ?? []).map((r) => r.role as AppRole),
+      roles: accessRoles,
       plano: ativo ? (sub!.plano as "start" | "pro" | "elite") : null,
       status: sub?.status ?? null,
     };
