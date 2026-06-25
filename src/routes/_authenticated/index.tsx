@@ -229,7 +229,7 @@ function Index() {
               </Badge>
             )}
             {isStaff && (
-              <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/admin/usuarios" })}>
+              <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/admin" })}>
                 <Users className="mr-2 h-4 w-4" /> Admin
               </Button>
             )}

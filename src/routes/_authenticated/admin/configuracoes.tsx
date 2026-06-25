@@ -89,8 +89,8 @@ function ConfiguracoesPage() {
     <main className="min-h-screen bg-background">
       <div className="mx-auto max-w-4xl px-4 py-10">
         <div className="mb-6">
-          <Button variant="ghost" size="sm" onClick={() => router.navigate({ to: "/admin/usuarios" })}>
-            <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
+          <Button variant="ghost" size="sm" onClick={() => router.navigate({ to: "/admin" })}>
+            <ArrowLeft className="mr-2 h-4 w-4" /> Painel
           </Button>
         </div>
 
