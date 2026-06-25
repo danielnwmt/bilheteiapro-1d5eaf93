@@ -1,0 +1,1 @@
+ALTER TABLE public.odds ADD COLUMN IF NOT EXISTS deep_link text;
