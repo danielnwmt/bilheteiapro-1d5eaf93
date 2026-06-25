@@ -4,6 +4,8 @@ import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { getAiModel } from "./ai-gateway.server";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { LIGAS_POR_PLANO, type Plano } from "./planos";
 
 const InputSchema = z.object({
   oddAlvo: z.number().min(1.1).max(1000),
