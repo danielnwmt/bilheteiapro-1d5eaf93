@@ -20,9 +20,14 @@ const CHAVES_PADRAO = [
   { chave: "GEMINI_API_KEY", descricao: "Chave da IA (Google Gemini) usada na geração de bilhetes" },
   { chave: "API_FOOTBALL_KEY", descricao: "Chave da API-Football (jogos e odds)" },
   { chave: "ODDS_API_KEY", descricao: "Chave da The Odds API" },
-  { chave: "STRIPE_SECRET_KEY", descricao: "Chave secreta da sua conta Stripe (sk_live_… ou sk_test_…)" },
-  { chave: "STRIPE_WEBHOOK_SECRET", descricao: "Signing secret do webhook do Stripe (whsec_…)" },
-  { chave: "MERCADO_PAGO_ACCESS_TOKEN", descricao: "Access Token da sua conta Mercado Pago (APP_USR-…)" },
+];
+
+// API de pagamento (banco) — mantida separada das demais.
+const CHAVES_PAGAMENTO = [
+  {
+    chave: "INFINITEPAY_HANDLE",
+    descricao: "Sua InfiniteTag da InfinitePay (handle, sem o $). Ex: minhaloja",
+  },
 ];
 
 function ApisPage() {
