@@ -22,8 +22,8 @@ fi
 
 cd "$APP_DIR"
 
-# 1) Garante o arquivo .env com as chaves necessárias (pede só o que faltar)
-#    GEMINI_API_KEY: pegue em https://aistudio.google.com/apikey
+# 1) Garante o arquivo .env sem travar atualização pedindo dados.
+#    Chaves de APIs são configuradas depois pelo painel Admin.
 
 # Valores fixos do backend (preenchidos automaticamente)
 SUPABASE_URL_DEFAULT="https://zzjrfmiqhlwomablszdj.supabase.co"
@@ -32,7 +32,7 @@ SUPABASE_PUBLISHABLE_KEY_DEFAULT="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 touch "$ENV_FILE"
 chmod 600 "$ENV_FILE"
 
-# Garante uma chave no .env: se faltar, usa o default; se não houver default, pergunta.
+# Garante uma chave no .env. Nunca pede no terminal durante atualização.
 ensure_key() {
   local key="$1" default="$2"
   if grep -q "^${key}=" "$ENV_FILE"; then return; fi
@@ -40,15 +40,15 @@ ensure_key() {
     echo "${key}=${default}" >> "$ENV_FILE"
     echo ">> $key preenchido automaticamente."
   else
-    read -rp "$key = " v
-    echo "${key}=${v}" >> "$ENV_FILE"
+    echo "${key}=" >> "$ENV_FILE"
+    echo ">> $key criado vazio. Configure depois se necessário."
   fi
 }
 
 echo ">> Conferindo variáveis do .env..."
 ensure_key SUPABASE_URL "$SUPABASE_URL_DEFAULT"
 ensure_key SUPABASE_PUBLISHABLE_KEY "$SUPABASE_PUBLISHABLE_KEY_DEFAULT"
-ensure_key SUPABASE_SERVICE_ROLE_KEY ""   # cole a service role key (necessária p/ admin)
+ensure_key SUPABASE_SERVICE_ROLE_KEY ""
 # GEMINI_API_KEY, API_FOOTBALL_KEY, ODDS_API_KEY e demais chaves de integração
 # são adicionadas manualmente no painel Admin -> APIs do sistema (após instalar).
 ensure_key INGEST_SECRET ""
