@@ -270,7 +270,7 @@ function UsuariosPage() {
                       <p className="truncate font-semibold">{c.nome || c.email || c.id}</p>
                       <p className="truncate text-xs text-muted-foreground">{c.email}</p>
                       <div className="mt-1 flex flex-wrap gap-1">
-                        {c.roles.map((r) => (
+                        {c.roles.map((r: string) => (
                           <Badge key={r} variant="secondary" className="text-[10px]">{r}</Badge>
                         ))}
                       </div>
