@@ -2,6 +2,7 @@
 // Server-only: usa a service key e a chave da API-Football.
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { getConfigKey } from "./system-config.server";
 
 const API_BASE = "https://v3.football.api-sports.io";
 
