@@ -225,7 +225,7 @@ function Index() {
           <div className="mb-6 flex flex-wrap items-center justify-end gap-2">
             {plano && (
               <Badge variant="secondary" className="mr-auto">
-                <Crown className="mr-1 h-3.5 w-3.5" /> {PLANO_INFO[plano].nome}
+                <Crown className="mr-1 h-3.5 w-3.5" /> {planoCfg?.nome ?? "Plano ativo"}
               </Badge>
             )}
             {isStaff && (
