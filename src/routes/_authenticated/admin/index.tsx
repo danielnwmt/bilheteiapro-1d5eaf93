@@ -43,6 +43,12 @@ function AdminDashboard() {
   const { byPlano } = usePlanos();
   const fetchStats = useServerFn(getClientStats);
 
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+    router.navigate({ to: "/auth", replace: true });
+  }
+
+
   const { data: stats, isLoading } = useQuery({
     queryKey: ["client-stats"],
     queryFn: () => fetchStats(),
