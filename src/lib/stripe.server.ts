@@ -13,7 +13,7 @@ export async function createStripeClient(): Promise<Stripe> {
     );
   }
   return new Stripe(secretKey, {
-    apiVersion: "2025-08-27.basil",
+    apiVersion: "2026-03-25.dahlia",
     httpClient: Stripe.createFetchHttpClient(),
   });
 }
