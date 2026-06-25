@@ -13,6 +13,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as ApiPublicIngestRouteImport } from './routes/api/public/ingest'
+import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as ApiPublicHooksSyncOddsDiarioRouteImport } from './routes/api/public/hooks/sync-odds-diario'
 import { Route as ApiPublicHooksSyncFootballRouteImport } from './routes/api/public/hooks/sync-football'
 import { Route as ApiPublicHooksGerarBilhetesRouteImport } from './routes/api/public/hooks/gerar-bilhetes'
@@ -36,6 +37,12 @@ const ApiPublicIngestRoute = ApiPublicIngestRouteImport.update({
   path: '/api/public/ingest',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicPaymentsWebhookRoute =
+  ApiPublicPaymentsWebhookRouteImport.update({
+    id: '/api/public/payments/webhook',
+    path: '/api/public/payments/webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksSyncOddsDiarioRoute =
   ApiPublicHooksSyncOddsDiarioRouteImport.update({
     id: '/api/public/hooks/sync-odds-diario',
@@ -62,6 +69,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/gerar-bilhetes': typeof ApiPublicHooksGerarBilhetesRoute
   '/api/public/hooks/sync-football': typeof ApiPublicHooksSyncFootballRoute
   '/api/public/hooks/sync-odds-diario': typeof ApiPublicHooksSyncOddsDiarioRoute
+  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
@@ -70,6 +78,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/gerar-bilhetes': typeof ApiPublicHooksGerarBilhetesRoute
   '/api/public/hooks/sync-football': typeof ApiPublicHooksSyncFootballRoute
   '/api/public/hooks/sync-odds-diario': typeof ApiPublicHooksSyncOddsDiarioRoute
+  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -80,6 +89,7 @@ export interface FileRoutesById {
   '/api/public/hooks/gerar-bilhetes': typeof ApiPublicHooksGerarBilhetesRoute
   '/api/public/hooks/sync-football': typeof ApiPublicHooksSyncFootballRoute
   '/api/public/hooks/sync-odds-diario': typeof ApiPublicHooksSyncOddsDiarioRoute
+  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -90,6 +100,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/gerar-bilhetes'
     | '/api/public/hooks/sync-football'
     | '/api/public/hooks/sync-odds-diario'
+    | '/api/public/payments/webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
@@ -98,6 +109,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/gerar-bilhetes'
     | '/api/public/hooks/sync-football'
     | '/api/public/hooks/sync-odds-diario'
+    | '/api/public/payments/webhook'
   id:
     | '__root__'
     | '/_authenticated'
@@ -107,6 +119,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/gerar-bilhetes'
     | '/api/public/hooks/sync-football'
     | '/api/public/hooks/sync-odds-diario'
+    | '/api/public/payments/webhook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -116,6 +129,7 @@ export interface RootRouteChildren {
   ApiPublicHooksGerarBilhetesRoute: typeof ApiPublicHooksGerarBilhetesRoute
   ApiPublicHooksSyncFootballRoute: typeof ApiPublicHooksSyncFootballRoute
   ApiPublicHooksSyncOddsDiarioRoute: typeof ApiPublicHooksSyncOddsDiarioRoute
+  ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -146,6 +160,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/ingest'
       fullPath: '/api/public/ingest'
       preLoaderRoute: typeof ApiPublicIngestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/payments/webhook': {
+      id: '/api/public/payments/webhook'
+      path: '/api/public/payments/webhook'
+      fullPath: '/api/public/payments/webhook'
+      preLoaderRoute: typeof ApiPublicPaymentsWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/hooks/sync-odds-diario': {
@@ -190,6 +211,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksGerarBilhetesRoute: ApiPublicHooksGerarBilhetesRoute,
   ApiPublicHooksSyncFootballRoute: ApiPublicHooksSyncFootballRoute,
   ApiPublicHooksSyncOddsDiarioRoute: ApiPublicHooksSyncOddsDiarioRoute,
+  ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -52,7 +52,7 @@ async function upsertFromSubscription(subscription: any) {
         periodo_fim: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: "user_id" },
+      { onConflict: "user_id" } as any,
     );
 }
 
