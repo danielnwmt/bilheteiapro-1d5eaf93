@@ -11,7 +11,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Sparkles, Target, TrendingUp, Trophy, Building2, ExternalLink, ListChecks, LogOut } from "lucide-react";
 import { toast } from "sonner";
-import logo from "@/assets/bilheteia-logo.png.asset.json";
+import logo from "@/assets/bilheteia-logo-transparent.png.asset.json";
 
 export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
