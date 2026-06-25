@@ -9,6 +9,7 @@ const InputSchema = z.object({
   oddAlvo: z.number().min(1.1).max(1000),
   periodo: z.enum(["hoje", "amanha", "semana", "aovivo"]),
   campeonatos: z.array(z.string()).optional().default([]),
+  mercados: z.array(z.string()).optional().default([]),
   casa: z.string().optional().default("Betano"),
   minConfianca: z.number().min(0).max(100).optional().default(0),
 });
