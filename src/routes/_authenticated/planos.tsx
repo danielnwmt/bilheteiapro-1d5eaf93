@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Check, X, Loader2, ArrowLeft } from "lucide-react";
-import { PLANOS, PLANO_INFO, COMPARATIVO, type Plano } from "@/lib/planos";
+import { TODAS_LIGAS, RECURSO_LABELS, type Plano } from "@/lib/planos";
+import { usePlanos } from "@/hooks/usePlanos";
 import { StripeEmbeddedCheckout } from "@/components/StripeEmbeddedCheckout";
 import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 import { useAccess } from "@/hooks/useAccess";
@@ -32,9 +33,33 @@ function Cell({ value }: { value: boolean | string }) {
 function PlanosPage() {
   const router = useRouter();
   const { data: access } = useAccess();
+  const { list, byPlano, isLoading } = usePlanos();
   const [checkout, setCheckout] = useState<Plano | null>(null);
 
   const planoAtual = access?.plano ?? null;
+  const checkoutCfg = checkout ? byPlano[checkout] : null;
+
+  // Linhas do comparativo, derivadas da configuração de cada plano.
+  const linhas: Array<{ recurso: string; start: boolean | string; pro: boolean | string; elite: boolean | string }> = [
+    ...TODAS_LIGAS.map((liga) => ({
+      recurso: liga,
+      start: !!byPlano.start?.ligas.includes(liga),
+      pro: !!byPlano.pro?.ligas.includes(liga),
+      elite: !!byPlano.elite?.ligas.includes(liga),
+    })),
+    ...RECURSO_LABELS.map((r) => ({
+      recurso: r.label,
+      start: !!byPlano.start?.recursos[r.key],
+      pro: !!byPlano.pro?.recursos[r.key],
+      elite: !!byPlano.elite?.recursos[r.key],
+    })),
+    {
+      recurso: "Histórico",
+      start: byPlano.start ? `${byPlano.start.historicoDias} dias` : "-",
+      pro: byPlano.pro ? `${byPlano.pro.historicoDias} dias` : "-",
+      elite: byPlano.elite ? `${byPlano.elite.historicoDias} dias` : "-",
+    },
+  ];
 
   return (
     <main className="min-h-screen bg-background">
@@ -53,23 +78,27 @@ function PlanosPage() {
           </p>
         </div>
 
-        {checkout ? (
+        {isLoading ? (
+          <div className="flex justify-center py-16">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : checkout && checkoutCfg ? (
           <Card className="mx-auto mt-8 max-w-2xl border-border/60 bg-card p-4 md:p-6">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">{PLANO_INFO[checkout].nome}</h2>
+              <h2 className="text-lg font-semibold">{checkoutCfg.nome}</h2>
               <Button variant="ghost" size="sm" onClick={() => setCheckout(null)}>
                 Cancelar
               </Button>
             </div>
             <StripeEmbeddedCheckout
-              priceId={PLANO_INFO[checkout].priceId}
+              priceId={checkoutCfg.priceId}
               returnUrl={`${window.location.origin}/?checkout=success`}
             />
           </Card>
         ) : (
           <div className="mt-8 grid gap-4 md:grid-cols-3">
-            {PLANOS.map((p) => {
-              const info = PLANO_INFO[p];
+            {list.map((info) => {
+              const p = info.plano;
               const atual = planoAtual === p;
               return (
                 <Card
@@ -114,7 +143,7 @@ function PlanosPage() {
                 </tr>
               </thead>
               <tbody>
-                {COMPARATIVO.map((row) => (
+                {linhas.map((row) => (
                   <tr key={row.recurso} className="border-b border-border/40 text-sm">
                     <td className="p-4">{row.recurso}</td>
                     <td className="p-4 text-center"><Cell value={row.start} /></td>
