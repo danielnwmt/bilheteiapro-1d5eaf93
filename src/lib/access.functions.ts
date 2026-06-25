@@ -155,12 +155,13 @@ export const createCliente = createServerFn({ method: "POST" })
       data_nascimento?: string | null;
       plano: "start" | "pro" | "elite";
       status: "ativo" | "inativo";
+      isAdmin?: boolean;
     }) => d,
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const roles = await assertStaff(supabase, userId);
-    if (!roles.includes("admin")) throw new Error("Apenas admin pode criar clientes");
+    if (!roles.includes("admin")) throw new Error("Apenas admin pode criar usuários");
     if (!data.email.trim()) throw new Error("Informe um e-mail");
     if (!data.senha || data.senha.length < 6)
       throw new Error("A senha deve ter ao menos 6 caracteres");
@@ -191,15 +192,25 @@ export const createCliente = createServerFn({ method: "POST" })
       { onConflict: "id" },
     );
 
-    await supabaseAdmin.from("subscriptions").upsert(
-      {
-        user_id: newId,
-        plano: data.plano,
-        status: data.status,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id" },
-    );
+    if (data.isAdmin) {
+      await supabaseAdmin.from("user_roles").upsert(
+        { user_id: newId, role: "admin" },
+        { onConflict: "user_id,role" },
+      );
+    } else {
+      await supabaseAdmin.from("subscriptions").upsert(
+        {
+          user_id: newId,
+          plano: data.plano,
+          status: data.status,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" },
+      );
+    }
+
+    return { ok: true, id: newId };
+  });
 
     return { ok: true, id: newId };
   });
