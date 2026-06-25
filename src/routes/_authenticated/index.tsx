@@ -279,24 +279,36 @@ function Index() {
                   <TrendingUp className="h-4 w-4 text-primary" /> Período
                 </Label>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  {(["aovivo", "hoje", "amanha", "semana"] as const).map((p) => (
-                    <button
-                      type="button"
-                      key={p}
-                      onClick={() => setPeriodo(p)}
-                      className={`rounded-md border px-3 py-2 text-sm font-medium capitalize transition-colors ${
-                        periodo === p
-                          ? "border-primary bg-primary/15 text-primary"
-                          : "border-border bg-input/40 text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      {p === "amanha" ? "amanhã" : p === "aovivo" ? "🔴 ao vivo" : p}
-                    </button>
-                  ))}
+                  {(["aovivo", "hoje", "amanha", "semana"] as const).map((p) => {
+                    const bloqueado = p === "aovivo" && !isElite;
+                    return (
+                      <button
+                        type="button"
+                        key={p}
+                        onClick={() => {
+                          if (bloqueado) {
+                            toast.error("Tempo real é exclusivo do plano Elite.");
+                            router.navigate({ to: "/planos" });
+                            return;
+                          }
+                          setPeriodo(p);
+                        }}
+                        className={`flex items-center justify-center gap-1 rounded-md border px-3 py-2 text-sm font-medium capitalize transition-colors ${
+                          periodo === p
+                            ? "border-primary bg-primary/15 text-primary"
+                            : "border-border bg-input/40 text-muted-foreground hover:text-foreground"
+                        } ${bloqueado ? "opacity-50" : ""}`}
+                      >
+                        {bloqueado && <Lock className="h-3 w-3" />}
+                        {p === "amanha" ? "amanhã" : p === "aovivo" ? "🔴 ao vivo" : p}
+                      </button>
+                    );
+                  })}
                 </div>
                 <p className="mt-2 text-xs text-primary">Todas as entradas exigem confiança ≥ 90%.</p>
               </div>
             </div>
+
 
             <div>
               <Label className="mb-2 flex items-center gap-2 text-sm">
