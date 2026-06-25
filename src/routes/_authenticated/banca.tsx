@@ -34,7 +34,7 @@ import { recursoLiberado } from "@/lib/planos";
 
 export const Route = createFileRoute("/_authenticated/banca")({
   head: () => ({ meta: [{ title: "Gestão de Banca — BilheteIA PRO" }] }),
-  component: BancaPage;
+  component: BancaPage,
 });
 
 const RESULTADOS: { v: Resultado; label: string }[] = [
