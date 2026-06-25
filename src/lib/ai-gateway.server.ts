@@ -1,5 +1,6 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import type { LanguageModel } from "ai";
+import { getConfigKey } from "./system-config.server";
 
 /**
  * Retorna o modelo de IA a ser usado para tratar os dados da API.
@@ -10,8 +11,8 @@ import type { LanguageModel } from "ai";
  *
  * Configure GEMINI_MODEL para escolher o modelo (padrão: gemini-2.5-flash).
  */
-export function getAiModel(): LanguageModel {
-  const geminiKey = process.env.GEMINI_API_KEY;
+export async function getAiModel(): Promise<LanguageModel> {
+  const geminiKey = await getConfigKey("GEMINI_API_KEY");
   if (geminiKey) {
     const google = createOpenAICompatible({
       name: "google",

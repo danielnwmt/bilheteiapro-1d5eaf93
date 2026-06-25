@@ -2,6 +2,7 @@
 // Server-only: usa a service key e a chave da API-Football.
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { getConfigKey } from "./system-config.server";
 
 const API_BASE = "https://v3.football.api-sports.io";
 
@@ -82,7 +83,7 @@ const STATUS_MAP: Record<string, string> = {
  * Retorna a quantidade de partidas sincronizadas.
  */
 export async function syncFixtures(periodo: Periodo): Promise<number> {
-  const key = process.env.API_FOOTBALL_KEY;
+  const key = await getConfigKey("API_FOOTBALL_KEY");
   if (!key) throw new Error("Missing API_FOOTBALL_KEY");
 
   const fixtures: ApiFixture[] = [];
@@ -244,7 +245,7 @@ export async function syncOdds(
   casa: string,
   maxFixtures = 12,
 ): Promise<number> {
-  const key = process.env.API_FOOTBALL_KEY;
+  const key = await getConfigKey("API_FOOTBALL_KEY");
   if (!key) throw new Error("Missing API_FOOTBALL_KEY");
 
   const targets = fixtures.filter((f) => f.external_id).slice(0, maxFixtures);
@@ -346,7 +347,7 @@ function seasonForDate(dateStr: string): number {
 export async function syncOddsByLeagueToday(
   casa: string = "betano",
 ): Promise<{ ligas: number; chamadas: number; odds: number }> {
-  const key = process.env.API_FOOTBALL_KEY;
+  const key = await getConfigKey("API_FOOTBALL_KEY");
   if (!key) throw new Error("Missing API_FOOTBALL_KEY");
 
   const supabase = createClient<Database>(
@@ -577,7 +578,7 @@ function mapOddsApiOutcome(
 export async function syncOddsFromOddsApi(
   casa: string = "betano",
 ): Promise<{ ligas: number; chamadas: number; eventos: number; odds: number }> {
-  const apiKey = process.env.ODDS_API_KEY;
+  const apiKey = await getConfigKey("ODDS_API_KEY");
   if (!apiKey) throw new Error("Missing ODDS_API_KEY");
 
   const supabase = createClient<Database>(

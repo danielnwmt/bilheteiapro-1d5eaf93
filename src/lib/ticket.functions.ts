@@ -223,7 +223,7 @@ export const gerarBilhete = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => InputSchema.parse(d))
   .handler(async ({ data, context }) => {
-    const aiModel = getAiModel();
+    const aiModel = await getAiModel();
 
     // ---- Controle de acesso por plano ----
     const { data: roleRows } = await context.supabase

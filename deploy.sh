@@ -42,9 +42,8 @@ echo ">> Conferindo variáveis do .env..."
 ensure_key SUPABASE_URL "$SUPABASE_URL_DEFAULT"
 ensure_key SUPABASE_PUBLISHABLE_KEY "$SUPABASE_PUBLISHABLE_KEY_DEFAULT"
 ensure_key SUPABASE_SERVICE_ROLE_KEY ""   # cole a service role key (necessária p/ admin)
-ensure_key GEMINI_API_KEY ""              # https://aistudio.google.com/apikey
-ensure_key API_FOOTBALL_KEY ""
-ensure_key FIRECRAWL_API_KEY ""
+# GEMINI_API_KEY, API_FOOTBALL_KEY, ODDS_API_KEY e demais chaves de integração
+# são adicionadas manualmente no painel Admin -> APIs do sistema (após instalar).
 ensure_key INGEST_SECRET ""
 
 # 2) Atualiza o código
