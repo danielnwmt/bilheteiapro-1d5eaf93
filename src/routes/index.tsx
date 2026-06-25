@@ -278,6 +278,32 @@ function Index() {
               <p className="mt-2 text-xs text-muted-foreground">Deixe vazio para considerar qualquer campeonato.</p>
             </div>
 
+            <div>
+              <Label className="mb-2 flex items-center gap-2 text-sm">
+                <ListChecks className="h-4 w-4 text-primary" /> Mercados do bilhete {mercSel.length > 0 && <span className="text-xs text-muted-foreground">({mercSel.length} selecionados)</span>}
+              </Label>
+              <div className="flex flex-wrap gap-2">
+                {MERCADOS.map((m) => {
+                  const active = mercSel.includes(m);
+                  return (
+                    <button
+                      type="button"
+                      key={m}
+                      onClick={() => toggleMerc(m)}
+                      className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                        active
+                          ? "border-primary bg-primary/15 text-primary"
+                          : "border-border bg-input/40 text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {m}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">Escolha vitória, escanteios, cartões e outros. Deixe vazio para a IA usar qualquer mercado.</p>
+            </div>
+
             <Button
               type="submit"
               disabled={loading}
