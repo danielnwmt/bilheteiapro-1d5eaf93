@@ -144,6 +144,66 @@ export const setClientePlano = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const createCliente = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (d: {
+      nome: string;
+      email: string;
+      senha: string;
+      cpf?: string;
+      data_nascimento?: string | null;
+      plano: "start" | "pro" | "elite";
+      status: "ativo" | "inativo";
+    }) => d,
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const roles = await assertStaff(supabase, userId);
+    if (!roles.includes("admin")) throw new Error("Apenas admin pode criar clientes");
+    if (!data.email.trim()) throw new Error("Informe um e-mail");
+    if (!data.senha || data.senha.length < 6)
+      throw new Error("A senha deve ter ao menos 6 caracteres");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
+      email: data.email.trim(),
+      password: data.senha,
+      email_confirm: true,
+      user_metadata: {
+        nome: data.nome.trim(),
+        cpf: (data.cpf ?? "").replace(/\D/g, ""),
+        data_nascimento: data.data_nascimento || "",
+      },
+    });
+    if (error) throw new Error(error.message);
+    const newId = created.user!.id;
+
+    await supabaseAdmin.from("profiles").upsert(
+      {
+        id: newId,
+        nome: data.nome.trim() || null,
+        email: data.email.trim() || null,
+        cpf: (data.cpf ?? "").replace(/\D/g, "") || null,
+        data_nascimento: data.data_nascimento || null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "id" },
+    );
+
+    await supabaseAdmin.from("subscriptions").upsert(
+      {
+        user_id: newId,
+        plano: data.plano,
+        status: data.status,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" },
+    );
+
+    return { ok: true, id: newId };
+  });
+
 export const getClientStats = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
