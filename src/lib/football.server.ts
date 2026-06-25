@@ -304,6 +304,7 @@ export async function syncOdds(
           selecao: mapped.selecao,
           valor,
           external_odd_id: `${f.external_id}:${bm.id}:${bet.id}:${val.value}`,
+          deep_link: resolveDeep(mapped.mercado, f.time_casa, f.time_fora),
         });
       }
     }
