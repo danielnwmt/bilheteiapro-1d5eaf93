@@ -136,6 +136,10 @@ function RootComponent() {
     return () => data.subscription.unsubscribe();
   }, [router, queryClient]);
 
+  useEffect(() => {
+    applyAccent(getAccent());
+  }, []);
+
 
 
   return (
