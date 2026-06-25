@@ -8,7 +8,7 @@ import { Check, X, Loader2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { TODAS_LIGAS, RECURSO_LABELS, type Plano } from "@/lib/planos";
 import { usePlanos } from "@/hooks/usePlanos";
-import { createStripeCheckout, createMercadoPagoCheckout } from "@/lib/payments.functions";
+import { createInfinitePayCheckout } from "@/lib/payments.functions";
 import { useAccess } from "@/hooks/useAccess";
 
 export const Route = createFileRoute("/_authenticated/planos")({
@@ -36,23 +36,19 @@ function PlanosPage() {
   const { data: access } = useAccess();
   const { list, byPlano, isLoading } = usePlanos();
   const [checkout, setCheckout] = useState<Plano | null>(null);
-  const [carregando, setCarregando] = useState<"stripe" | "mp" | null>(null);
+  const [carregando, setCarregando] = useState(false);
 
-  const stripeCheckout = useServerFn(createStripeCheckout);
-  const mpCheckout = useServerFn(createMercadoPagoCheckout);
+  const infinitePayCheckout = useServerFn(createInfinitePayCheckout);
 
   const planoAtual = access?.plano ?? null;
   const checkoutCfg = checkout ? byPlano[checkout] : null;
 
-  async function pagar(provedor: "stripe" | "mp") {
+  async function pagar() {
     if (!checkout) return;
-    setCarregando(provedor);
+    setCarregando(true);
     try {
       const returnUrl = `${window.location.origin}/?checkout=success`;
-      const result =
-        provedor === "stripe"
-          ? await stripeCheckout({ data: { plano: checkout, returnUrl } })
-          : await mpCheckout({ data: { plano: checkout, returnUrl } });
+      const result = await infinitePayCheckout({ data: { plano: checkout, returnUrl } });
       if ("error" in result) {
         toast.error(result.error);
         return;
@@ -61,7 +57,7 @@ function PlanosPage() {
     } catch (e: any) {
       toast.error(e?.message ?? "Não foi possível iniciar o pagamento");
     } finally {
-      setCarregando(null);
+      setCarregando(false);
     }
   }
 
@@ -119,29 +115,16 @@ function PlanosPage() {
               <span className="text-sm font-normal text-muted-foreground">/mês</span>
             </p>
             <p className="mt-4 mb-3 text-sm text-muted-foreground">
-              Escolha a forma de pagamento:
+              Pague com Pix ou Cartão em até 12x via InfinitePay.
             </p>
             <div className="space-y-3">
               <Button
                 className="w-full font-semibold"
-                disabled={carregando !== null}
-                onClick={() => pagar("stripe")}
+                disabled={carregando}
+                onClick={() => pagar()}
               >
-                {carregando === "stripe" ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : null}
-                Pagar com Cartão (Stripe)
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full font-semibold"
-                disabled={carregando !== null}
-                onClick={() => pagar("mp")}
-              >
-                {carregando === "mp" ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : null}
-                Pagar com Mercado Pago (Pix/Cartão)
+                {carregando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Pagar com InfinitePay (Pix/Cartão)
               </Button>
             </div>
           </Card>

@@ -20,9 +20,14 @@ const CHAVES_PADRAO = [
   { chave: "GEMINI_API_KEY", descricao: "Chave da IA (Google Gemini) usada na geração de bilhetes" },
   { chave: "API_FOOTBALL_KEY", descricao: "Chave da API-Football (jogos e odds)" },
   { chave: "ODDS_API_KEY", descricao: "Chave da The Odds API" },
-  { chave: "STRIPE_SECRET_KEY", descricao: "Chave secreta da sua conta Stripe (sk_live_… ou sk_test_…)" },
-  { chave: "STRIPE_WEBHOOK_SECRET", descricao: "Signing secret do webhook do Stripe (whsec_…)" },
-  { chave: "MERCADO_PAGO_ACCESS_TOKEN", descricao: "Access Token da sua conta Mercado Pago (APP_USR-…)" },
+];
+
+// API de pagamento (banco) — mantida separada das demais.
+const CHAVES_PAGAMENTO = [
+  {
+    chave: "INFINITEPAY_HANDLE",
+    descricao: "Sua InfiniteTag da InfinitePay (handle, sem o $). Ex: minhaloja",
+  },
 ];
 
 function ApisPage() {
@@ -57,12 +62,13 @@ function ApisPage() {
   });
 
   const existentes = new Map((config ?? []).map((c) => [c.chave, c.descricao]));
+  const chavesPagamento = new Set(CHAVES_PAGAMENTO.map((c) => c.chave));
   const todasChaves = Array.from(
     new Set([
       ...CHAVES_PADRAO.map((c) => c.chave),
       ...(config ?? []).map((c) => c.chave),
     ]),
-  );
+  ).filter((c) => !chavesPagamento.has(c));
 
   if (error) {
     return (
@@ -145,6 +151,40 @@ function ApisPage() {
                 </Button>
               </div>
             </Card>
+
+            {/* API de pagamento (banco) — seção separada das demais */}
+            <div className="pt-6">
+              <h2 className="mb-1 text-lg font-bold">API de pagamento (banco)</h2>
+              <p className="mb-4 text-sm text-muted-foreground">
+                Credenciais de recebimento. Mantidas separadas das demais integrações.
+              </p>
+              <div className="space-y-4">
+                {CHAVES_PAGAMENTO.map(({ chave, descricao: desc }) => {
+                  const descricao = existentes.get(chave) ?? desc ?? "";
+                  return (
+                    <Card key={chave} className="border-primary/30 bg-card p-4">
+                      <Label className="text-sm font-semibold">{chave}</Label>
+                      {descricao && <p className="mb-2 text-xs text-muted-foreground">{descricao}</p>}
+                      <div className="flex gap-2">
+                        <Input
+                          type="text"
+                          placeholder="sua-infinitetag"
+                          value={vals[chave] ?? ""}
+                          onChange={(e) => setVals((v) => ({ ...v, [chave]: e.target.value }))}
+                          className="bg-input/40"
+                        />
+                        <Button
+                          disabled={mut.isPending}
+                          onClick={() => mut.mutate({ chave, valor: vals[chave] ?? "", descricao })}
+                        >
+                          Salvar
+                        </Button>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         )}
       </div>
