@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { gerarBilhete } from "@/lib/ticket.functions";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,9 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Sparkles, Target, TrendingUp, Trophy, Building2, ExternalLink, ListChecks, LogOut } from "lucide-react";
+import { Loader2, Sparkles, Target, TrendingUp, Trophy, Building2, ExternalLink, ListChecks, LogOut, Lock, Crown, Users } from "lucide-react";
 import { toast } from "sonner";
 import logo from "@/assets/bilheteia-logo-icon.png.asset.json";
+import { useAccess } from "@/hooks/useAccess";
+import { ligaLiberada, PLANO_INFO } from "@/lib/planos";
 
 export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
