@@ -133,6 +133,30 @@ const BOOKMAKER_NAME_TO_ID: Record<string, number> = {
   marathonbet: 7,
 };
 
+// Carrega os templates de deep link por casa e devolve uma função que
+// monta o link direto para uma partida/mercado.
+async function buildDeepLinkResolver(
+  supabase: ReturnType<typeof createClient<Database>>,
+  casa: string,
+) {
+  const casaNorm = normCasa(casa);
+  const { data } = await supabase.from("deep_links").select("casa, mercado, url_template");
+  const templates = (data ?? []).filter((d) => normCasa(d.casa) === casaNorm);
+
+  return (mercado: string, jogoCasa: string, jogoFora: string): string | null => {
+    if (!templates.length) return null;
+    const especifico = templates.find((t) => t.mercado && normCasa(t.mercado) === normCasa(mercado));
+    const generico = templates.find((t) => !t.mercado);
+    const tpl = especifico ?? generico ?? templates[0];
+    if (!tpl?.url_template) return null;
+    const jogo = encodeURIComponent(`${jogoCasa} x ${jogoFora}`);
+    return tpl.url_template
+      .replace(/\{jogo\}/g, jogo)
+      .replace(/\{mercado\}/g, encodeURIComponent(mercado));
+  };
+}
+
+
 function normCasa(value: string) {
   return value
     .normalize("NFD")
