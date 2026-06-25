@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import logo from "@/assets/bilheteia-logo.png";
+import { checkEmailExists } from "@/lib/auth-check.functions";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
@@ -62,7 +63,22 @@ function AuthPage() {
     try {
       if (mode === "login") {
         const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
-        if (error) throw error;
+        if (error) {
+          if (/invalid login credentials/i.test(error.message)) {
+            try {
+              const { exists } = await checkEmailExists({ data: { email } });
+              if (!exists) {
+                toast.error("E-mail não encontrado. Verifique ou crie uma conta.");
+              } else {
+                toast.error("Senha incorreta. Tente novamente.");
+              }
+            } catch {
+              toast.error("E-mail ou senha incorretos.");
+            }
+            return;
+          }
+          throw error;
+        }
         router.navigate({ to: "/", replace: true });
       } else {
         const { error } = await supabase.auth.signUp({
