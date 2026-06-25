@@ -122,6 +122,7 @@ export type Database = {
         Row: {
           casa: string
           created_at: string
+          deep_link: string | null
           external_odd_id: string | null
           id: string
           mercado: string
@@ -133,6 +134,7 @@ export type Database = {
         Insert: {
           casa: string
           created_at?: string
+          deep_link?: string | null
           external_odd_id?: string | null
           id?: string
           mercado: string
@@ -144,6 +146,7 @@ export type Database = {
         Update: {
           casa?: string
           created_at?: string
+          deep_link?: string | null
           external_odd_id?: string | null
           id?: string
           mercado?: string
