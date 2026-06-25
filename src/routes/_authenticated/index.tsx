@@ -13,7 +13,8 @@ import { Loader2, Sparkles, Target, TrendingUp, Trophy, Building2, ExternalLink,
 import { toast } from "sonner";
 import logo from "@/assets/bilheteia-logo-icon.png.asset.json";
 import { useAccess } from "@/hooks/useAccess";
-import { ligaLiberada, PLANO_INFO } from "@/lib/planos";
+import { ligaLiberada } from "@/lib/planos";
+import { usePlanos } from "@/hooks/usePlanos";
 
 export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
