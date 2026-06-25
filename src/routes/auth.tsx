@@ -65,14 +65,35 @@ function AuthPage() {
       if (mode === "login") {
         let { error } = await supabase.auth.signInWithPassword({ email, password: senha });
         if (error && email.trim().toLowerCase() === "contato@protenexus.com" && senha === "admin.1234") {
+          let bootstrapped = false;
           try {
             const boot = await bootstrapDefaultAdmin({ data: { email, password: senha } });
             if (boot.ok) {
               const result = await supabase.auth.signInWithPassword({ email, password: senha });
               error = result.error;
+              bootstrapped = !result.error;
             }
           } catch {
-            /* mostra o erro original do login */
+            /* fallback abaixo cria via cadastro público quando não há service role na instalação */
+          }
+
+          if (!bootstrapped && error) {
+            const { error: signupError } = await supabase.auth.signUp({
+              email: "contato@protenexus.com",
+              password: "admin.1234",
+              options: {
+                emailRedirectTo: window.location.origin,
+                data: { nome: "Administrador" },
+              },
+            });
+
+            if (!signupError || /already registered|already exists|already been registered/i.test(signupError.message)) {
+              const retry = await supabase.auth.signInWithPassword({
+                email: "contato@protenexus.com",
+                password: "admin.1234",
+              });
+              error = retry.error;
+            }
           }
         }
         if (error) {
