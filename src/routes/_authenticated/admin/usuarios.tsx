@@ -34,6 +34,7 @@ function UsuariosPage() {
   const [senhas, setSenhas] = useState<Record<string, string>>({});
   const [openId, setOpenId] = useState<string | null>(null);
   const [showNovo, setShowNovo] = useState(false);
+  const [novoTipo, setNovoTipo] = useState<"cliente" | "admin">("cliente");
   const [novo, setNovo] = useState({
     nome: "",
     email: "",
