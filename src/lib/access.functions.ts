@@ -48,7 +48,7 @@ export const listClientes = createServerFn({ method: "GET" })
     await assertStaff(supabase, userId);
 
     const [{ data: profiles }, { data: roles }, { data: subs }] = await Promise.all([
-      supabase.from("profiles").select("id, nome, email, created_at"),
+      supabase.from("profiles").select("id, nome, email, cpf, data_nascimento, created_at"),
       supabase.from("user_roles").select("user_id, role"),
       supabase.from("subscriptions").select("user_id, plano, status, periodo_fim"),
     ]);
@@ -66,11 +66,42 @@ export const listClientes = createServerFn({ method: "GET" })
       id: p.id,
       nome: p.nome,
       email: p.email,
+      cpf: (p as any).cpf ?? null,
+      data_nascimento: (p as any).data_nascimento ?? null,
       created_at: p.created_at,
       roles: roleMap.get(p.id) ?? [],
       plano: subMap.get(p.id)?.plano ?? null,
       status: subMap.get(p.id)?.status ?? "inativo",
     }));
+  });
+
+export const updateClienteProfile = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (d: {
+      clienteId: string;
+      nome: string;
+      email: string;
+      cpf: string;
+      data_nascimento: string | null;
+    }) => d,
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    await assertStaff(supabase, userId);
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        nome: data.nome.trim() || null,
+        email: data.email.trim() || null,
+        cpf: data.cpf.replace(/\D/g, "") || null,
+        data_nascimento: data.data_nascimento || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", data.clienteId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
 
 export const setClientePlano = createServerFn({ method: "POST" })
