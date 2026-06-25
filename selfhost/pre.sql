@@ -8,12 +8,9 @@ DO $$ BEGIN CREATE ROLE anon NOLOGIN NOINHERIT; EXCEPTION WHEN duplicate_object 
 DO $$ BEGIN CREATE ROLE authenticated NOLOGIN NOINHERIT; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE ROLE service_role NOLOGIN NOINHERIT; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
--- BYPASSRLS exige superusuário; tenta aplicar, mas não quebra se não for possível.
-DO $$ BEGIN
-  ALTER ROLE service_role BYPASSRLS;
-EXCEPTION WHEN insufficient_privilege OR feature_not_supported THEN
-  RAISE NOTICE 'service_role sem BYPASSRLS (usuário não é superusuário); seguindo sem isso.';
-END $$;
+-- Não usamos BYPASSRLS aqui: em algumas imagens/instalações esse atributo exige
+-- superusuário e quebra o setup. O schema cria políticas explícitas para
+-- service_role acessar tudo sem depender desse atributo.
 
 DO $$ BEGIN
   GRANT anon, authenticated, service_role TO CURRENT_USER;

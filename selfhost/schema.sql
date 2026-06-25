@@ -572,3 +572,35 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
 AFTER INSERT ON auth.users
 FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- Self-host robusto: em alguns Postgres locais não é permitido criar/alterar
+-- service_role com BYPASSRLS. Então liberamos o service_role por políticas RLS
+-- explícitas em todas as tabelas públicas do app.
+DO $$
+DECLARE
+  tbl record;
+BEGIN
+  FOR tbl IN
+    SELECT c.relname AS table_name
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public'
+      AND c.relkind = 'r'
+      AND c.relrowsecurity
+  LOOP
+    IF NOT EXISTS (
+      SELECT 1
+      FROM pg_policy p
+      JOIN pg_class pc ON pc.oid = p.polrelid
+      JOIN pg_namespace pn ON pn.oid = pc.relnamespace
+      WHERE pn.nspname = 'public'
+        AND pc.relname = tbl.table_name
+        AND p.polname = 'Service role full access'
+    ) THEN
+      EXECUTE format(
+        'CREATE POLICY "Service role full access" ON public.%I FOR ALL TO service_role USING (true) WITH CHECK (true)',
+        tbl.table_name
+      );
+    END IF;
+  END LOOP;
+END $$;
