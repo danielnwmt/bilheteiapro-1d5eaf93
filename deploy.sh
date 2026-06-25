@@ -46,6 +46,31 @@ ensure_key SUPABASE_SERVICE_ROLE_KEY ""   # cole a service role key (necessária
 # são adicionadas manualmente no painel Admin -> APIs do sistema (após instalar).
 ensure_key INGEST_SECRET ""
 
+# 1.1) Garante o usuário admin padrão (contato@protenexus.com / admin.1234)
+#      Idempotente: se já existir, apenas ignora. O trigger handle_new_user
+#      atribui automaticamente o papel "admin" para esse e-mail.
+seed_admin() {
+  # carrega variáveis do .env
+  set -a; . "$ENV_FILE"; set +a
+  if [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
+    echo ">> (admin) SUPABASE_URL/SERVICE_ROLE_KEY ausentes — pulando criação do admin."
+    return 0
+  fi
+  echo ">> Garantindo usuário admin (contato@protenexus.com)..."
+  resp=$(curl -s -o /dev/null -w "%{http_code}" \
+    -X POST "${SUPABASE_URL}/auth/v1/admin/users" \
+    -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+    -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+    -H "Content-Type: application/json" \
+    -d '{"email":"contato@protenexus.com","password":"admin.1234","email_confirm":true,"user_metadata":{"nome":"Administrador"}}' || true)
+  case "$resp" in
+    200|201) echo ">> Admin criado com sucesso." ;;
+    422)     echo ">> Admin já existe — ok." ;;
+    *)       echo ">> (admin) resposta inesperada: HTTP $resp (verifique a SERVICE_ROLE_KEY)." ;;
+  esac
+}
+seed_admin
+
 # 2) Atualiza o código
 echo ">> Atualizando código..."
 git pull
