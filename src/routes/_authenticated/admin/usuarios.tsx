@@ -85,7 +85,7 @@ function UsuariosPage() {
                         className="rounded-md border border-border bg-input/40 px-2 py-1 text-sm"
                       >
                         {PLANOS.map((p) => (
-                          <option key={p} value={p}>{PLANO_INFO[p].nome}</option>
+                          <option key={p} value={p}>{byPlano[p]?.nome ?? p}</option>
                         ))}
                       </select>
                       <select
