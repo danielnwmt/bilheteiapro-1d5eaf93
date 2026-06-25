@@ -103,6 +103,21 @@ const CAMPEONATOS = [
   "Copa do Mundo",
 ];
 
+const MERCADOS = [
+  "Vitória / Resultado Final",
+  "Dupla Chance",
+  "Empate Anula (DNB)",
+  "Ambas Marcam",
+  "Mais/Menos Gols",
+  "Escanteios",
+  "Cartões",
+  "Chutes ao Gol",
+  "Handicap Asiático",
+  "Placar Exato",
+  "Gols no 1º Tempo",
+  "Time Marca Gol",
+];
+
 function Index() {
   const run = useServerFn(gerarBilhete);
   const [oddAlvo, setOddAlvo] = useState("5");
