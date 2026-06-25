@@ -1,90 +1,99 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { type StripeEnv, createStripeClient, getStripeErrorMessage } from "@/lib/stripe.server";
+import { createStripeClient, getStripeErrorMessage, precoEmCentavos } from "@/lib/stripe.server";
+import { createPreapproval, precoEmReais } from "@/lib/mercadopago.server";
+import type { Plano } from "@/lib/planos";
 
-type CheckoutSessionResult = { clientSecret: string } | { error: string };
-type PortalSessionResult = { url: string } | { error: string };
+type CheckoutResult = { url: string } | { error: string };
+type PortalResult = { url: string } | { error: string };
 
-async function resolveOrCreateCustomer(
-  stripe: ReturnType<typeof createStripeClient>,
-  options: { email?: string; userId?: string },
-): Promise<string> {
-  if (options.userId && !/^[a-zA-Z0-9_-]+$/.test(options.userId)) {
-    throw new Error("Invalid userId");
-  }
-  if (options.userId) {
-    const found = await stripe.customers.search({
-      query: `metadata['userId']:'${options.userId}'`,
-      limit: 1,
-    });
-    if (found.data.length) return found.data[0].id;
-  }
-  if (options.email) {
-    const existing = await stripe.customers.list({ email: options.email, limit: 1 });
-    if (existing.data.length) {
-      const customer = existing.data[0];
-      if (options.userId && customer.metadata?.userId !== options.userId) {
-        await stripe.customers.update(customer.id, {
-          metadata: { ...customer.metadata, userId: options.userId },
-        });
-      }
-      return customer.id;
-    }
-  }
-  const created = await stripe.customers.create({
-    ...(options.email && { email: options.email }),
-    ...(options.userId && { metadata: { userId: options.userId } }),
-  });
-  return created.id;
+const PLANOS_VALIDOS: Plano[] = ["start", "pro", "elite"];
+
+async function getPlanoConfig(plano: Plano): Promise<{ nome: string; preco: string }> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await supabaseAdmin
+    .from("plano_config")
+    .select("nome, preco")
+    .eq("plano", plano)
+    .maybeSingle();
+  if (!data) throw new Error("Plano não encontrado");
+  return { nome: data.nome, preco: data.preco };
 }
 
-export const createCheckoutSession = createServerFn({ method: "POST" })
+// ============ STRIPE (BYOK, checkout hospedado) ============
+export const createStripeCheckout = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
-    (data: { priceId: string; returnUrl: string; environment: StripeEnv }) => {
-      if (!/^[a-zA-Z0-9_-]+$/.test(data.priceId)) throw new Error("Invalid priceId");
-      return data;
-    },
-  )
-  .handler(async ({ data, context }): Promise<CheckoutSessionResult> => {
+  .inputValidator((data: { plano: Plano; returnUrl: string }) => {
+    if (!PLANOS_VALIDOS.includes(data.plano)) throw new Error("Plano inválido");
+    return data;
+  })
+  .handler(async ({ data, context }): Promise<CheckoutResult> => {
     try {
       const { userId, supabase } = context;
       const { data: { user } } = await supabase.auth.getUser();
-      const stripe = createStripeClient(data.environment);
-
-      const prices = await stripe.prices.list({ lookup_keys: [data.priceId] });
-      if (!prices.data.length) throw new Error("Preço não encontrado");
-      const stripePrice = prices.data[0];
-
-      const customerId = await resolveOrCreateCustomer(stripe, {
-        email: user?.email ?? undefined,
-        userId,
-      });
+      const cfg = await getPlanoConfig(data.plano);
+      const stripe = await createStripeClient();
 
       const session = await stripe.checkout.sessions.create({
-        line_items: [{ price: stripePrice.id, quantity: 1 }],
         mode: "subscription",
-        ui_mode: "embedded_page",
-        return_url: data.returnUrl,
-        customer: customerId,
-        automatic_tax: { enabled: true },
-        metadata: { userId },
-        subscription_data: { metadata: { userId } },
+        line_items: [
+          {
+            quantity: 1,
+            price_data: {
+              currency: "brl",
+              unit_amount: precoEmCentavos(cfg.preco),
+              recurring: { interval: "month" },
+              product_data: { name: `BilheteIA PRO — ${cfg.nome}` },
+            },
+          },
+        ],
+        ...(user?.email && { customer_email: user.email }),
+        success_url: data.returnUrl,
+        cancel_url: data.returnUrl,
+        metadata: { userId, plano: data.plano },
+        subscription_data: { metadata: { userId, plano: data.plano } },
       });
 
-      return { clientSecret: session.client_secret ?? "" };
+      if (!session.url) throw new Error("Não foi possível iniciar o checkout");
+      return { url: session.url };
     } catch (error) {
       return { error: getStripeErrorMessage(error) };
     }
   });
 
+// ============ MERCADO PAGO (BYOK, assinatura) ============
+export const createMercadoPagoCheckout = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { plano: Plano; returnUrl: string }) => {
+    if (!PLANOS_VALIDOS.includes(data.plano)) throw new Error("Plano inválido");
+    return data;
+  })
+  .handler(async ({ data, context }): Promise<CheckoutResult> => {
+    try {
+      const { userId, supabase } = context;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) throw new Error("E-mail do usuário não encontrado");
+      const cfg = await getPlanoConfig(data.plano);
+
+      const { init_point } = await createPreapproval({
+        reason: `BilheteIA PRO — ${cfg.nome}`,
+        valor: precoEmReais(cfg.preco),
+        payerEmail: user.email,
+        backUrl: data.returnUrl,
+        externalReference: `${userId}|${data.plano}`,
+      });
+      return { url: init_point };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Falha no Mercado Pago" };
+    }
+  });
+
+// ============ Portal de assinatura Stripe ============
 export const createPortalSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { returnUrl?: string; environment: StripeEnv }) => data)
-  .handler(async ({ data, context }): Promise<PortalSessionResult> => {
+  .inputValidator((data: { returnUrl?: string }) => data)
+  .handler(async ({ data, context }): Promise<PortalResult> => {
     const { userId } = context;
-    // Stripe IDs are not exposed to the authenticated Data API; read them
-    // server-side with the service-role client, scoped to the verified user.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: sub } = await supabaseAdmin
       .from("subscriptions")
@@ -96,7 +105,7 @@ export const createPortalSession = createServerFn({ method: "POST" })
     if (!sub?.stripe_customer_id) throw new Error("Nenhuma assinatura encontrada");
 
     try {
-      const stripe = createStripeClient(data.environment);
+      const stripe = await createStripeClient();
       const portal = await stripe.billingPortal.sessions.create({
         customer: sub.stripe_customer_id,
         ...(data.returnUrl && { return_url: data.returnUrl }),
