@@ -231,6 +231,33 @@ function UsuariosPage() {
                           />
                         </div>
                       </div>
+
+                      <div className="mt-4 border-t border-border/60 pt-4">
+                        <Label className="text-xs">Nova senha</Label>
+                        <div className="mt-1 flex flex-wrap items-end gap-2">
+                          <Input
+                            type="text"
+                            placeholder="Mínimo 6 caracteres"
+                            value={senhas[c.id] ?? ""}
+                            onChange={(e) =>
+                              setSenhas((s) => ({ ...s, [c.id]: e.target.value }))
+                            }
+                            className="max-w-xs"
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={mutSenha.isPending || (senhas[c.id] ?? "").length < 6}
+                            onClick={() => mutSenha.mutate({ clienteId: c.id, senha: senhas[c.id] ?? "" })}
+                          >
+                            <KeyRound className="mr-2 h-4 w-4" /> Alterar senha
+                          </Button>
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Define uma nova senha para o cliente (somente admin).
+                        </p>
+                      </div>
+
                       <div className="mt-4 flex gap-2">
                         <Button
                           size="sm"
