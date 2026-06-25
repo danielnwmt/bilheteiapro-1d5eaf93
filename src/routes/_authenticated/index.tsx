@@ -126,6 +126,7 @@ const MERCADOS = [
 function Index() {
   const router = useRouter();
   const run = useServerFn(gerarBilhete);
+  const { data: access, refetch: refetchAccess } = useAccess();
   const [oddAlvo, setOddAlvo] = useState("5");
   const [valorAposta, setValorAposta] = useState("20");
   const [periodo, setPeriodo] = useState<"hoje" | "amanha" | "semana" | "aovivo">("hoje");
@@ -135,10 +136,32 @@ function Index() {
   const [loading, setLoading] = useState(false);
   const [ticket, setTicket] = useState<Ticket | null>(null);
 
+  const roles = access?.roles ?? [];
+  const isStaff = roles.includes("admin") || roles.includes("operador");
+  const plano = access?.plano ?? null;
+  const temAcesso = isStaff || !!plano;
+  const isElite = isStaff || plano === "elite";
+
+  // Volta do checkout: atualiza o plano.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("checkout") === "success") {
+      toast.success("Pagamento recebido! Atualizando seu plano...");
+      setTimeout(() => refetchAccess(), 1500);
+      window.history.replaceState({}, "", "/");
+    }
+  }, [refetchAccess]);
+
+  function podeUsarLiga(c: string) {
+    return isStaff || ligaLiberada(plano, c);
+  }
+
   async function handleSignOut() {
     await supabase.auth.signOut();
     router.navigate({ to: "/auth", replace: true });
   }
+
 
 
   async function onSubmit(e: React.FormEvent) {
