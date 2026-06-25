@@ -94,7 +94,7 @@ function UsuariosPage() {
   });
 
   const mutNovo = useMutation({
-    mutationFn: (v: typeof novo) =>
+    mutationFn: (v: typeof novo & { isAdmin: boolean }) =>
       criarCliente({
         data: {
           nome: v.nome,
@@ -104,15 +104,16 @@ function UsuariosPage() {
           data_nascimento: v.data_nascimento || null,
           plano: v.plano,
           status: v.status,
+          isAdmin: v.isAdmin,
         },
       }),
-    onSuccess: () => {
-      toast.success("Cliente criado");
+    onSuccess: (_d, v) => {
+      toast.success(v.isAdmin ? "Admin criado" : "Cliente criado");
       setShowNovo(false);
       setNovo({ nome: "", email: "", senha: "", cpf: "", data_nascimento: "", plano: "start", status: "ativo" });
       qc.invalidateQueries({ queryKey: ["clientes"] });
     },
-    onError: (e: any) => toast.error(e?.message ?? "Erro ao criar cliente"),
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao criar usuário"),
   });
 
   const handleSalvar = (c: any, cur: { plano: Plano; status: "ativo" | "inativo" }) => {
