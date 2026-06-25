@@ -150,11 +150,21 @@ export const getClientStats = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     await assertStaff(supabase, userId);
 
-    const [{ data: profiles }, { data: roles }, { data: subs }] = await Promise.all([
-      supabase.from("profiles").select("id, created_at"),
-      supabase.from("user_roles").select("user_id, role"),
-      supabase.from("subscriptions").select("user_id, plano, status, periodo_fim"),
-    ]);
+    const [{ data: profiles }, { data: roles }, { data: subs }, { data: planoCfg }] =
+      await Promise.all([
+        supabase.from("profiles").select("id, created_at"),
+        supabase.from("user_roles").select("user_id, role"),
+        supabase.from("subscriptions").select("user_id, plano, status, periodo_fim, created_at"),
+        supabase.from("plano_config").select("plano, preco"),
+      ]);
+
+    const parsePreco = (v: string | null | undefined) => {
+      if (!v) return 0;
+      const n = String(v).replace(/[^\d,.-]/g, "").replace(/\.(?=\d{3})/g, "").replace(",", ".");
+      return parseFloat(n) || 0;
+    };
+    const precoMap: Record<string, number> = { start: 29.9, pro: 49.9, elite: 79.9 };
+    for (const p of planoCfg ?? []) precoMap[p.plano] = parsePreco(p.preco);
 
     // IDs que são apenas staff (admin/operador) não contam como clientes.
     const staffIds = new Set(
