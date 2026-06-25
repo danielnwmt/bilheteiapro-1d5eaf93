@@ -380,17 +380,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      has_role: {
-        Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
-        }
-        Returns: boolean
-      }
-      plano_ativo: {
-        Args: { _user_id: string }
-        Returns: Database["public"]["Enums"]["plano_tipo"]
-      }
+      [_ in never]: never
     }
     Enums: {
       app_role: "admin" | "operador" | "cliente"
