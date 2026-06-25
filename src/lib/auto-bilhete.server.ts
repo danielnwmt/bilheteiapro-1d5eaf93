@@ -243,7 +243,7 @@ Responda APENAS em JSON, sem texto fora do JSON:
 
   let raw: Record<string, unknown>;
   try {
-    const { text } = await generateText({ model: getAiModel(), prompt });
+    const { text } = await generateText({ model: await getAiModel(), prompt });
     raw = JSON.parse(extractJson(text)) as Record<string, unknown>;
   } catch (e) {
     console.error("auto-bilhete: falha na IA", e);
