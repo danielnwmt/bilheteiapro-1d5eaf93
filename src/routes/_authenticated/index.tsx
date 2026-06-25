@@ -15,6 +15,7 @@ import logo from "@/assets/bilheteia-logo-icon.png.asset.json";
 import { useAccess } from "@/hooks/useAccess";
 import { ligaLiberada } from "@/lib/planos";
 import { usePlanos } from "@/hooks/usePlanos";
+import { AccentPicker } from "@/components/AccentPicker";
 
 export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
@@ -233,6 +234,7 @@ function Index() {
                 <Users className="mr-2 h-4 w-4" /> Admin
               </Button>
             )}
+            <AccentPicker compact />
             <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/planos" })}>
               <Crown className="mr-2 h-4 w-4" /> Planos
             </Button>
