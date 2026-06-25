@@ -95,6 +95,68 @@ export const setClientePlano = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const getClientStats = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    await assertStaff(supabase, userId);
+
+    const [{ data: profiles }, { data: roles }, { data: subs }] = await Promise.all([
+      supabase.from("profiles").select("id, created_at"),
+      supabase.from("user_roles").select("user_id, role"),
+      supabase.from("subscriptions").select("user_id, plano, status, periodo_fim"),
+    ]);
+
+    // IDs que são apenas staff (admin/operador) não contam como clientes.
+    const staffIds = new Set(
+      (roles ?? [])
+        .filter((r) => r.role === "admin" || r.role === "operador")
+        .map((r) => r.user_id),
+    );
+
+    const subMap = new Map<string, any>();
+    for (const s of subs ?? []) subMap.set(s.user_id, s);
+
+    const clientes = (profiles ?? []).filter((p) => !staffIds.has(p.id));
+
+    const now = new Date();
+    const isAtivo = (s: any) =>
+      s?.status === "ativo" && (!s?.periodo_fim || new Date(s.periodo_fim) > now);
+
+    const porPlano: Record<string, number> = { start: 0, pro: 0, elite: 0, sem: 0 };
+    let ativos = 0;
+    for (const c of clientes) {
+      const s = subMap.get(c.id);
+      if (s && isAtivo(s)) {
+        ativos += 1;
+        porPlano[s.plano] = (porPlano[s.plano] ?? 0) + 1;
+      } else {
+        porPlano.sem += 1;
+      }
+    }
+
+    // Cadastros nos últimos 6 meses.
+    const meses: { mes: string; total: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const label = d.toLocaleDateString("pt-BR", { month: "short" });
+      const next = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+      const total = clientes.filter((c) => {
+        const cd = new Date(c.created_at);
+        return cd >= d && cd < next;
+      }).length;
+      meses.push({ mes: label, total });
+    }
+
+    return {
+      totalClientes: clientes.length,
+      ativos,
+      inativos: clientes.length - ativos,
+      porPlano,
+      cadastrosPorMes: meses,
+    };
+  });
+
 export const getSystemConfig = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
