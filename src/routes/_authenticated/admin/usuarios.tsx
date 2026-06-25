@@ -113,6 +113,8 @@ function UsuariosPage() {
     },
     onError: (e: any) => toast.error(e?.message ?? "Erro ao criar cliente"),
   });
+
+  const handleSalvar = (c: any, cur: { plano: Plano; status: "ativo" | "inativo" }) => {
     const p = perfil[c.id] ?? {
       nome: c.nome ?? "",
       email: c.email ?? "",
