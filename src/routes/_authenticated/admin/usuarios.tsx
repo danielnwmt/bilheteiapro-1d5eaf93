@@ -72,6 +72,15 @@ function UsuariosPage() {
     onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar cadastro"),
   });
 
+  const mutSenha = useMutation({
+    mutationFn: (v: { clienteId: string; senha: string }) => salvarSenha({ data: v }),
+    onSuccess: (_d, v) => {
+      toast.success("Senha alterada");
+      setSenhas((s) => ({ ...s, [v.clienteId]: "" }));
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao alterar senha"),
+  });
+
   const handleSalvar = (c: any, cur: { plano: Plano; status: "ativo" | "inativo" }) => {
     const p = perfil[c.id] ?? {
       nome: c.nome ?? "",
