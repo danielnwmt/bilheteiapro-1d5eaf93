@@ -76,7 +76,7 @@ function AdminDashboard() {
               <Users className="mr-2 h-4 w-4" /> Clientes
             </Button>
             <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/admin/configuracoes" })}>
-              <Settings className="mr-2 h-4 w-4" /> Configurações
+              <Settings className="mr-2 h-4 w-4" /> Planos
             </Button>
             <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/admin/apis" })}>
               <KeyRound className="mr-2 h-4 w-4" /> APIs

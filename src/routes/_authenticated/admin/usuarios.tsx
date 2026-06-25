@@ -96,7 +96,7 @@ function UsuariosPage() {
           </Button>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/admin/configuracoes" })}>
-              <Settings className="mr-2 h-4 w-4" /> Configurações
+              <Settings className="mr-2 h-4 w-4" /> Planos
             </Button>
             <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/admin/apis" })}>
               <KeyRound className="mr-2 h-4 w-4" /> APIs do sistema
