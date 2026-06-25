@@ -22,6 +22,7 @@ import { Route as AuthenticatedAdminConfiguracoesRouteImport } from './routes/_a
 import { Route as AuthenticatedAdminApisRouteImport } from './routes/_authenticated/admin/apis'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as ApiPublicPaymentsMercadopagoRouteImport } from './routes/api/public/payments/mercadopago'
+import { Route as ApiPublicPaymentsInfinitepayRouteImport } from './routes/api/public/payments/infinitepay'
 import { Route as ApiPublicHooksSyncOddsDiarioRouteImport } from './routes/api/public/hooks/sync-odds-diario'
 import { Route as ApiPublicHooksSyncFootballRouteImport } from './routes/api/public/hooks/sync-football'
 import { Route as ApiPublicHooksGerarBilhetesRouteImport } from './routes/api/public/hooks/gerar-bilhetes'
@@ -94,6 +95,12 @@ const ApiPublicPaymentsMercadopagoRoute =
     path: '/api/public/payments/mercadopago',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicPaymentsInfinitepayRoute =
+  ApiPublicPaymentsInfinitepayRouteImport.update({
+    id: '/api/public/payments/infinitepay',
+    path: '/api/public/payments/infinitepay',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksSyncOddsDiarioRoute =
   ApiPublicHooksSyncOddsDiarioRouteImport.update({
     id: '/api/public/hooks/sync-odds-diario',
@@ -127,6 +134,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/gerar-bilhetes': typeof ApiPublicHooksGerarBilhetesRoute
   '/api/public/hooks/sync-football': typeof ApiPublicHooksSyncFootballRoute
   '/api/public/hooks/sync-odds-diario': typeof ApiPublicHooksSyncOddsDiarioRoute
+  '/api/public/payments/infinitepay': typeof ApiPublicPaymentsInfinitepayRoute
   '/api/public/payments/mercadopago': typeof ApiPublicPaymentsMercadopagoRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
@@ -143,6 +151,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/gerar-bilhetes': typeof ApiPublicHooksGerarBilhetesRoute
   '/api/public/hooks/sync-football': typeof ApiPublicHooksSyncFootballRoute
   '/api/public/hooks/sync-odds-diario': typeof ApiPublicHooksSyncOddsDiarioRoute
+  '/api/public/payments/infinitepay': typeof ApiPublicPaymentsInfinitepayRoute
   '/api/public/payments/mercadopago': typeof ApiPublicPaymentsMercadopagoRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
@@ -162,6 +171,7 @@ export interface FileRoutesById {
   '/api/public/hooks/gerar-bilhetes': typeof ApiPublicHooksGerarBilhetesRoute
   '/api/public/hooks/sync-football': typeof ApiPublicHooksSyncFootballRoute
   '/api/public/hooks/sync-odds-diario': typeof ApiPublicHooksSyncOddsDiarioRoute
+  '/api/public/payments/infinitepay': typeof ApiPublicPaymentsInfinitepayRoute
   '/api/public/payments/mercadopago': typeof ApiPublicPaymentsMercadopagoRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
@@ -181,6 +191,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/gerar-bilhetes'
     | '/api/public/hooks/sync-football'
     | '/api/public/hooks/sync-odds-diario'
+    | '/api/public/payments/infinitepay'
     | '/api/public/payments/mercadopago'
     | '/api/public/payments/webhook'
   fileRoutesByTo: FileRoutesByTo
@@ -197,6 +208,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/gerar-bilhetes'
     | '/api/public/hooks/sync-football'
     | '/api/public/hooks/sync-odds-diario'
+    | '/api/public/payments/infinitepay'
     | '/api/public/payments/mercadopago'
     | '/api/public/payments/webhook'
   id:
@@ -215,6 +227,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/gerar-bilhetes'
     | '/api/public/hooks/sync-football'
     | '/api/public/hooks/sync-odds-diario'
+    | '/api/public/payments/infinitepay'
     | '/api/public/payments/mercadopago'
     | '/api/public/payments/webhook'
   fileRoutesById: FileRoutesById
@@ -226,6 +239,7 @@ export interface RootRouteChildren {
   ApiPublicHooksGerarBilhetesRoute: typeof ApiPublicHooksGerarBilhetesRoute
   ApiPublicHooksSyncFootballRoute: typeof ApiPublicHooksSyncFootballRoute
   ApiPublicHooksSyncOddsDiarioRoute: typeof ApiPublicHooksSyncOddsDiarioRoute
+  ApiPublicPaymentsInfinitepayRoute: typeof ApiPublicPaymentsInfinitepayRoute
   ApiPublicPaymentsMercadopagoRoute: typeof ApiPublicPaymentsMercadopagoRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
 }
@@ -323,6 +337,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPaymentsMercadopagoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/payments/infinitepay': {
+      id: '/api/public/payments/infinitepay'
+      path: '/api/public/payments/infinitepay'
+      fullPath: '/api/public/payments/infinitepay'
+      preLoaderRoute: typeof ApiPublicPaymentsInfinitepayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/sync-odds-diario': {
       id: '/api/public/hooks/sync-odds-diario'
       path: '/api/public/hooks/sync-odds-diario'
@@ -391,6 +412,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksGerarBilhetesRoute: ApiPublicHooksGerarBilhetesRoute,
   ApiPublicHooksSyncFootballRoute: ApiPublicHooksSyncFootballRoute,
   ApiPublicHooksSyncOddsDiarioRoute: ApiPublicHooksSyncOddsDiarioRoute,
+  ApiPublicPaymentsInfinitepayRoute: ApiPublicPaymentsInfinitepayRoute,
   ApiPublicPaymentsMercadopagoRoute: ApiPublicPaymentsMercadopagoRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
 }
