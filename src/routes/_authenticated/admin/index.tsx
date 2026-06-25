@@ -102,6 +102,14 @@ function AdminDashboard() {
             <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/admin/apis" })}>
               <KeyRound className="mr-2 h-4 w-4" /> APIs
             </Button>
+            <Button variant="outline" size="sm" disabled={mutDeploy.isPending} onClick={() => mutDeploy.mutate()}>
+              {mutDeploy.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-4 w-4" />
+              )}
+              Atualizar sistema
+            </Button>
             <Button size="sm" onClick={() => router.navigate({ to: "/" })}>
               Modo cliente
             </Button>
