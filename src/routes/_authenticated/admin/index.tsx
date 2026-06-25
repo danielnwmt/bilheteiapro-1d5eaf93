@@ -17,6 +17,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { usePlanos } from "@/hooks/usePlanos";
+import { AccentPicker } from "@/components/AccentPicker";
 import {
   BarChart,
   Bar,
