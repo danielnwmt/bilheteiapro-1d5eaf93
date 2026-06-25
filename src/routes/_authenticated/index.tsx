@@ -122,6 +122,7 @@ const MERCADOS = [
 ];
 
 function Index() {
+  const router = useRouter();
   const run = useServerFn(gerarBilhete);
   const [oddAlvo, setOddAlvo] = useState("5");
   const [valorAposta, setValorAposta] = useState("20");
@@ -131,6 +132,12 @@ function Index() {
   const [mercSel, setMercSel] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [ticket, setTicket] = useState<Ticket | null>(null);
+
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+    router.navigate({ to: "/auth", replace: true });
+  }
+
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
