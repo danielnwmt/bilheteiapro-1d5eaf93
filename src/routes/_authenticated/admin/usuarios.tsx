@@ -6,8 +6,9 @@ import { listClientes, setClientePlano } from "@/lib/access.functions";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Loader2, KeyRound } from "lucide-react";
-import { PLANOS, PLANO_INFO, type Plano } from "@/lib/planos";
+import { ArrowLeft, Loader2, KeyRound, Settings } from "lucide-react";
+import { PLANOS, type Plano } from "@/lib/planos";
+import { usePlanos } from "@/hooks/usePlanos";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin/usuarios")({
@@ -18,6 +19,7 @@ export const Route = createFileRoute("/_authenticated/admin/usuarios")({
 function UsuariosPage() {
   const router = useRouter();
   const qc = useQueryClient();
+  const { byPlano } = usePlanos();
   const fetchClientes = useServerFn(listClientes);
   const salvar = useServerFn(setClientePlano);
   const [edit, setEdit] = useState<Record<string, { plano: Plano; status: "ativo" | "inativo" }>>({});
@@ -40,13 +42,18 @@ function UsuariosPage() {
   return (
     <main className="min-h-screen bg-background">
       <div className="mx-auto max-w-5xl px-4 py-10">
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
           <Button variant="ghost" size="sm" onClick={() => router.navigate({ to: "/" })}>
             <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
           </Button>
-          <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/admin/apis" })}>
-            <KeyRound className="mr-2 h-4 w-4" /> APIs do sistema
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/admin/configuracoes" })}>
+              <Settings className="mr-2 h-4 w-4" /> Configurações
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/admin/apis" })}>
+              <KeyRound className="mr-2 h-4 w-4" /> APIs do sistema
+            </Button>
+          </div>
         </div>
 
         <h1 className="mb-6 text-2xl font-bold">Clientes</h1>
@@ -83,7 +90,7 @@ function UsuariosPage() {
                         className="rounded-md border border-border bg-input/40 px-2 py-1 text-sm"
                       >
                         {PLANOS.map((p) => (
-                          <option key={p} value={p}>{PLANO_INFO[p].nome}</option>
+                          <option key={p} value={p}>{byPlano[p]?.nome ?? p}</option>
                         ))}
                       </select>
                       <select

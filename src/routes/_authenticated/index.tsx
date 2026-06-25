@@ -13,7 +13,8 @@ import { Loader2, Sparkles, Target, TrendingUp, Trophy, Building2, ExternalLink,
 import { toast } from "sonner";
 import logo from "@/assets/bilheteia-logo-icon.png.asset.json";
 import { useAccess } from "@/hooks/useAccess";
-import { ligaLiberada, PLANO_INFO } from "@/lib/planos";
+import { ligaLiberada } from "@/lib/planos";
+import { usePlanos } from "@/hooks/usePlanos";
 
 export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
@@ -136,11 +137,13 @@ function Index() {
   const [loading, setLoading] = useState(false);
   const [ticket, setTicket] = useState<Ticket | null>(null);
 
+  const { byPlano } = usePlanos();
   const roles = access?.roles ?? [];
   const isStaff = roles.includes("admin") || roles.includes("operador");
   const plano = access?.plano ?? null;
+  const planoCfg = plano ? byPlano?.[plano] ?? null : null;
   const temAcesso = isStaff || !!plano;
-  const isElite = isStaff || plano === "elite";
+  const permiteAoVivo = isStaff || !!planoCfg?.recursos?.tempoReal;
 
   // Volta do checkout: atualiza o plano.
   useEffect(() => {
@@ -154,8 +157,9 @@ function Index() {
   }, [refetchAccess]);
 
   function podeUsarLiga(c: string) {
-    return isStaff || ligaLiberada(plano, c);
+    return isStaff || ligaLiberada(planoCfg, c);
   }
+
 
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -221,7 +225,7 @@ function Index() {
           <div className="mb-6 flex flex-wrap items-center justify-end gap-2">
             {plano && (
               <Badge variant="secondary" className="mr-auto">
-                <Crown className="mr-1 h-3.5 w-3.5" /> {PLANO_INFO[plano].nome}
+                <Crown className="mr-1 h-3.5 w-3.5" /> {planoCfg?.nome ?? "Plano ativo"}
               </Badge>
             )}
             {isStaff && (
@@ -280,14 +284,14 @@ function Index() {
                 </Label>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {(["aovivo", "hoje", "amanha", "semana"] as const).map((p) => {
-                    const bloqueado = p === "aovivo" && !isElite;
+                    const bloqueado = p === "aovivo" && !permiteAoVivo;
                     return (
                       <button
                         type="button"
                         key={p}
                         onClick={() => {
                           if (bloqueado) {
-                            toast.error("Tempo real é exclusivo do plano Elite.");
+                            toast.error("Atualização em tempo real não está no seu plano.");
                             router.navigate({ to: "/planos" });
                             return;
                           }
