@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { gerarBilhete } from "@/lib/ticket.functions";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,9 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Sparkles, Target, TrendingUp, Trophy, Building2, ExternalLink, ListChecks, LogOut } from "lucide-react";
+import { Loader2, Sparkles, Target, TrendingUp, Trophy, Building2, ExternalLink, ListChecks, LogOut, Lock, Crown, Users } from "lucide-react";
 import { toast } from "sonner";
 import logo from "@/assets/bilheteia-logo-icon.png.asset.json";
+import { useAccess } from "@/hooks/useAccess";
+import { ligaLiberada, PLANO_INFO } from "@/lib/planos";
 
 export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
@@ -124,6 +126,7 @@ const MERCADOS = [
 function Index() {
   const router = useRouter();
   const run = useServerFn(gerarBilhete);
+  const { data: access, refetch: refetchAccess } = useAccess();
   const [oddAlvo, setOddAlvo] = useState("5");
   const [valorAposta, setValorAposta] = useState("20");
   const [periodo, setPeriodo] = useState<"hoje" | "amanha" | "semana" | "aovivo">("hoje");
@@ -133,10 +136,32 @@ function Index() {
   const [loading, setLoading] = useState(false);
   const [ticket, setTicket] = useState<Ticket | null>(null);
 
+  const roles = access?.roles ?? [];
+  const isStaff = roles.includes("admin") || roles.includes("operador");
+  const plano = access?.plano ?? null;
+  const temAcesso = isStaff || !!plano;
+  const isElite = isStaff || plano === "elite";
+
+  // Volta do checkout: atualiza o plano.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("checkout") === "success") {
+      toast.success("Pagamento recebido! Atualizando seu plano...");
+      setTimeout(() => refetchAccess(), 1500);
+      window.history.replaceState({}, "", "/");
+    }
+  }, [refetchAccess]);
+
+  function podeUsarLiga(c: string) {
+    return isStaff || ligaLiberada(plano, c);
+  }
+
   async function handleSignOut() {
     await supabase.auth.signOut();
     router.navigate({ to: "/auth", replace: true });
   }
+
 
 
   async function onSubmit(e: React.FormEvent) {
@@ -177,6 +202,11 @@ function Index() {
       : 0;
 
   function toggleCamp(c: string) {
+    if (!podeUsarLiga(c)) {
+      toast.error("Este campeonato não está no seu plano.");
+      router.navigate({ to: "/planos" });
+      return;
+    }
     setCampSel((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
   }
 
@@ -188,7 +218,20 @@ function Index() {
     <main className="min-h-screen bg-background">
       <div className="mx-auto max-w-5xl px-4 py-10 md:py-16">
         <header className="mb-10">
-          <div className="mb-6 flex justify-end">
+          <div className="mb-6 flex flex-wrap items-center justify-end gap-2">
+            {plano && (
+              <Badge variant="secondary" className="mr-auto">
+                <Crown className="mr-1 h-3.5 w-3.5" /> {PLANO_INFO[plano].nome}
+              </Badge>
+            )}
+            {isStaff && (
+              <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/admin/usuarios" })}>
+                <Users className="mr-2 h-4 w-4" /> Admin
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/planos" })}>
+              <Crown className="mr-2 h-4 w-4" /> Planos
+            </Button>
             <Button variant="outline" size="sm" onClick={handleSignOut}>
               <LogOut className="mr-2 h-4 w-4" /> Sair
             </Button>
@@ -201,6 +244,18 @@ function Index() {
           </div>
         </header>
 
+        {!temAcesso && (
+          <Card className="mb-8 border-primary/40 bg-primary/5 p-6 text-center">
+            <Lock className="mx-auto mb-3 h-8 w-8 text-primary" />
+            <h2 className="text-lg font-bold">Assine um plano para gerar bilhetes</h2>
+            <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
+              Escolha entre Start, Pro e Elite e libere as ligas e recursos do seu plano.
+            </p>
+            <Button className="mt-4 font-semibold" onClick={() => router.navigate({ to: "/planos" })}>
+              Ver planos
+            </Button>
+          </Card>
+        )}
 
         <Card className="border-border/60 bg-card p-6 md:p-8">
           <form onSubmit={onSubmit} className="space-y-5">
@@ -224,24 +279,36 @@ function Index() {
                   <TrendingUp className="h-4 w-4 text-primary" /> Período
                 </Label>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  {(["aovivo", "hoje", "amanha", "semana"] as const).map((p) => (
-                    <button
-                      type="button"
-                      key={p}
-                      onClick={() => setPeriodo(p)}
-                      className={`rounded-md border px-3 py-2 text-sm font-medium capitalize transition-colors ${
-                        periodo === p
-                          ? "border-primary bg-primary/15 text-primary"
-                          : "border-border bg-input/40 text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      {p === "amanha" ? "amanhã" : p === "aovivo" ? "🔴 ao vivo" : p}
-                    </button>
-                  ))}
+                  {(["aovivo", "hoje", "amanha", "semana"] as const).map((p) => {
+                    const bloqueado = p === "aovivo" && !isElite;
+                    return (
+                      <button
+                        type="button"
+                        key={p}
+                        onClick={() => {
+                          if (bloqueado) {
+                            toast.error("Tempo real é exclusivo do plano Elite.");
+                            router.navigate({ to: "/planos" });
+                            return;
+                          }
+                          setPeriodo(p);
+                        }}
+                        className={`flex items-center justify-center gap-1 rounded-md border px-3 py-2 text-sm font-medium capitalize transition-colors ${
+                          periodo === p
+                            ? "border-primary bg-primary/15 text-primary"
+                            : "border-border bg-input/40 text-muted-foreground hover:text-foreground"
+                        } ${bloqueado ? "opacity-50" : ""}`}
+                      >
+                        {bloqueado && <Lock className="h-3 w-3" />}
+                        {p === "amanha" ? "amanhã" : p === "aovivo" ? "🔴 ao vivo" : p}
+                      </button>
+                    );
+                  })}
                 </div>
                 <p className="mt-2 text-xs text-primary">Todas as entradas exigem confiança ≥ 90%.</p>
               </div>
             </div>
+
 
             <div>
               <Label className="mb-2 flex items-center gap-2 text-sm">
@@ -272,24 +339,29 @@ function Index() {
               <div className="flex flex-wrap gap-2">
                 {CAMPEONATOS.map((c) => {
                   const active = campSel.includes(c);
+                  const liberado = podeUsarLiga(c);
                   return (
                     <button
                       type="button"
                       key={c}
                       onClick={() => toggleCamp(c)}
-                      className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                      className={`flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
                         active
                           ? "border-primary bg-primary/15 text-primary"
                           : "border-border bg-input/40 text-muted-foreground hover:text-foreground"
-                      }`}
+                      } ${liberado ? "" : "opacity-50"}`}
                     >
+                      {!liberado && <Lock className="h-3 w-3" />}
                       {c}
                     </button>
                   );
                 })}
               </div>
-              <p className="mt-2 text-xs text-muted-foreground">Deixe vazio para considerar qualquer campeonato.</p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Itens com cadeado não estão no seu plano. Deixe vazio para considerar todos os liberados.
+              </p>
             </div>
+
 
             <div>
               <Label className="mb-2 flex items-center gap-2 text-sm">
@@ -319,7 +391,7 @@ function Index() {
 
             <Button
               type="submit"
-              disabled={loading}
+              disabled={loading || !temAcesso}
               size="lg"
               className="w-full font-semibold"
             >
@@ -327,12 +399,17 @@ function Index() {
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Buscando jogos e analisando...
                 </>
+              ) : !temAcesso ? (
+                <>
+                  <Lock className="mr-2 h-4 w-4" /> Assine um plano para gerar
+                </>
               ) : (
                 <>
                   <Sparkles className="mr-2 h-4 w-4" /> Buscar jogos e gerar bilhete
                 </>
               )}
             </Button>
+
           </form>
         </Card>
 

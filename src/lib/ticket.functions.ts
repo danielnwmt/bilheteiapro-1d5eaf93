@@ -4,6 +4,8 @@ import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { getAiModel } from "./ai-gateway.server";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { LIGAS_POR_PLANO, type Plano } from "./planos";
 
 const InputSchema = z.object({
   oddAlvo: z.number().min(1.1).max(1000),
@@ -218,9 +220,60 @@ function buildDeepLink(
 }
 
 export const gerarBilhete = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => InputSchema.parse(d))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
     const aiModel = getAiModel();
+
+    // ---- Controle de acesso por plano ----
+    const { data: roleRows } = await context.supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", context.userId);
+    const roles = (roleRows ?? []).map((r) => r.role);
+    const isStaff = roles.includes("admin") || roles.includes("operador");
+
+    let plano: Plano | null = null;
+    if (!isStaff) {
+      const { data: sub } = await context.supabase
+        .from("subscriptions")
+        .select("plano, status, periodo_fim")
+        .eq("user_id", context.userId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const ativo =
+        sub?.status === "ativo" &&
+        (!sub?.periodo_fim || new Date(sub.periodo_fim) > new Date());
+      plano = ativo ? (sub!.plano as Plano) : null;
+      if (!plano) {
+        throw new Error("Assine um plano para gerar bilhetes. Acesse a página de planos.");
+      }
+    }
+
+    // Ligas liberadas: staff vê tudo; cliente, conforme o plano.
+    const ligasLiberadas = isStaff
+      ? null
+      : LIGAS_POR_PLANO[plano as Plano];
+
+    // Tempo real (ao vivo) é exclusivo do Elite.
+    if (!isStaff && data.periodo === "aovivo" && plano !== "elite") {
+      throw new Error("Atualização em tempo real é exclusiva do plano Elite.");
+    }
+
+    // Restringe campeonatos selecionados aos liberados pelo plano.
+    if (ligasLiberadas) {
+      if (data.campeonatos.length) {
+        const permitidos = data.campeonatos.filter((c) => ligasLiberadas.includes(c));
+        if (!permitidos.length) {
+          throw new Error("Os campeonatos escolhidos não estão no seu plano. Faça upgrade.");
+        }
+        data.campeonatos = permitidos;
+      } else {
+        // "qualquer campeonato" vira "qualquer um dos liberados pelo plano".
+        data.campeonatos = ligasLiberadas;
+      }
+    }
 
     const supabase = createClient<Database>(
       process.env.SUPABASE_URL!,
@@ -230,6 +283,7 @@ export const gerarBilhete = createServerFn({ method: "POST" })
 
     const now = new Date();
     const { from, to } = periodRange(data.periodo, now);
+
 
     const lerPartidas = async () => {
       const query = supabase
