@@ -42,7 +42,7 @@ function UsuariosPage() {
   return (
     <main className="min-h-screen bg-background">
       <div className="mx-auto max-w-5xl px-4 py-10">
-        <div class="mb-6 flex flex-wrap items-center justify-between gap-2">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
           <Button variant="ghost" size="sm" onClick={() => router.navigate({ to: "/" })}>
             <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
           </Button>
