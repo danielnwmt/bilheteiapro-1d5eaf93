@@ -259,6 +259,8 @@ export async function syncOdds(
     { auth: { persistSession: false, autoRefreshToken: false } },
   );
 
+  const resolveDeep = await buildDeepLinkResolver(supabase, casa);
+
   const rows: Array<{
     partida_id: string;
     casa: string;
@@ -266,6 +268,7 @@ export async function syncOdds(
     selecao: string;
     valor: number;
     external_odd_id: string | null;
+    deep_link: string | null;
   }> = [];
 
   for (const f of targets) {
