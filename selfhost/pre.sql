@@ -6,8 +6,17 @@
 -- Roles padrão do Supabase (a imagem supabase/postgres normalmente já cria) ---
 DO $$ BEGIN CREATE ROLE anon NOLOGIN NOINHERIT; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE ROLE authenticated NOLOGIN NOINHERIT; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-DO $$ BEGIN CREATE ROLE service_role NOLOGIN NOINHERIT BYPASSRLS; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE ROLE service_role NOLOGIN NOINHERIT; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- BYPASSRLS exige superusuário; tenta aplicar, mas não quebra se não for possível.
+DO $$ BEGIN
+  ALTER ROLE service_role BYPASSRLS;
+EXCEPTION WHEN insufficient_privilege OR feature_not_supported THEN
+  RAISE NOTICE 'service_role sem BYPASSRLS (usuário não é superusuário); seguindo sem isso.';
+END $$;
+
 GRANT anon, authenticated, service_role TO postgres;
+
 
 -- Schemas
 CREATE SCHEMA IF NOT EXISTS auth;
