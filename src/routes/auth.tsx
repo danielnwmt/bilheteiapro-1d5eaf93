@@ -113,6 +113,43 @@ function AuthPage() {
           </p>
 
           <form onSubmit={onSubmit} className="mt-6 space-y-4">
+            {mode === "signup" && (
+              <>
+                <div>
+                  <Label htmlFor="nome" className="mb-2 block text-sm">Nome completo</Label>
+                  <Input
+                    id="nome"
+                    type="text"
+                    autoComplete="name"
+                    value={nome}
+                    onChange={(e) => setNome(e.target.value)}
+                    className="bg-input/40"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="cpf" className="mb-2 block text-sm">CPF</Label>
+                  <Input
+                    id="cpf"
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="000.000.000-00"
+                    value={cpf}
+                    onChange={(e) => setCpf(formatCpf(e.target.value))}
+                    className="bg-input/40"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="nascimento" className="mb-2 block text-sm">Data de nascimento</Label>
+                  <Input
+                    id="nascimento"
+                    type="date"
+                    value={nascimento}
+                    onChange={(e) => setNascimento(e.target.value)}
+                    className="bg-input/40"
+                  />
+                </div>
+              </>
+            )}
             <div>
               <Label htmlFor="email" className="mb-2 block text-sm">E-mail</Label>
               <Input
