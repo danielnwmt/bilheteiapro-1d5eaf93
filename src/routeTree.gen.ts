@@ -9,14 +9,14 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as ApiPublicIngestRouteImport } from './routes/api/public/ingest'
 import { Route as ApiPublicHooksSyncOddsDiarioRouteImport } from './routes/api/public/hooks/sync-odds-diario'
 import { Route as ApiPublicHooksSyncFootballRouteImport } from './routes/api/public/hooks/sync-football'
 import { Route as ApiPublicHooksGerarBilhetesRouteImport } from './routes/api/public/hooks/gerar-bilhetes'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
+const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
+  id: '/_authenticated/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
@@ -45,14 +45,14 @@ const ApiPublicHooksGerarBilhetesRoute =
   } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof AuthenticatedIndexRoute
   '/api/public/ingest': typeof ApiPublicIngestRoute
   '/api/public/hooks/gerar-bilhetes': typeof ApiPublicHooksGerarBilhetesRoute
   '/api/public/hooks/sync-football': typeof ApiPublicHooksSyncFootballRoute
   '/api/public/hooks/sync-odds-diario': typeof ApiPublicHooksSyncOddsDiarioRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
+  '/': typeof AuthenticatedIndexRoute
   '/api/public/ingest': typeof ApiPublicIngestRoute
   '/api/public/hooks/gerar-bilhetes': typeof ApiPublicHooksGerarBilhetesRoute
   '/api/public/hooks/sync-football': typeof ApiPublicHooksSyncFootballRoute
@@ -60,7 +60,7 @@ export interface FileRoutesByTo {
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/_authenticated/': typeof AuthenticatedIndexRoute
   '/api/public/ingest': typeof ApiPublicIngestRoute
   '/api/public/hooks/gerar-bilhetes': typeof ApiPublicHooksGerarBilhetesRoute
   '/api/public/hooks/sync-football': typeof ApiPublicHooksSyncFootballRoute
@@ -83,7 +83,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/sync-odds-diario'
   id:
     | '__root__'
-    | '/'
+    | '/_authenticated/'
     | '/api/public/ingest'
     | '/api/public/hooks/gerar-bilhetes'
     | '/api/public/hooks/sync-football'
@@ -91,7 +91,7 @@ export interface FileRouteTypes {
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   ApiPublicIngestRoute: typeof ApiPublicIngestRoute
   ApiPublicHooksGerarBilhetesRoute: typeof ApiPublicHooksGerarBilhetesRoute
   ApiPublicHooksSyncFootballRoute: typeof ApiPublicHooksSyncFootballRoute
@@ -100,11 +100,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
+    '/_authenticated/': {
+      id: '/_authenticated/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+      preLoaderRoute: typeof AuthenticatedIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/ingest': {
@@ -139,7 +139,7 @@ declare module '@tanstack/react-router' {
 }
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   ApiPublicIngestRoute: ApiPublicIngestRoute,
   ApiPublicHooksGerarBilhetesRoute: ApiPublicHooksGerarBilhetesRoute,
   ApiPublicHooksSyncFootballRoute: ApiPublicHooksSyncFootballRoute,

@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Sparkles, Target, TrendingUp, Trophy, Building2, ExternalLink, ListChecks } from "lucide-react";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
     meta: [
       { title: "BilheteIA — Análise de futebol e múltiplas com IA" },
