@@ -15,21 +15,37 @@ PORT="3000"
 
 cd "$APP_DIR"
 
-# 1) Garante o arquivo .env com as chaves secretas (pede só na 1a vez)
+# 1) Garante o arquivo .env com as chaves necessárias (pede só o que faltar)
 #    GEMINI_API_KEY: pegue em https://aistudio.google.com/apikey
-need_keys=(GEMINI_API_KEY API_FOOTBALL_KEY FIRECRAWL_API_KEY INGEST_SECRET)
 
-if [ ! -f "$ENV_FILE" ]; then
-  echo ">> Primeira vez: cole as chaves."
-  echo ">> GEMINI_API_KEY = pegue em https://aistudio.google.com/apikey"
-  : > "$ENV_FILE"
-  for k in "${need_keys[@]}"; do
-    read -rp "$k = " v
-    echo "$k=$v" >> "$ENV_FILE"
-  done
-  chmod 600 "$ENV_FILE"
-  echo ">> .env salvo. Nas próximas vezes não vai pedir de novo."
-fi
+# Valores fixos do backend (preenchidos automaticamente)
+SUPABASE_URL_DEFAULT="https://zzjrfmiqhlwomablszdj.supabase.co"
+SUPABASE_PUBLISHABLE_KEY_DEFAULT="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp6anJmbWlxaGx3b21hYmxzemRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxNzg5NDksImV4cCI6MjA5Nzc1NDk0OX0.ycHZosTLK6KClr0o0TPlVptwteEWhzc5W9Vu2uixABI"
+
+touch "$ENV_FILE"
+chmod 600 "$ENV_FILE"
+
+# Garante uma chave no .env: se faltar, usa o default; se não houver default, pergunta.
+ensure_key() {
+  local key="$1" default="$2"
+  if grep -q "^${key}=" "$ENV_FILE"; then return; fi
+  if [ -n "$default" ]; then
+    echo "${key}=${default}" >> "$ENV_FILE"
+    echo ">> $key preenchido automaticamente."
+  else
+    read -rp "$key = " v
+    echo "${key}=${v}" >> "$ENV_FILE"
+  fi
+}
+
+echo ">> Conferindo variáveis do .env..."
+ensure_key SUPABASE_URL "$SUPABASE_URL_DEFAULT"
+ensure_key SUPABASE_PUBLISHABLE_KEY "$SUPABASE_PUBLISHABLE_KEY_DEFAULT"
+ensure_key SUPABASE_SERVICE_ROLE_KEY ""   # cole a service role key (necessária p/ admin)
+ensure_key GEMINI_API_KEY ""              # https://aistudio.google.com/apikey
+ensure_key API_FOOTBALL_KEY ""
+ensure_key FIRECRAWL_API_KEY ""
+ensure_key INGEST_SECRET ""
 
 # 2) Atualiza o código
 echo ">> Atualizando código..."
