@@ -207,14 +207,35 @@ export const getClientStats = createServerFn({ method: "GET" })
       meses.push({ mes: label, total });
     }
 
+    // Faturamento por mês (últimos 6 meses) — assinaturas ativas no período.
+    const clienteIds = new Set(clientes.map((c) => c.id));
+    const faturamentoPorMes: { mes: string; total: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const ini = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const fim = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+      const label = ini.toLocaleDateString("pt-BR", { month: "short" });
+      let total = 0;
+      for (const s of subs ?? []) {
+        if (!clienteIds.has(s.user_id)) continue;
+        if (s.status !== "ativo") continue;
+        const criada = s.created_at ? new Date(s.created_at) : ini;
+        if (criada >= fim) continue;
+        if (s.periodo_fim && new Date(s.periodo_fim) < ini) continue;
+        total += precoMap[s.plano] ?? 0;
+      }
+      faturamentoPorMes.push({ mes: label, total: Math.round(total * 100) / 100 });
+    }
+
     return {
       totalClientes: clientes.length,
       ativos,
       inativos: clientes.length - ativos,
       porPlano,
       cadastrosPorMes: meses,
+      faturamentoPorMes,
     };
   });
+
 
 export const getSystemConfig = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
