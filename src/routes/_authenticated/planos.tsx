@@ -115,29 +115,16 @@ function PlanosPage() {
               <span className="text-sm font-normal text-muted-foreground">/mês</span>
             </p>
             <p className="mt-4 mb-3 text-sm text-muted-foreground">
-              Escolha a forma de pagamento:
+              Pague com Pix ou Cartão em até 12x via InfinitePay.
             </p>
             <div className="space-y-3">
               <Button
                 className="w-full font-semibold"
-                disabled={carregando !== null}
-                onClick={() => pagar("stripe")}
+                disabled={carregando}
+                onClick={() => pagar()}
               >
-                {carregando === "stripe" ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : null}
-                Pagar com Cartão (Stripe)
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full font-semibold"
-                disabled={carregando !== null}
-                onClick={() => pagar("mp")}
-              >
-                {carregando === "mp" ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : null}
-                Pagar com Mercado Pago (Pix/Cartão)
+                {carregando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Pagar com InfinitePay (Pix/Cartão)
               </Button>
             </div>
           </Card>
