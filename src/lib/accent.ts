@@ -24,6 +24,8 @@ export function applyAccent(id: string) {
   const root = document.documentElement;
   root.style.setProperty("--primary", a.primary);
   root.style.setProperty("--primary-foreground", a.foreground);
+  root.style.setProperty("--accent", a.primary);
+  root.style.setProperty("--accent-foreground", a.foreground);
   root.style.setProperty("--ring", a.primary);
   root.style.setProperty("--sidebar-primary", a.primary);
   root.style.setProperty("--chart-1", a.primary);
