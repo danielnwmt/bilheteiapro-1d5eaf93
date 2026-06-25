@@ -15,7 +15,14 @@ ENV SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
 ENV SUPABASE_PROJECT_ID=$VITE_SUPABASE_PROJECT_ID
 
 COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile
+# Retry with a clean cache if a tarball integrity check fails (corrupted bun cache).
+RUN bun install --frozen-lockfile \
+    || (echo ">> Integrity falhou, limpando cache e tentando de novo..." \
+        && rm -rf /root/.bun/install/cache ~/.bun/install/cache /tmp/bun-* \
+        && bun install --frozen-lockfile) \
+    || (echo ">> Tentando sem frozen-lockfile..." \
+        && rm -rf /root/.bun/install/cache ~/.bun/install/cache \
+        && bun install)
 COPY . .
 RUN bun run build && \
     mkdir -p /app/runtime && \
