@@ -77,8 +77,8 @@ function ApisPage() {
   return (
     <main className="min-h-screen bg-background">
       <div className="mx-auto max-w-2xl px-4 py-10">
-        <Button variant="ghost" size="sm" className="mb-6" onClick={() => router.navigate({ to: "/admin/usuarios" })}>
-          <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
+        <Button variant="ghost" size="sm" className="mb-6" onClick={() => router.navigate({ to: "/admin" })}>
+          <ArrowLeft className="mr-2 h-4 w-4" /> Painel
         </Button>
 
         <h1 className="mb-2 text-2xl font-bold">APIs do sistema</h1>
