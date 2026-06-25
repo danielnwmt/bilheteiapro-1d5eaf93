@@ -201,7 +201,13 @@ function AuthPage() {
             <span className="h-px flex-1 bg-border" />
           </div>
 
-          <Button type="button" variant="outline" size="lg" className="w-full" onClick={onGoogle}>
+          <Button
+            type="button"
+            variant="outline"
+            size="lg"
+            className="w-full border-primary/50 text-primary hover:bg-primary/10 hover:text-primary"
+            onClick={onGoogle}
+          >
             Continuar com Google
           </Button>
 
