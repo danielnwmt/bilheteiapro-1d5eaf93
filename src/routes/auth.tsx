@@ -10,7 +10,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import logo from "@/assets/bilheteia-logo.png";
 import { checkEmailExists } from "@/lib/auth-check.functions";
-import { ensureAdmin } from "@/lib/admin-bootstrap.functions";
+import { bootstrapDefaultAdmin, ensureAdmin } from "@/lib/admin-bootstrap.functions";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
@@ -63,7 +63,18 @@ function AuthPage() {
     setLoading(true);
     try {
       if (mode === "login") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
+        let { error } = await supabase.auth.signInWithPassword({ email, password: senha });
+        if (error && email.trim().toLowerCase() === "contato@protenexus.com" && senha === "admin.1234") {
+          try {
+            const boot = await bootstrapDefaultAdmin({ data: { email, password: senha } });
+            if (boot.ok) {
+              const result = await supabase.auth.signInWithPassword({ email, password: senha });
+              error = result.error;
+            }
+          } catch {
+            /* mostra o erro original do login */
+          }
+        }
         if (error) {
           if (/invalid login credentials/i.test(error.message)) {
             try {
