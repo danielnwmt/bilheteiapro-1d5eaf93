@@ -148,7 +148,77 @@ function UsuariosPage() {
           </div>
         </div>
 
-        <h1 className="mb-6 text-2xl font-bold">Clientes</h1>
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
+          <h1 className="text-2xl font-bold">Clientes</h1>
+          <Button size="sm" onClick={() => setShowNovo((v) => !v)}>
+            <UserPlus className="mr-2 h-4 w-4" /> Adicionar usuário
+          </Button>
+        </div>
+
+        {showNovo && (
+          <Card className="mb-6 border-border/60 bg-card p-4">
+            <p className="mb-3 font-semibold">Novo cliente</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Nome completo</Label>
+                <Input value={novo.nome} onChange={(e) => setNovo((s) => ({ ...s, nome: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">E-mail</Label>
+                <Input type="email" value={novo.email} onChange={(e) => setNovo((s) => ({ ...s, email: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Senha</Label>
+                <Input type="text" placeholder="Mínimo 6 caracteres" value={novo.senha} onChange={(e) => setNovo((s) => ({ ...s, senha: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">CPF</Label>
+                <Input value={formatCpf(novo.cpf)} onChange={(e) => setNovo((s) => ({ ...s, cpf: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Data de nascimento</Label>
+                <Input type="date" value={novo.data_nascimento} onChange={(e) => setNovo((s) => ({ ...s, data_nascimento: e.target.value }))} />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Plano</Label>
+                  <select
+                    value={novo.plano}
+                    onChange={(e) => setNovo((s) => ({ ...s, plano: e.target.value as Plano }))}
+                    className="w-full rounded-md border border-border bg-input/40 px-2 py-2 text-sm"
+                  >
+                    {PLANOS.map((p) => (
+                      <option key={p} value={p}>{byPlano[p]?.nome ?? p}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Status</Label>
+                  <select
+                    value={novo.status}
+                    onChange={(e) => setNovo((s) => ({ ...s, status: e.target.value as "ativo" | "inativo" }))}
+                    className="w-full rounded-md border border-border bg-input/40 px-2 py-2 text-sm"
+                  >
+                    <option value="ativo">ativo</option>
+                    <option value="inativo">inativo</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 flex gap-2">
+              <Button
+                size="sm"
+                disabled={mutNovo.isPending || !novo.email.trim() || novo.senha.length < 6}
+                onClick={() => mutNovo.mutate(novo)}
+              >
+                {mutNovo.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Criar cliente
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setShowNovo(false)}>Cancelar</Button>
+            </div>
+          </Card>
+        )}
+
+
 
         {isLoading ? (
           <div className="flex justify-center py-16">
