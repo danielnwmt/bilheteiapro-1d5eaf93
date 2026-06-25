@@ -1,13 +1,14 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Check, X, Loader2, ArrowLeft } from "lucide-react";
+import { toast } from "sonner";
 import { TODAS_LIGAS, RECURSO_LABELS, type Plano } from "@/lib/planos";
 import { usePlanos } from "@/hooks/usePlanos";
-import { StripeEmbeddedCheckout } from "@/components/StripeEmbeddedCheckout";
-import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
+import { createStripeCheckout, createMercadoPagoCheckout } from "@/lib/payments.functions";
 import { useAccess } from "@/hooks/useAccess";
 
 export const Route = createFileRoute("/_authenticated/planos")({
@@ -35,11 +36,35 @@ function PlanosPage() {
   const { data: access } = useAccess();
   const { list, byPlano, isLoading } = usePlanos();
   const [checkout, setCheckout] = useState<Plano | null>(null);
+  const [carregando, setCarregando] = useState<"stripe" | "mp" | null>(null);
+
+  const stripeCheckout = useServerFn(createStripeCheckout);
+  const mpCheckout = useServerFn(createMercadoPagoCheckout);
 
   const planoAtual = access?.plano ?? null;
   const checkoutCfg = checkout ? byPlano[checkout] : null;
 
-  // Linhas do comparativo, derivadas da configuração de cada plano.
+  async function pagar(provedor: "stripe" | "mp") {
+    if (!checkout) return;
+    setCarregando(provedor);
+    try {
+      const returnUrl = `${window.location.origin}/?checkout=success`;
+      const result =
+        provedor === "stripe"
+          ? await stripeCheckout({ data: { plano: checkout, returnUrl } })
+          : await mpCheckout({ data: { plano: checkout, returnUrl } });
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
+      }
+      window.location.href = result.url;
+    } catch (e: any) {
+      toast.error(e?.message ?? "Não foi possível iniciar o pagamento");
+    } finally {
+      setCarregando(null);
+    }
+  }
+
   const linhas: Array<{ recurso: string; start: boolean | string; pro: boolean | string; elite: boolean | string }> = [
     ...TODAS_LIGAS.map((liga) => ({
       recurso: liga,
@@ -63,7 +88,6 @@ function PlanosPage() {
 
   return (
     <main className="min-h-screen bg-background">
-      <PaymentTestModeBanner />
       <div className="mx-auto max-w-5xl px-4 py-10 md:py-14">
         <div className="mb-8 flex items-center justify-between">
           <Button variant="ghost" size="sm" onClick={() => router.navigate({ to: "/" })}>
@@ -83,17 +107,43 @@ function PlanosPage() {
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : checkout && checkoutCfg ? (
-          <Card className="mx-auto mt-8 max-w-2xl border-border/60 bg-card p-4 md:p-6">
-            <div className="mb-4 flex items-center justify-between">
+          <Card className="mx-auto mt-8 max-w-md border-border/60 bg-card p-6">
+            <div className="mb-1 flex items-center justify-between">
               <h2 className="text-lg font-semibold">{checkoutCfg.nome}</h2>
               <Button variant="ghost" size="sm" onClick={() => setCheckout(null)}>
                 Cancelar
               </Button>
             </div>
-            <StripeEmbeddedCheckout
-              priceId={checkoutCfg.priceId}
-              returnUrl={`${window.location.origin}/?checkout=success`}
-            />
+            <p className="text-2xl font-bold">
+              {checkoutCfg.preco}
+              <span className="text-sm font-normal text-muted-foreground">/mês</span>
+            </p>
+            <p className="mt-4 mb-3 text-sm text-muted-foreground">
+              Escolha a forma de pagamento:
+            </p>
+            <div className="space-y-3">
+              <Button
+                className="w-full font-semibold"
+                disabled={carregando !== null}
+                onClick={() => pagar("stripe")}
+              >
+                {carregando === "stripe" ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : null}
+                Pagar com Cartão (Stripe)
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full font-semibold"
+                disabled={carregando !== null}
+                onClick={() => pagar("mp")}
+              >
+                {carregando === "mp" ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : null}
+                Pagar com Mercado Pago (Pix/Cartão)
+              </Button>
+            </div>
           </Card>
         ) : (
           <div className="mt-8 grid gap-4 md:grid-cols-3">
