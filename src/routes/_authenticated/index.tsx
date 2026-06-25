@@ -339,24 +339,29 @@ function Index() {
               <div className="flex flex-wrap gap-2">
                 {CAMPEONATOS.map((c) => {
                   const active = campSel.includes(c);
+                  const liberado = podeUsarLiga(c);
                   return (
                     <button
                       type="button"
                       key={c}
                       onClick={() => toggleCamp(c)}
-                      className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                      className={`flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
                         active
                           ? "border-primary bg-primary/15 text-primary"
                           : "border-border bg-input/40 text-muted-foreground hover:text-foreground"
-                      }`}
+                      } ${liberado ? "" : "opacity-50"}`}
                     >
+                      {!liberado && <Lock className="h-3 w-3" />}
                       {c}
                     </button>
                   );
                 })}
               </div>
-              <p className="mt-2 text-xs text-muted-foreground">Deixe vazio para considerar qualquer campeonato.</p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Itens com cadeado não estão no seu plano. Deixe vazio para considerar todos os liberados.
+              </p>
             </div>
+
 
             <div>
               <Label className="mb-2 flex items-center gap-2 text-sm">
