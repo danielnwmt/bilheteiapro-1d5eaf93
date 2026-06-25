@@ -24,8 +24,20 @@ function UsuariosPage() {
   const { byPlano } = usePlanos();
   const fetchClientes = useServerFn(listClientes);
   const salvar = useServerFn(setClientePlano);
+  const salvarPerfil = useServerFn(updateClienteProfile);
   const [edit, setEdit] = useState<Record<string, { plano: Plano; status: "ativo" | "inativo" }>>({});
+  const [perfil, setPerfil] = useState<
+    Record<string, { nome: string; email: string; cpf: string; data_nascimento: string }>
+  >({});
   const [openId, setOpenId] = useState<string | null>(null);
+
+  const formatCpf = (v: string) =>
+    v
+      .replace(/\D/g, "")
+      .slice(0, 11)
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
 
   const { data: clientes, isLoading } = useQuery({
     queryKey: ["clientes"],
@@ -42,6 +54,38 @@ function UsuariosPage() {
     },
     onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
   });
+
+  const mutPerfil = useMutation({
+    mutationFn: (v: {
+      clienteId: string;
+      nome: string;
+      email: string;
+      cpf: string;
+      data_nascimento: string | null;
+    }) => salvarPerfil({ data: v }),
+    onSuccess: () => {
+      toast.success("Cadastro atualizado");
+      qc.invalidateQueries({ queryKey: ["clientes"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar cadastro"),
+  });
+
+  const handleSalvar = (c: any, cur: { plano: Plano; status: "ativo" | "inativo" }) => {
+    const p = perfil[c.id] ?? {
+      nome: c.nome ?? "",
+      email: c.email ?? "",
+      cpf: c.cpf ?? "",
+      data_nascimento: c.data_nascimento ?? "",
+    };
+    mutPerfil.mutate({
+      clienteId: c.id,
+      nome: p.nome,
+      email: p.email,
+      cpf: p.cpf,
+      data_nascimento: p.data_nascimento || null,
+    });
+    mut.mutate({ clienteId: c.id, plano: cur.plano, status: cur.status });
+  };
 
   return (
     <main className="min-h-screen bg-background">
