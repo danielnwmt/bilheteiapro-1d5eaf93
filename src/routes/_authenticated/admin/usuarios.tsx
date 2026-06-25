@@ -6,7 +6,7 @@ import { listClientes, setClientePlano } from "@/lib/access.functions";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Loader2, KeyRound, Settings } from "lucide-react";
+import { ArrowLeft, Loader2, KeyRound, Settings, Pencil } from "lucide-react";
 import { PLANOS, type Plano } from "@/lib/planos";
 import { usePlanos } from "@/hooks/usePlanos";
 import { toast } from "sonner";
