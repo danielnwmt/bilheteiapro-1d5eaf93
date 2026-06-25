@@ -125,18 +125,18 @@ function AdminDashboard() {
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={stats?.cadastrosPorMes ?? []}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis dataKey="mes" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                      <YAxis allowDecimals={false} stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                      <XAxis dataKey="mes" stroke="var(--muted-foreground)" fontSize={12} />
+                      <YAxis allowDecimals={false} stroke="var(--muted-foreground)" fontSize={12} />
                       <Tooltip
                         contentStyle={{
-                          background: "hsl(var(--card))",
-                          border: "1px solid hsl(var(--border))",
+                          background: "var(--card)",
+                          border: "1px solid var(--border)",
                           borderRadius: 8,
-                          color: "hsl(var(--foreground))",
+                          color: "var(--foreground)",
                         }}
                       />
-                      <Bar dataKey="total" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="total" fill="var(--primary)" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -170,10 +170,10 @@ function AdminDashboard() {
                         <Legend />
                         <Tooltip
                           contentStyle={{
-                            background: "hsl(var(--card))",
-                            border: "1px solid hsl(var(--border))",
+                            background: "var(--card)",
+                            border: "1px solid var(--border)",
                             borderRadius: 8,
-                            color: "hsl(var(--foreground))",
+                            color: "var(--foreground)",
                           }}
                         />
                       </PieChart>
