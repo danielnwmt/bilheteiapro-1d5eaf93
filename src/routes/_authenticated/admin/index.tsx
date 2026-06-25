@@ -30,6 +30,8 @@ import {
   Pie,
   Cell,
   Legend,
+  AreaChart,
+  Area,
 } from "recharts";
 
 export const Route = createFileRoute("/_authenticated/admin/")({
