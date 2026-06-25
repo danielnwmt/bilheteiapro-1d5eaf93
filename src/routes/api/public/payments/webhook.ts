@@ -5,7 +5,7 @@ import { type StripeEnv, verifyWebhook } from "@/lib/stripe.server";
 let _supabase: ReturnType<typeof createClient> | null = null;
 function getSupabase() {
   if (!_supabase) {
-    _supabase = createClient(
+    _supabase = createClient<any>(
       process.env.SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
     );
@@ -52,7 +52,7 @@ async function upsertFromSubscription(subscription: any) {
         periodo_fim: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: "user_id" } as any,
+      { onConflict: "user_id" },
     );
 }
 
