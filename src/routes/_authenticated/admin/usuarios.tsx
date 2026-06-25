@@ -2,13 +2,13 @@ import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { listClientes, setClientePlano, updateClienteProfile, setClientePassword } from "@/lib/access.functions";
+import { listClientes, setClientePlano, updateClienteProfile, setClientePassword, createCliente } from "@/lib/access.functions";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Loader2, KeyRound, Settings, Pencil } from "lucide-react";
+import { ArrowLeft, Loader2, KeyRound, Settings, Pencil, UserPlus } from "lucide-react";
 import { PLANOS, type Plano } from "@/lib/planos";
 import { usePlanos } from "@/hooks/usePlanos";
 import { toast } from "sonner";
@@ -26,12 +26,23 @@ function UsuariosPage() {
   const salvar = useServerFn(setClientePlano);
   const salvarPerfil = useServerFn(updateClienteProfile);
   const salvarSenha = useServerFn(setClientePassword);
+  const criarCliente = useServerFn(createCliente);
   const [edit, setEdit] = useState<Record<string, { plano: Plano; status: "ativo" | "inativo" }>>({});
   const [perfil, setPerfil] = useState<
     Record<string, { nome: string; email: string; cpf: string; data_nascimento: string }>
   >({});
   const [senhas, setSenhas] = useState<Record<string, string>>({});
   const [openId, setOpenId] = useState<string | null>(null);
+  const [showNovo, setShowNovo] = useState(false);
+  const [novo, setNovo] = useState({
+    nome: "",
+    email: "",
+    senha: "",
+    cpf: "",
+    data_nascimento: "",
+    plano: "start" as Plano,
+    status: "ativo" as "ativo" | "inativo",
+  });
 
   const formatCpf = (v: string) =>
     v
@@ -81,6 +92,28 @@ function UsuariosPage() {
     onError: (e: any) => toast.error(e?.message ?? "Erro ao alterar senha"),
   });
 
+  const mutNovo = useMutation({
+    mutationFn: (v: typeof novo) =>
+      criarCliente({
+        data: {
+          nome: v.nome,
+          email: v.email,
+          senha: v.senha,
+          cpf: v.cpf,
+          data_nascimento: v.data_nascimento || null,
+          plano: v.plano,
+          status: v.status,
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Cliente criado");
+      setShowNovo(false);
+      setNovo({ nome: "", email: "", senha: "", cpf: "", data_nascimento: "", plano: "start", status: "ativo" });
+      qc.invalidateQueries({ queryKey: ["clientes"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao criar cliente"),
+  });
+
   const handleSalvar = (c: any, cur: { plano: Plano; status: "ativo" | "inativo" }) => {
     const p = perfil[c.id] ?? {
       nome: c.nome ?? "",
@@ -115,7 +148,77 @@ function UsuariosPage() {
           </div>
         </div>
 
-        <h1 className="mb-6 text-2xl font-bold">Clientes</h1>
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
+          <h1 className="text-2xl font-bold">Clientes</h1>
+          <Button size="sm" onClick={() => setShowNovo((v) => !v)}>
+            <UserPlus className="mr-2 h-4 w-4" /> Adicionar usuário
+          </Button>
+        </div>
+
+        {showNovo && (
+          <Card className="mb-6 border-border/60 bg-card p-4">
+            <p className="mb-3 font-semibold">Novo cliente</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Nome completo</Label>
+                <Input value={novo.nome} onChange={(e) => setNovo((s) => ({ ...s, nome: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">E-mail</Label>
+                <Input type="email" value={novo.email} onChange={(e) => setNovo((s) => ({ ...s, email: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Senha</Label>
+                <Input type="text" placeholder="Mínimo 6 caracteres" value={novo.senha} onChange={(e) => setNovo((s) => ({ ...s, senha: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">CPF</Label>
+                <Input value={formatCpf(novo.cpf)} onChange={(e) => setNovo((s) => ({ ...s, cpf: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Data de nascimento</Label>
+                <Input type="date" value={novo.data_nascimento} onChange={(e) => setNovo((s) => ({ ...s, data_nascimento: e.target.value }))} />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Plano</Label>
+                  <select
+                    value={novo.plano}
+                    onChange={(e) => setNovo((s) => ({ ...s, plano: e.target.value as Plano }))}
+                    className="w-full rounded-md border border-border bg-input/40 px-2 py-2 text-sm"
+                  >
+                    {PLANOS.map((p) => (
+                      <option key={p} value={p}>{byPlano[p]?.nome ?? p}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Status</Label>
+                  <select
+                    value={novo.status}
+                    onChange={(e) => setNovo((s) => ({ ...s, status: e.target.value as "ativo" | "inativo" }))}
+                    className="w-full rounded-md border border-border bg-input/40 px-2 py-2 text-sm"
+                  >
+                    <option value="ativo">ativo</option>
+                    <option value="inativo">inativo</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 flex gap-2">
+              <Button
+                size="sm"
+                disabled={mutNovo.isPending || !novo.email.trim() || novo.senha.length < 6}
+                onClick={() => mutNovo.mutate(novo)}
+              >
+                {mutNovo.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Criar cliente
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setShowNovo(false)}>Cancelar</Button>
+            </div>
+          </Card>
+        )}
+
+
 
         {isLoading ? (
           <div className="flex justify-center py-16">
