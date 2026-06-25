@@ -104,6 +104,24 @@ export const updateClienteProfile = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const setClientePassword = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { clienteId: string; senha: string }) => d)
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const roles = await assertStaff(supabase, userId);
+    if (!roles.includes("admin")) throw new Error("Apenas admin pode alterar senha");
+    if (!data.senha || data.senha.length < 6)
+      throw new Error("A senha deve ter ao menos 6 caracteres");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(data.clienteId, {
+      password: data.senha,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 export const setClientePlano = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
