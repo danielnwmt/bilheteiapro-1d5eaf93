@@ -15,7 +15,11 @@ import {
   Settings,
   LayoutDashboard,
   LogOut,
+  RefreshCw,
 } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { deploySystem } from "@/lib/deploy.functions";
+import { toast } from "sonner";
 import { usePlanos } from "@/hooks/usePlanos";
 import { AccentPicker } from "@/components/AccentPicker";
 import {
@@ -57,6 +61,14 @@ function AdminDashboard() {
     router.navigate({ to: "/auth", replace: true });
   }
 
+  const atualizar = useServerFn(deploySystem);
+  const mutDeploy = useMutation({
+    mutationFn: () => atualizar(),
+    onSuccess: () => toast.success("Atualização iniciada. Aguarde alguns instantes."),
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao atualizar o sistema"),
+  });
+
+
 
   const { data: stats, isLoading } = useQuery({
     queryKey: ["client-stats"],
@@ -89,6 +101,14 @@ function AdminDashboard() {
             </Button>
             <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/admin/apis" })}>
               <KeyRound className="mr-2 h-4 w-4" /> APIs
+            </Button>
+            <Button variant="outline" size="sm" disabled={mutDeploy.isPending} onClick={() => mutDeploy.mutate()}>
+              {mutDeploy.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-4 w-4" />
+              )}
+              Atualizar sistema
             </Button>
             <Button size="sm" onClick={() => router.navigate({ to: "/" })}>
               Modo cliente
