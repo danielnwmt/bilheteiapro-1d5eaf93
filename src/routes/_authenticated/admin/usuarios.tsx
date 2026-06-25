@@ -401,11 +401,36 @@ function UsuariosPage() {
                     </div>
                   )}
                 </Card>
+                );
+              };
+
+              const all = clientes ?? [];
+              const admins = all.filter((c) => c.roles.includes("admin") || c.roles.includes("operador"));
+              const clis = all.filter((c) => !c.roles.includes("admin") && !c.roles.includes("operador"));
+
+              return (
+                <>
+                  <section>
+                    <h2 className="mb-3 text-lg font-semibold">Administradores</h2>
+                    <div className="space-y-3">
+                      {admins.map(renderCard)}
+                      {admins.length === 0 && (
+                        <p className="py-6 text-center text-sm text-muted-foreground">Nenhum admin ainda.</p>
+                      )}
+                    </div>
+                  </section>
+                  <section>
+                    <h2 className="mb-3 text-lg font-semibold">Clientes</h2>
+                    <div className="space-y-3">
+                      {clis.map(renderCard)}
+                      {clis.length === 0 && (
+                        <p className="py-6 text-center text-sm text-muted-foreground">Nenhum cliente ainda.</p>
+                      )}
+                    </div>
+                  </section>
+                </>
               );
-            })}
-            {(clientes ?? []).length === 0 && (
-              <p className="py-10 text-center text-sm text-muted-foreground">Nenhum cliente ainda.</p>
-            )}
+            })()}
           </div>
         )}
       </div>
