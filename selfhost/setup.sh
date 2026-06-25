@@ -95,7 +95,11 @@ $DC up -d auth
 echo ">> Aguardando o schema auth.users..."
 until "${PSQL[@]}" -tAc "SELECT to_regclass('auth.users') IS NOT NULL" 2>/dev/null | grep -q t; do sleep 2; done
 
-# ---------- 3) Aplica o schema do app + cria admin ----------
+# ---------- 3) Aplica pré-requisitos + schema do app + cria admin ----------
+echo ">> Aplicando pré-requisitos (roles/funções)..."
+$DC cp pre.sql db:/tmp/pre.sql
+"${PSQL[@]}" -f /tmp/pre.sql >/dev/null
+
 echo ">> Aplicando schema do aplicativo..."
 $DC cp schema.sql db:/tmp/schema.sql
 "${PSQL[@]}" -f /tmp/schema.sql >/dev/null
