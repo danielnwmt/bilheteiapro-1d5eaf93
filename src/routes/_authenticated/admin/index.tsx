@@ -117,6 +117,12 @@ function AdminDashboard() {
               />
             </div>
 
+            <div className="mb-6">
+              <AccentPicker />
+            </div>
+
+
+
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               <Card className="border-border/60 bg-card p-5">
                 <h2 className="mb-4 text-sm font-semibold text-muted-foreground">
