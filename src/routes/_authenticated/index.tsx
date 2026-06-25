@@ -284,14 +284,14 @@ function Index() {
                 </Label>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {(["aovivo", "hoje", "amanha", "semana"] as const).map((p) => {
-                    const bloqueado = p === "aovivo" && !isElite;
+                    const bloqueado = p === "aovivo" && !permiteAoVivo;
                     return (
                       <button
                         type="button"
                         key={p}
                         onClick={() => {
                           if (bloqueado) {
-                            toast.error("Tempo real é exclusivo do plano Elite.");
+                            toast.error("Atualização em tempo real não está no seu plano.");
                             router.navigate({ to: "/planos" });
                             return;
                           }
