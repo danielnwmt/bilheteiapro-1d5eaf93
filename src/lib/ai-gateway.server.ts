@@ -11,8 +11,8 @@ import { getConfigKey } from "./system-config.server";
  *
  * Configure GEMINI_MODEL para escolher o modelo (padrão: gemini-2.5-flash).
  */
-export function getAiModel(): LanguageModel {
-  const geminiKey = process.env.GEMINI_API_KEY;
+export async function getAiModel(): Promise<LanguageModel> {
+  const geminiKey = await getConfigKey("GEMINI_API_KEY");
   if (geminiKey) {
     const google = createOpenAICompatible({
       name: "google",
