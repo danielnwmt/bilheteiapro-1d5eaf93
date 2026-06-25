@@ -84,39 +84,56 @@ function UsuariosPage() {
                       </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <select
-                        value={cur.plano}
-                        onChange={(e) =>
-                          setEdit((s) => ({ ...s, [c.id]: { ...cur, plano: e.target.value as Plano } }))
-                        }
-                        className="rounded-md border border-border bg-input/40 px-2 py-1 text-sm"
-                      >
-                        {PLANOS.map((p) => (
-                          <option key={p} value={p}>{byPlano[p]?.nome ?? p}</option>
-                        ))}
-                      </select>
-                      <select
-                        value={cur.status}
-                        onChange={(e) =>
-                          setEdit((s) => ({
-                            ...s,
-                            [c.id]: { ...cur, status: e.target.value as "ativo" | "inativo" },
-                          }))
-                        }
-                        className="rounded-md border border-border bg-input/40 px-2 py-1 text-sm"
-                      >
-                        <option value="ativo">ativo</option>
-                        <option value="inativo">inativo</option>
-                      </select>
-                      <Button
-                        size="sm"
-                        disabled={mut.isPending}
-                        onClick={() =>
-                          mut.mutate({ clienteId: c.id, plano: cur.plano, status: cur.status })
-                        }
-                      >
-                        Salvar
-                      </Button>
+                      {openId === c.id ? (
+                        <>
+                          <select
+                            value={cur.plano}
+                            onChange={(e) =>
+                              setEdit((s) => ({ ...s, [c.id]: { ...cur, plano: e.target.value as Plano } }))
+                            }
+                            className="rounded-md border border-border bg-input/40 px-2 py-1 text-sm"
+                          >
+                            {PLANOS.map((p) => (
+                              <option key={p} value={p}>{byPlano[p]?.nome ?? p}</option>
+                            ))}
+                          </select>
+                          <select
+                            value={cur.status}
+                            onChange={(e) =>
+                              setEdit((s) => ({
+                                ...s,
+                                [c.id]: { ...cur, status: e.target.value as "ativo" | "inativo" },
+                              }))
+                            }
+                            className="rounded-md border border-border bg-input/40 px-2 py-1 text-sm"
+                          >
+                            <option value="ativo">ativo</option>
+                            <option value="inativo">inativo</option>
+                          </select>
+                          <Button
+                            size="sm"
+                            disabled={mut.isPending}
+                            onClick={() =>
+                              mut.mutate({ clienteId: c.id, plano: cur.plano, status: cur.status })
+                            }
+                          >
+                            Salvar
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => setOpenId(null)}>
+                            Cancelar
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <div className="text-right text-sm">
+                            <p className="font-medium">{byPlano[(c.plano as Plano)]?.nome ?? "Sem plano"}</p>
+                            <p className="text-xs text-muted-foreground">{c.status}</p>
+                          </div>
+                          <Button variant="outline" size="sm" onClick={() => setOpenId(c.id)}>
+                            <Pencil className="mr-2 h-4 w-4" /> Editar
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </Card>
