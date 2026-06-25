@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      banca_entradas: {
+        Row: {
+          created_at: string
+          data: string
+          descricao: string
+          id: string
+          odd: number
+          resultado: string
+          updated_at: string
+          user_id: string
+          valor: number
+        }
+        Insert: {
+          created_at?: string
+          data?: string
+          descricao: string
+          id?: string
+          odd?: number
+          resultado?: string
+          updated_at?: string
+          user_id: string
+          valor?: number
+        }
+        Update: {
+          created_at?: string
+          data?: string
+          descricao?: string
+          id?: string
+          odd?: number
+          resultado?: string
+          updated_at?: string
+          user_id?: string
+          valor?: number
+        }
+        Relationships: []
+      }
       bilhetes: {
         Row: {
           casa: string

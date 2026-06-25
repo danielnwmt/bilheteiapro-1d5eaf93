@@ -13,6 +13,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedPlanosRouteImport } from './routes/_authenticated/planos'
+import { Route as AuthenticatedBancaRouteImport } from './routes/_authenticated/banca'
 import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/admin/route'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as ApiPublicIngestRouteImport } from './routes/api/public/ingest'
@@ -41,6 +42,11 @@ const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
 const AuthenticatedPlanosRoute = AuthenticatedPlanosRouteImport.update({
   id: '/planos',
   path: '/planos',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedBancaRoute = AuthenticatedBancaRouteImport.update({
+  id: '/banca',
+  path: '/banca',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedAdminRouteRoute = AuthenticatedAdminRouteRouteImport.update({
@@ -104,6 +110,7 @@ export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/auth': typeof AuthRoute
   '/admin': typeof AuthenticatedAdminRouteRouteWithChildren
+  '/banca': typeof AuthenticatedBancaRoute
   '/planos': typeof AuthenticatedPlanosRoute
   '/admin/apis': typeof AuthenticatedAdminApisRoute
   '/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
@@ -117,6 +124,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
+  '/banca': typeof AuthenticatedBancaRoute
   '/planos': typeof AuthenticatedPlanosRoute
   '/': typeof AuthenticatedIndexRoute
   '/admin/apis': typeof AuthenticatedAdminApisRoute
@@ -134,6 +142,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteRouteWithChildren
+  '/_authenticated/banca': typeof AuthenticatedBancaRoute
   '/_authenticated/planos': typeof AuthenticatedPlanosRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/admin/apis': typeof AuthenticatedAdminApisRoute
@@ -152,6 +161,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/admin'
+    | '/banca'
     | '/planos'
     | '/admin/apis'
     | '/admin/configuracoes'
@@ -165,6 +175,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
+    | '/banca'
     | '/planos'
     | '/'
     | '/admin/apis'
@@ -181,6 +192,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/admin'
+    | '/_authenticated/banca'
     | '/_authenticated/planos'
     | '/_authenticated/'
     | '/_authenticated/admin/apis'
@@ -232,6 +244,13 @@ declare module '@tanstack/react-router' {
       path: '/planos'
       fullPath: '/planos'
       preLoaderRoute: typeof AuthenticatedPlanosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/banca': {
+      id: '/_authenticated/banca'
+      path: '/banca'
+      fullPath: '/banca'
+      preLoaderRoute: typeof AuthenticatedBancaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/admin': {
@@ -329,12 +348,14 @@ const AuthenticatedAdminRouteRouteWithChildren =
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRouteRoute: typeof AuthenticatedAdminRouteRouteWithChildren
+  AuthenticatedBancaRoute: typeof AuthenticatedBancaRoute
   AuthenticatedPlanosRoute: typeof AuthenticatedPlanosRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRouteRoute: AuthenticatedAdminRouteRouteWithChildren,
+  AuthenticatedBancaRoute: AuthenticatedBancaRoute,
   AuthenticatedPlanosRoute: AuthenticatedPlanosRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
 }
