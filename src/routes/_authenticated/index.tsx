@@ -202,6 +202,11 @@ function Index() {
       : 0;
 
   function toggleCamp(c: string) {
+    if (!podeUsarLiga(c)) {
+      toast.error("Este campeonato não está no seu plano.");
+      router.navigate({ to: "/planos" });
+      return;
+    }
     setCampSel((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
   }
 
@@ -213,7 +218,20 @@ function Index() {
     <main className="min-h-screen bg-background">
       <div className="mx-auto max-w-5xl px-4 py-10 md:py-16">
         <header className="mb-10">
-          <div className="mb-6 flex justify-end">
+          <div className="mb-6 flex flex-wrap items-center justify-end gap-2">
+            {plano && (
+              <Badge variant="secondary" className="mr-auto">
+                <Crown className="mr-1 h-3.5 w-3.5" /> {PLANO_INFO[plano].nome}
+              </Badge>
+            )}
+            {isStaff && (
+              <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/admin/usuarios" })}>
+                <Users className="mr-2 h-4 w-4" /> Admin
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/planos" })}>
+              <Crown className="mr-2 h-4 w-4" /> Planos
+            </Button>
             <Button variant="outline" size="sm" onClick={handleSignOut}>
               <LogOut className="mr-2 h-4 w-4" /> Sair
             </Button>
@@ -226,6 +244,18 @@ function Index() {
           </div>
         </header>
 
+        {!temAcesso && (
+          <Card className="mb-8 border-primary/40 bg-primary/5 p-6 text-center">
+            <Lock className="mx-auto mb-3 h-8 w-8 text-primary" />
+            <h2 className="text-lg font-bold">Assine um plano para gerar bilhetes</h2>
+            <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
+              Escolha entre Start, Pro e Elite e libere as ligas e recursos do seu plano.
+            </p>
+            <Button className="mt-4 font-semibold" onClick={() => router.navigate({ to: "/planos" })}>
+              Ver planos
+            </Button>
+          </Card>
+        )}
 
         <Card className="border-border/60 bg-card p-6 md:p-8">
           <form onSubmit={onSubmit} className="space-y-5">
