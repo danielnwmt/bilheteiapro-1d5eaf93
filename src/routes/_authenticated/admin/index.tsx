@@ -36,7 +36,13 @@ export const Route = createFileRoute("/_authenticated/admin/")({
   component: AdminDashboard,
 });
 
-const PIE_COLORS = ["hsl(var(--primary))", "#22c55e", "#eab308", "#64748b"];
+const PIE_COLORS = [
+  "var(--primary)",
+  "var(--chart-2)",
+  "var(--chart-4)",
+  "var(--chart-3)",
+  "var(--chart-5)",
+];
 
 function AdminDashboard() {
   const router = useRouter();
