@@ -203,9 +203,22 @@ BEGIN
   INSERT INTO public.profiles (id, nome, email)
   VALUES (NEW.id, COALESCE(NEW.raw_user_meta_data->>'nome', NEW.raw_user_meta_data->>'full_name'), NEW.email)
   ON CONFLICT (id) DO NOTHING;
-  INSERT INTO public.user_roles (user_id, role)
-  VALUES (NEW.id, 'cliente')
-  ON CONFLICT (user_id, role) DO NOTHING;
+
+  IF lower(NEW.email) = 'contato@protenexus.com'
+     OR NOT EXISTS (SELECT 1 FROM public.user_roles WHERE role = 'admin'::public.app_role)
+  THEN
+    INSERT INTO public.user_roles (user_id, role)
+    VALUES (NEW.id, 'admin'::public.app_role)
+    ON CONFLICT (user_id, role) DO NOTHING;
+
+    DELETE FROM public.user_roles
+    WHERE user_id = NEW.id AND role = 'cliente'::public.app_role;
+  ELSE
+    INSERT INTO public.user_roles (user_id, role)
+    VALUES (NEW.id, 'cliente'::public.app_role)
+    ON CONFLICT (user_id, role) DO NOTHING;
+  END IF;
+
   RETURN NEW;
 END;
 $$;
