@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import logo from "@/assets/bilheteia-logo-icon.png.asset.json";
+import logo from "@/assets/bilheteia-logo.png";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
@@ -105,7 +105,7 @@ function AuthPage() {
     <main className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
       <div className="w-full max-w-sm">
         <Card className="border-border/60 bg-card p-6 md:p-8">
-          <img src={logo.url} alt="BilheteIA PRO" className="mx-auto mb-6 w-40 max-w-full" />
+          <img src={logo} alt="BilheteIA PRO" className="mx-auto mb-6 w-40 max-w-full" />
           <p className="text-center text-sm text-muted-foreground">
             {mode === "login"
               ? "Acesse sua conta para montar bilhetes."

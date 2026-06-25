@@ -11,7 +11,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Sparkles, Target, TrendingUp, Trophy, Building2, ExternalLink, ListChecks, LogOut, Lock, Crown, Users, Wallet } from "lucide-react";
 import { toast } from "sonner";
-import logo from "@/assets/bilheteia-logo-icon.png.asset.json";
+import logo from "@/assets/bilheteia-logo.png";
 import { useAccess } from "@/hooks/useAccess";
 import { ligaLiberada } from "@/lib/planos";
 import { usePlanos } from "@/hooks/usePlanos";
@@ -248,7 +248,7 @@ function Index() {
             </Button>
           </div>
           <div className="text-center">
-            <img src={logo.url} alt="BilheteIA PRO" className="mx-auto mb-4 w-64 max-w-full md:w-80" />
+            <img src={logo} alt="BilheteIA PRO" className="mx-auto mb-4 w-64 max-w-full md:w-80" />
             <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
               Pare de perder tempo analisando jogos. A IA encontra as melhores combinações para você em segundos.
             </p>
