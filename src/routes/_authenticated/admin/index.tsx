@@ -17,6 +17,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { usePlanos } from "@/hooks/usePlanos";
+import { AccentPicker } from "@/components/AccentPicker";
 import {
   BarChart,
   Bar,
@@ -36,7 +37,13 @@ export const Route = createFileRoute("/_authenticated/admin/")({
   component: AdminDashboard,
 });
 
-const PIE_COLORS = ["hsl(var(--primary))", "#22c55e", "#eab308", "#64748b"];
+const PIE_COLORS = [
+  "var(--primary)",
+  "var(--chart-2)",
+  "var(--chart-4)",
+  "var(--chart-3)",
+  "var(--chart-5)",
+];
 
 function AdminDashboard() {
   const router = useRouter();
@@ -111,6 +118,12 @@ function AdminDashboard() {
               />
             </div>
 
+            <div className="mb-6">
+              <AccentPicker />
+            </div>
+
+
+
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               <Card className="border-border/60 bg-card p-5">
                 <h2 className="mb-4 text-sm font-semibold text-muted-foreground">
@@ -119,18 +132,18 @@ function AdminDashboard() {
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={stats?.cadastrosPorMes ?? []}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis dataKey="mes" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                      <YAxis allowDecimals={false} stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                      <XAxis dataKey="mes" stroke="var(--muted-foreground)" fontSize={12} />
+                      <YAxis allowDecimals={false} stroke="var(--muted-foreground)" fontSize={12} />
                       <Tooltip
                         contentStyle={{
-                          background: "hsl(var(--card))",
-                          border: "1px solid hsl(var(--border))",
+                          background: "var(--card)",
+                          border: "1px solid var(--border)",
                           borderRadius: 8,
-                          color: "hsl(var(--foreground))",
+                          color: "var(--foreground)",
                         }}
                       />
-                      <Bar dataKey="total" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="total" fill="var(--primary)" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -164,10 +177,10 @@ function AdminDashboard() {
                         <Legend />
                         <Tooltip
                           contentStyle={{
-                            background: "hsl(var(--card))",
-                            border: "1px solid hsl(var(--border))",
+                            background: "var(--card)",
+                            border: "1px solid var(--border)",
                             borderRadius: 8,
-                            color: "hsl(var(--foreground))",
+                            color: "var(--foreground)",
                           }}
                         />
                       </PieChart>
