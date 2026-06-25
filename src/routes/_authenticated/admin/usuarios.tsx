@@ -19,6 +19,7 @@ export const Route = createFileRoute("/_authenticated/admin/usuarios")({
 function UsuariosPage() {
   const router = useRouter();
   const qc = useQueryClient();
+  const { byPlano } = usePlanos();
   const fetchClientes = useServerFn(listClientes);
   const salvar = useServerFn(setClientePlano);
   const [edit, setEdit] = useState<Record<string, { plano: Plano; status: "ativo" | "inativo" }>>({});
