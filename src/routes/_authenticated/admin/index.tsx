@@ -2,6 +2,7 @@ import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { getClientStats } from "@/lib/access.functions";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -13,6 +14,7 @@ import {
   KeyRound,
   Settings,
   LayoutDashboard,
+  LogOut,
 } from "lucide-react";
 import { usePlanos } from "@/hooks/usePlanos";
 import {
