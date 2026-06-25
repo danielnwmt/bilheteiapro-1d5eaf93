@@ -1,5 +1,6 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import type { LanguageModel } from "ai";
+import { getConfigKey } from "./system-config.server";
 
 /**
  * Retorna o modelo de IA a ser usado para tratar os dados da API.
