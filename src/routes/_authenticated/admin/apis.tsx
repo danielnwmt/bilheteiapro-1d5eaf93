@@ -1,0 +1,149 @@
+import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getSystemConfig, setSystemConfig } from "@/lib/access.functions";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ArrowLeft, Loader2, Plus } from "lucide-react";
+import { toast } from "sonner";
+
+export const Route = createFileRoute("/_authenticated/admin/apis")({
+  head: () => ({ meta: [{ title: "APIs do sistema — Admin BilheteIA" }] }),
+  component: ApisPage,
+});
+
+// Chaves de API conhecidas do sistema (apenas referência de rótulo).
+const CHAVES_PADRAO = [
+  { chave: "API_FOOTBALL_KEY", descricao: "Chave da API-Football (jogos e odds)" },
+  { chave: "ODDS_API_KEY", descricao: "Chave da The Odds API" },
+];
+
+function ApisPage() {
+  const router = useRouter();
+  const qc = useQueryClient();
+  const fetchConfig = useServerFn(getSystemConfig);
+  const salvar = useServerFn(setSystemConfig);
+  const [vals, setVals] = useState<Record<string, string>>({});
+  const [novaChave, setNovaChave] = useState("");
+
+  const { data: config, isLoading, error } = useQuery({
+    queryKey: ["system-config"],
+    queryFn: () => fetchConfig(),
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (config) {
+      const m: Record<string, string> = {};
+      for (const c of config) m[c.chave] = c.valor ?? "";
+      setVals((v) => ({ ...m, ...v }));
+    }
+  }, [config]);
+
+  const mut = useMutation({
+    mutationFn: (v: { chave: string; valor: string; descricao?: string }) => salvar({ data: v }),
+    onSuccess: () => {
+      toast.success("Configuração salva");
+      qc.invalidateQueries({ queryKey: ["system-config"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
+  });
+
+  const existentes = new Map((config ?? []).map((c) => [c.chave, c.descricao]));
+  const todasChaves = Array.from(
+    new Set([
+      ...CHAVES_PADRAO.map((c) => c.chave),
+      ...(config ?? []).map((c) => c.chave),
+    ]),
+  );
+
+  if (error) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-background px-4">
+        <Card className="max-w-md border-border/60 bg-card p-8 text-center">
+          <p className="font-semibold">Acesso restrito</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Apenas administradores podem editar as APIs do sistema.
+          </p>
+          <Button className="mt-6" onClick={() => router.navigate({ to: "/" })}>Voltar</Button>
+        </Card>
+      </main>
+    );
+  }
+
+  return (
+    <main className="min-h-screen bg-background">
+      <div className="mx-auto max-w-2xl px-4 py-10">
+        <Button variant="ghost" size="sm" className="mb-6" onClick={() => router.navigate({ to: "/admin/usuarios" })}>
+          <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
+        </Button>
+
+        <h1 className="mb-2 text-2xl font-bold">APIs do sistema</h1>
+        <p className="mb-6 text-sm text-muted-foreground">
+          Edite as chaves de integração usadas pelo sistema.
+        </p>
+
+        {isLoading ? (
+          <div className="flex justify-center py-16">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {todasChaves.map((chave) => {
+              const descricao =
+                existentes.get(chave) ??
+                CHAVES_PADRAO.find((c) => c.chave === chave)?.descricao ??
+                "";
+              return (
+                <Card key={chave} className="border-border/60 bg-card p-4">
+                  <Label className="text-sm font-semibold">{chave}</Label>
+                  {descricao && <p className="mb-2 text-xs text-muted-foreground">{descricao}</p>}
+                  <div className="flex gap-2">
+                    <Input
+                      type="password"
+                      placeholder="••••••••"
+                      value={vals[chave] ?? ""}
+                      onChange={(e) => setVals((v) => ({ ...v, [chave]: e.target.value }))}
+                      className="bg-input/40"
+                    />
+                    <Button
+                      disabled={mut.isPending}
+                      onClick={() => mut.mutate({ chave, valor: vals[chave] ?? "", descricao })}
+                    >
+                      Salvar
+                    </Button>
+                  </div>
+                </Card>
+              );
+            })}
+
+            <Card className="border-dashed border-border/60 bg-card p-4">
+              <Label className="mb-2 block text-sm font-semibold">Nova chave</Label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="NOME_DA_CHAVE"
+                  value={novaChave}
+                  onChange={(e) => setNovaChave(e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, "_"))}
+                  className="bg-input/40"
+                />
+                <Button
+                  variant="outline"
+                  disabled={!novaChave}
+                  onClick={() => {
+                    setVals((v) => ({ ...v, [novaChave]: "" }));
+                    setNovaChave("");
+                  }}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </Card>
+          </div>
+        )}
+      </div>
+    </main>
+  );
+}
