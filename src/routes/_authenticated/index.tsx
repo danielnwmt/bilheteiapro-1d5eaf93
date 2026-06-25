@@ -243,7 +243,7 @@ function Index() {
           <div className="text-center">
             <img src={logo.url} alt="BilheteIA PRO" className="mx-auto mb-4 w-64 max-w-full md:w-80" />
             <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
-              Escolha a odd alvo e o período. Lemos os jogos e odds do seu banco (API-Sports) e a IA monta sua múltipla.
+              Pare de perder tempo analisando jogos. A IA encontra as melhores combinações para você em segundos.
             </p>
           </div>
         </header>
