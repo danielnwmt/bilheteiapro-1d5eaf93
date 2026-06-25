@@ -80,8 +80,9 @@ function AuthPage() {
     <main className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <img src={logo.url} alt="BilheteIA PRO" className="mx-auto w-56 max-w-full" />
+          <img src={logo.url} alt="BilheteIA PRO" className="mx-auto w-80 max-w-full" />
         </div>
+
 
         <Card className="border-border/60 bg-card p-6 md:p-8">
           <h1 className="text-xl font-bold">
