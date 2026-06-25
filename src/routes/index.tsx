@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Sparkles, Target, TrendingUp, Trophy, Building2, ExternalLink } from "lucide-react";
+import { Loader2, Sparkles, Target, TrendingUp, Trophy, Building2, ExternalLink, ListChecks } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/")({
@@ -103,6 +103,21 @@ const CAMPEONATOS = [
   "Copa do Mundo",
 ];
 
+const MERCADOS = [
+  "Vitória / Resultado Final",
+  "Dupla Chance",
+  "Empate Anula (DNB)",
+  "Ambas Marcam",
+  "Mais/Menos Gols",
+  "Escanteios",
+  "Cartões",
+  "Chutes ao Gol",
+  "Handicap Asiático",
+  "Placar Exato",
+  "Gols no 1º Tempo",
+  "Time Marca Gol",
+];
+
 function Index() {
   const run = useServerFn(gerarBilhete);
   const [oddAlvo, setOddAlvo] = useState("5");
@@ -110,6 +125,7 @@ function Index() {
   const [periodo, setPeriodo] = useState<"hoje" | "amanha" | "semana" | "aovivo">("hoje");
   const [casa, setCasa] = useState<(typeof CASAS)[number]["id"]>("bet365");
   const [campSel, setCampSel] = useState<string[]>([]);
+  const [mercSel, setMercSel] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [ticket, setTicket] = useState<Ticket | null>(null);
 
@@ -123,7 +139,7 @@ function Index() {
     setLoading(true);
     setTicket(null);
     try {
-      const r = await run({ data: { oddAlvo: odd, periodo, campeonatos: campSel, casa: casaAtual.nome } });
+      const r = await run({ data: { oddAlvo: odd, periodo, campeonatos: campSel, mercados: mercSel, casa: casaAtual.nome } });
       setTicket(r);
     } catch (err: unknown) {
       console.error(err);
@@ -152,6 +168,10 @@ function Index() {
 
   function toggleCamp(c: string) {
     setCampSel((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
+  }
+
+  function toggleMerc(m: string) {
+    setMercSel((prev) => (prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m]));
   }
 
   return (
@@ -256,6 +276,32 @@ function Index() {
                 })}
               </div>
               <p className="mt-2 text-xs text-muted-foreground">Deixe vazio para considerar qualquer campeonato.</p>
+            </div>
+
+            <div>
+              <Label className="mb-2 flex items-center gap-2 text-sm">
+                <ListChecks className="h-4 w-4 text-primary" /> Mercados do bilhete {mercSel.length > 0 && <span className="text-xs text-muted-foreground">({mercSel.length} selecionados)</span>}
+              </Label>
+              <div className="flex flex-wrap gap-2">
+                {MERCADOS.map((m) => {
+                  const active = mercSel.includes(m);
+                  return (
+                    <button
+                      type="button"
+                      key={m}
+                      onClick={() => toggleMerc(m)}
+                      className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                        active
+                          ? "border-primary bg-primary/15 text-primary"
+                          : "border-border bg-input/40 text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {m}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">Escolha vitória, escanteios, cartões e outros. Deixe vazio para a IA usar qualquer mercado.</p>
             </div>
 
             <Button

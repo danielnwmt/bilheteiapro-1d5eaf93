@@ -9,6 +9,7 @@ const InputSchema = z.object({
   oddAlvo: z.number().min(1.1).max(1000),
   periodo: z.enum(["hoje", "amanha", "semana", "aovivo"]),
   campeonatos: z.array(z.string()).optional().default([]),
+  mercados: z.array(z.string()).optional().default([]),
   casa: z.string().optional().default("Betano"),
   minConfianca: z.number().min(0).max(100).optional().default(0),
 });
@@ -329,7 +330,11 @@ Regras:
 - Se mesmo usando todos os jogos/mercados disponíveis o produto não chegar à odd alvo, retorne o bilhete possível mais próximo e diga isso claramente no campo "observacoes".
 - Considere forma recente, mando de campo, confrontos diretos e contexto.
 - Justificativas curtas e diretas, em português.
-- IMPORTANTE: quando houver MAIS DE UMA seleção no mesmo jogo, inclua esse jogo em "analiseJogos" com estimativas de: escanteios (média e linha provável), gols (média de gols na partida), chutes ao gol (média por time), média de cartões dos times e média de cartões do árbitro da partida. Cada campo deve ser curto (1 frase com números).`;
+- IMPORTANTE: quando houver MAIS DE UMA seleção no mesmo jogo, inclua esse jogo em "analiseJogos" com estimativas de: escanteios (média e linha provável), gols (média de gols na partida), chutes ao gol (média por time), média de cartões dos times e média de cartões do árbitro da partida. Cada campo deve ser curto (1 frase com números).${
+      data.mercados.length
+        ? `\n- RESTRIÇÃO DE MERCADOS: o usuário escolheu apostar SOMENTE nestes tipos de mercado: ${data.mercados.join(", ")}. Use exclusivamente seleções desses mercados. Se um jogo não tiver esses mercados, ignore-o. Se mesmo assim não atingir a odd alvo, retorne o melhor bilhete possível com esses mercados e explique em "observacoes".`
+        : ""
+    }`;
 
     const periodoLabel = { hoje: "hoje", amanha: "amanhã", semana: "próximos dias", aovivo: "AO VIVO agora" }[data.periodo];
     const prompt = `Período: ${periodoLabel}
