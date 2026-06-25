@@ -2,6 +2,7 @@ import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { getClientStats } from "@/lib/access.functions";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -13,6 +14,7 @@ import {
   KeyRound,
   Settings,
   LayoutDashboard,
+  LogOut,
 } from "lucide-react";
 import { usePlanos } from "@/hooks/usePlanos";
 import {
@@ -40,6 +42,12 @@ function AdminDashboard() {
   const router = useRouter();
   const { byPlano } = usePlanos();
   const fetchStats = useServerFn(getClientStats);
+
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+    router.navigate({ to: "/auth", replace: true });
+  }
+
 
   const { data: stats, isLoading } = useQuery({
     queryKey: ["client-stats"],
@@ -75,6 +83,9 @@ function AdminDashboard() {
             </Button>
             <Button size="sm" onClick={() => router.navigate({ to: "/" })}>
               Modo cliente
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleSignOut}>
+              <LogOut className="mr-2 h-4 w-4" /> Sair
             </Button>
           </div>
         </div>
