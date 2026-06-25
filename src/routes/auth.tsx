@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import logo from "@/assets/bilheteia-logo.png";
+import { checkEmailExists } from "@/lib/auth-check.functions";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
