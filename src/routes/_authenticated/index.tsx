@@ -11,7 +11,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Sparkles, Target, TrendingUp, Trophy, Building2, ExternalLink, ListChecks, LogOut, Lock, Crown, Users, Wallet } from "lucide-react";
 import { toast } from "sonner";
-import logo from "@/assets/bilheteia-logo-icon.png.asset.json";
+import logo from "@/assets/bilheteia-logo.png";
 import { useAccess } from "@/hooks/useAccess";
 import { ligaLiberada } from "@/lib/planos";
 import { usePlanos } from "@/hooks/usePlanos";
