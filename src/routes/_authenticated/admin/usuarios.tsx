@@ -42,13 +42,18 @@ function UsuariosPage() {
   return (
     <main className="min-h-screen bg-background">
       <div className="mx-auto max-w-5xl px-4 py-10">
-        <div className="mb-6 flex items-center justify-between">
+        <div class="mb-6 flex flex-wrap items-center justify-between gap-2">
           <Button variant="ghost" size="sm" onClick={() => router.navigate({ to: "/" })}>
             <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
           </Button>
-          <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/admin/apis" })}>
-            <KeyRound className="mr-2 h-4 w-4" /> APIs do sistema
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/admin/configuracoes" })}>
+              <Settings className="mr-2 h-4 w-4" /> Configurações
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/admin/apis" })}>
+              <KeyRound className="mr-2 h-4 w-4" /> APIs do sistema
+            </Button>
+          </div>
         </div>
 
         <h1 className="mb-6 text-2xl font-bold">Clientes</h1>
