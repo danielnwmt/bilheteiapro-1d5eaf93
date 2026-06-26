@@ -102,7 +102,11 @@ $DC cp pre.sql db:/tmp/pre.sql
 
 echo ">> Aplicando schema do aplicativo..."
 $DC cp schema.sql db:/tmp/schema.sql
-"${PSQL[@]}" -f /tmp/schema.sql >/dev/null
+if "${PSQL[@]}" -tAc "SELECT to_regclass('public.profiles') IS NOT NULL AND to_regclass('public.user_roles') IS NOT NULL" 2>/dev/null | grep -q t; then
+  echo ">> Schema principal já existe; pulando criação das tabelas."
+else
+  "${PSQL[@]}" -f /tmp/schema.sql >/dev/null
+fi
 
 echo ">> Criando/garantindo o admin..."
 $DC cp admin.sql db:/tmp/admin.sql

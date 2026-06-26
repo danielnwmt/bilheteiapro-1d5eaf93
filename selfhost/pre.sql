@@ -24,31 +24,73 @@ GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO authenticated;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO service_role;
 
--- Funções auxiliares de autenticação (compatíveis com Supabase) ---
-CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$
-  SELECT COALESCE(
-    NULLIF(current_setting('request.jwt.claim.sub', true), ''),
-    (NULLIF(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub')
-  )::uuid
-$$;
+-- Funções auxiliares de autenticação (compatíveis com Supabase).
+-- Em algumas imagens self-host o schema auth já pertence ao GoTrue; nesse caso
+-- não tentamos sobrescrever funções existentes para evitar "permission denied".
+DO $pre$
+BEGIN
+  IF to_regprocedure('auth.uid()') IS NULL THEN
+    EXECUTE $fn$
+      CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$
+        SELECT COALESCE(
+          NULLIF(current_setting('request.jwt.claim.sub', true), ''),
+          (NULLIF(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub')
+        )::uuid
+      $$
+    $fn$;
+  END IF;
+EXCEPTION WHEN insufficient_privilege THEN
+  RAISE NOTICE 'Sem permissão para criar auth.uid(); seguindo com as funções existentes do auth.';
+END
+$pre$;
 
-CREATE OR REPLACE FUNCTION auth.role() RETURNS text LANGUAGE sql STABLE AS $$
-  SELECT COALESCE(
-    NULLIF(current_setting('request.jwt.claim.role', true), ''),
-    (NULLIF(current_setting('request.jwt.claims', true), '')::jsonb ->> 'role')
-  )
-$$;
+DO $pre$
+BEGIN
+  IF to_regprocedure('auth.role()') IS NULL THEN
+    EXECUTE $fn$
+      CREATE FUNCTION auth.role() RETURNS text LANGUAGE sql STABLE AS $$
+        SELECT COALESCE(
+          NULLIF(current_setting('request.jwt.claim.role', true), ''),
+          (NULLIF(current_setting('request.jwt.claims', true), '')::jsonb ->> 'role')
+        )
+      $$
+    $fn$;
+  END IF;
+EXCEPTION WHEN insufficient_privilege THEN
+  RAISE NOTICE 'Sem permissão para criar auth.role(); seguindo com as funções existentes do auth.';
+END
+$pre$;
 
-CREATE OR REPLACE FUNCTION auth.email() RETURNS text LANGUAGE sql STABLE AS $$
-  SELECT COALESCE(
-    NULLIF(current_setting('request.jwt.claim.email', true), ''),
-    (NULLIF(current_setting('request.jwt.claims', true), '')::jsonb ->> 'email')
-  )
-$$;
+DO $pre$
+BEGIN
+  IF to_regprocedure('auth.email()') IS NULL THEN
+    EXECUTE $fn$
+      CREATE FUNCTION auth.email() RETURNS text LANGUAGE sql STABLE AS $$
+        SELECT COALESCE(
+          NULLIF(current_setting('request.jwt.claim.email', true), ''),
+          (NULLIF(current_setting('request.jwt.claims', true), '')::jsonb ->> 'email')
+        )
+      $$
+    $fn$;
+  END IF;
+EXCEPTION WHEN insufficient_privilege THEN
+  RAISE NOTICE 'Sem permissão para criar auth.email(); seguindo com as funções existentes do auth.';
+END
+$pre$;
 
-CREATE OR REPLACE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql STABLE AS $$
-  SELECT COALESCE(
-    NULLIF(current_setting('request.jwt.claim', true), ''),
-    NULLIF(current_setting('request.jwt.claims', true), '')
-  )::jsonb
-$$;
+DO $pre$
+BEGIN
+  IF to_regprocedure('auth.jwt()') IS NULL THEN
+    EXECUTE $fn$
+      CREATE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql STABLE AS $$
+        SELECT COALESCE(
+          NULLIF(current_setting('request.jwt.claim', true), ''),
+          NULLIF(current_setting('request.jwt.claims', true), '')
+        )::jsonb
+      $$
+    $fn$;
+  END IF;
+EXCEPTION WHEN insufficient_privilege THEN
+  RAISE NOTICE 'Sem permissão para criar auth.jwt(); seguindo com as funções existentes do auth.';
+END
+$pre$;

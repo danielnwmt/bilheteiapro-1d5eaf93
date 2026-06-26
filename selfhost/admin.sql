@@ -4,12 +4,27 @@
 --  A senha é gravada como bcrypt (compatível com GoTrue).
 -- ============================================================
 
+CREATE TEMP TABLE IF NOT EXISTS admin_bootstrap_vars (
+  admin_email text NOT NULL,
+  admin_password text NOT NULL
+) ON COMMIT DROP;
+
+TRUNCATE admin_bootstrap_vars;
+
+INSERT INTO admin_bootstrap_vars (admin_email, admin_password)
+VALUES (:'admin_email', :'admin_password');
+
 DO $$
 DECLARE
-  v_email   text := :'admin_email';
-  v_pass    text := :'admin_password';
+  v_email   text;
+  v_pass    text;
   v_uid     uuid;
 BEGIN
+  SELECT admin_email, admin_password
+    INTO v_email, v_pass
+    FROM admin_bootstrap_vars
+    LIMIT 1;
+
   -- Usuário já existe?
   SELECT id INTO v_uid FROM auth.users WHERE lower(email) = lower(v_email);
 
