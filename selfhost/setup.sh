@@ -305,6 +305,21 @@ wait_for_auth_users() {
   return 1
 }
 
+wait_for_auth_schema_ready() {
+  local attempts="${1:-60}" i
+  for i in $(seq 1 "$attempts"); do
+    if "${PSQL[@]}" -tAc "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='auth' AND table_name='users') AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='auth' AND table_name='identities')" 2>/dev/null | grep -q t; then
+      return 0
+    fi
+    if [ $((i % 10)) -eq 0 ]; then
+      echo ">> Auth ainda criando schema completo auth.users/auth.identities... ($i/$attempts)"
+      $DC logs --tail=20 auth || true
+    fi
+    sleep 2
+  done
+  return 1
+}
+
 echo ">> Subindo Auth (cria o schema de usuários)..."
 $DC up -d --force-recreate auth
 
@@ -319,6 +334,24 @@ if ! wait_for_auth_users 60; then
 
   if ! wait_for_auth_users 60; then
     echo "ERRO: Auth não conseguiu criar auth.users. Veja o erro real abaixo:"
+    $DC logs --tail=160 auth || true
+    exit 1
+  fi
+fi
+
+echo ">> Aguardando schema completo do Auth..."
+if ! wait_for_auth_schema_ready 60; then
+  echo "ATENÇÃO: Auth não criou auth.identities. Limpando schema auth incompleto e tentando novamente..."
+  echo ">> Últimas linhas do Auth antes do reparo:"
+  $DC logs --tail=100 auth || true
+  $DC stop auth >/dev/null 2>&1 || true
+  "${PSQL[@]}" -c "DROP SCHEMA IF EXISTS auth CASCADE; CREATE SCHEMA auth; GRANT USAGE ON SCHEMA auth TO anon, authenticated, service_role;" >/dev/null
+  $DC cp pre.sql db:/tmp/pre.sql
+  "${PSQL[@]}" -f /tmp/pre.sql >/dev/null
+  $DC up -d --force-recreate auth
+
+  if ! wait_for_auth_schema_ready 60; then
+    echo "ERRO: Auth não conseguiu criar auth.users/auth.identities. Veja o erro real abaixo:"
     $DC logs --tail=160 auth || true
     exit 1
   fi
