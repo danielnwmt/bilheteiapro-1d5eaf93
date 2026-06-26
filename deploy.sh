@@ -33,8 +33,9 @@ if [ "${BILHETEIA_CLOUD:-0}" != "1" ] && [ -f "$APP_DIR/docker-compose.yml" ]; t
     git pull || true
   fi
 
-  # Detecta a URL pública (IPv4, depois IPv6) só se ainda não definida.
-  if [ -z "${SUPABASE_PUBLIC_URL:-}" ] && [ ! -f "$APP_DIR/.env" ] || ! grep -q "^SUPABASE_PUBLIC_URL=" "$APP_DIR/.env" 2>/dev/null; then
+  # Detecta a URL pública (IPv4, depois IPv6) só se ainda não estiver no .env.
+  touch "$APP_DIR/.env"
+  if [ -z "${SUPABASE_PUBLIC_URL:-}" ] && ! grep -q "^SUPABASE_PUBLIC_URL=." "$APP_DIR/.env"; then
     IP4=$(curl -4 -s --max-time 5 https://api.ipify.org 2>/dev/null || curl -4 -s --max-time 5 https://ifconfig.me 2>/dev/null || true)
     if [ -n "$IP4" ]; then
       HOSTADDR="$IP4"
