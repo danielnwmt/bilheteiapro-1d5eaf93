@@ -98,6 +98,8 @@ export const createPlanoConfig = createServerFn({ method: "POST" })
       historico_dias: data.historicoDias ?? 15,
       ligas: data.ligas ?? [],
       recursos: data.recursos ?? {},
+      desconto_semestral: data.descontoSemestral ?? 0,
+      desconto_anual: data.descontoAnual ?? 0,
     });
     if (error) throw new Error(error.message);
     return { ok: true };
