@@ -223,7 +223,7 @@ echo ">> Subindo Auth (cria o schema de usuários)..."
 $DC up -d auth
 
 echo ">> Aguardando o schema auth.users..."
-until "${PSQL[@]}" -tAc "SELECT to_regclass('auth.users') IS NOT NULL" 2>/dev/null | grep -q t; do sleep 2; done
+until "${PSQL[@]}" -tAc "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='auth' AND table_name='users')" 2>/dev/null | grep -q t; do sleep 2; done
 
 # ---------- 3) Aplica pré-requisitos + schema do app + cria admin ----------
 echo ">> Aplicando pré-requisitos (roles/funções)..."
@@ -232,7 +232,7 @@ $DC cp pre.sql db:/tmp/pre.sql
 
 echo ">> Aplicando schema do aplicativo..."
 $DC cp schema.sql db:/tmp/schema.sql
-if "${PSQL[@]}" -tAc "SELECT to_regclass('public.profiles') IS NOT NULL AND to_regclass('public.user_roles') IS NOT NULL" 2>/dev/null | grep -q t; then
+if "${PSQL[@]}" -tAc "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='profiles') AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='user_roles')" 2>/dev/null | grep -q t; then
   echo ">> Schema principal já existe; pulando criação das tabelas."
 else
   "${PSQL[@]}" -f /tmp/schema.sql >/dev/null
@@ -241,6 +241,21 @@ fi
 # ---------- 4) Sobe Data API + gateway (necessários para a API do Auth) ----------
 echo ">> Subindo Data API e gateway..."
 $DC up -d rest kong
+
+echo ">> Aguardando gateway local responder..."
+KONG_READY=0
+for i in $(seq 1 60); do
+  HTTP_CODE="$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:${SUPABASE_PORT:-8000}/auth/v1/health" 2>/dev/null || printf '000')"
+  if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "204" ]; then
+    KONG_READY=1
+    break
+  fi
+  echo ">> Gateway ainda indisponível (HTTP ${HTTP_CODE}), tentando de novo... ($i/60)"
+  sleep 2
+done
+if [ "$KONG_READY" != "1" ]; then
+  echo "ATENÇÃO: gateway ainda não respondeu; vou criar o admin por fallback SQL se necessário."
+fi
 
 # ---------- 5) Cria/garante o admin via API oficial do Auth ----------
 echo ">> Criando/garantindo o admin..."

@@ -54,19 +54,18 @@ if [ -z "$AUTH_CID" ]; then
   exit 1
 fi
 
-AUTH_NETWORK="$(docker inspect -f '{{range $name, $_ := .NetworkSettings.Networks}}{{println $name}}{{end}}' "$AUTH_CID" 2>/dev/null | head -n1)"
-if [ -z "$AUTH_NETWORK" ]; then
-  echo "ERRO: rede Docker do Auth não encontrada."
-  exit 1
-fi
-
-AUTH_INTERNAL_URL="http://auth:9999"
-AUTH_CURL_IMAGE="curlimages/curl:8.11.1"
+AUTH_INTERNAL_URL="${AUTH_API_URL:-http://127.0.0.1:${SUPABASE_PORT}/auth/v1}"
 USED_SQL_FALLBACK=0
 
 auth_curl() {
-  docker run --rm --network "$AUTH_NETWORK" "$AUTH_CURL_IMAGE" "$@"
+  if ! command -v curl >/dev/null 2>&1; then
+    return 127
+  fi
+  curl "$@"
 }
+
+# Garante o gateway local quando este script for chamado separadamente.
+$DC up -d rest kong >/dev/null 2>&1 || true
 
 admin_user_id() {
   local safe_email
