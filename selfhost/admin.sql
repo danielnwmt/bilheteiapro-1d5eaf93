@@ -3,23 +3,25 @@
 --  NÃO cria o usuário em auth.users (isso é feito pela API do
 --  GoTrue em create-admin.sh, que é compatível com a versão real
 --  do Auth). Aqui só promovemos a admin quem já existe.
+--
+--  Recebe o e-mail via -v admin_email=... (psql).
+--  Usamos set_config() (sessão) em vez de TEMP TABLE para evitar
+--  o problema de "ON COMMIT DROP" em autocommit.
 -- ============================================================
 
-CREATE TEMP TABLE IF NOT EXISTS admin_bootstrap_vars (
-  admin_email text NOT NULL
-) ON COMMIT DROP;
-
-TRUNCATE admin_bootstrap_vars;
-
-INSERT INTO admin_bootstrap_vars (admin_email)
-VALUES (:'admin_email');
+SELECT set_config('bia.admin_email', :'admin_email', false);
 
 DO $$
 DECLARE
   v_email text;
   v_uid   uuid;
 BEGIN
-  SELECT admin_email INTO v_email FROM admin_bootstrap_vars LIMIT 1;
+  v_email := current_setting('bia.admin_email', true);
+
+  IF v_email IS NULL OR v_email = '' THEN
+    RAISE NOTICE 'admin_email nao informado; nada a fazer.';
+    RETURN;
+  END IF;
 
   SELECT id INTO v_uid FROM auth.users WHERE lower(email) = lower(v_email);
 
