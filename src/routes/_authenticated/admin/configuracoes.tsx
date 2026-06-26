@@ -85,6 +85,37 @@ function ConfiguracoesPage() {
     onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
   });
 
+  const [novoOpen, setNovoOpen] = useState(false);
+  const [novo, setNovo] = useState({ plano: "", nome: "", preco: "" });
+
+  const criarMut = useMutation({
+    mutationFn: () =>
+      criar({
+        data: {
+          plano: novo.plano.trim().toLowerCase(),
+          nome: novo.nome.trim(),
+          preco: novo.preco.trim(),
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Plano criado");
+      setNovoOpen(false);
+      setNovo({ plano: "", nome: "", preco: "" });
+      qc.invalidateQueries({ queryKey: ["plano_config"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao criar plano"),
+  });
+
+  const removerMut = useMutation({
+    mutationFn: (plano: Plano) => remover({ data: { plano } }),
+    onSuccess: () => {
+      toast.success("Plano removido");
+      qc.invalidateQueries({ queryKey: ["plano_config"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao remover"),
+  });
+
+
   function update(plano: Plano, patch: Partial<PlanoConfig>) {
     setDraft((s) => ({ ...s, [plano]: { ...s[plano], ...patch } }));
   }
