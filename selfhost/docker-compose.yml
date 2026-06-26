@@ -6,7 +6,7 @@
 services:
   # ---------- Banco de dados Postgres (com schema auth e roles do Supabase) ----------
   db:
-    image: supabase/postgres:15.14.1.139
+    image: postgres:15-bookworm
     container_name: bia-db
     restart: always
     environment:

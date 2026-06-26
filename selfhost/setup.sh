@@ -275,6 +275,10 @@ $DC up -d db
 echo ">> Aguardando banco..."
 until $DC exec -T db pg_isready -U postgres -d postgres >/dev/null 2>&1; do sleep 2; done
 
+echo ">> Preparando banco local para autenticação..."
+$DC cp pre.sql db:/tmp/pre.sql
+"${PSQL[@]}" -f /tmp/pre.sql >/dev/null
+
 echo ">> Subindo Auth (cria o schema de usuários)..."
 $DC up -d auth
 
