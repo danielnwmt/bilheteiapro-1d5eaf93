@@ -213,6 +213,35 @@ ensure_app_port_available() {
   fi
 }
 
+ensure_supabase_port_available() {
+  SUPABASE_PORT="${SUPABASE_PORT:-8000}"
+  SUPABASE_PUBLIC_URL="${SUPABASE_PUBLIC_URL:-http://localhost:${SUPABASE_PORT}}"
+
+  stop_docker_containers_on_port "$SUPABASE_PORT"
+
+  if port_is_listening "$SUPABASE_PORT"; then
+    local old_port="$SUPABASE_PORT" candidate base_url
+    echo ">> Porta ${old_port} da API local ocupada por outro processo. Procurando porta livre..."
+    for candidate in $(seq $((old_port + 1)) $((old_port + 30))); do
+      if ! port_is_listening "$candidate" && [ -z "$(docker ps --filter "publish=${candidate}" -q 2>/dev/null || true)" ]; then
+        SUPABASE_PORT="$candidate"
+        base_url="${SUPABASE_PUBLIC_URL%:*}"
+        SUPABASE_PUBLIC_URL="${base_url}:${SUPABASE_PORT}"
+        save_env_value SUPABASE_PORT "$SUPABASE_PORT"
+        save_env_value SUPABASE_PUBLIC_URL "$SUPABASE_PUBLIC_URL"
+        set -a; . "$ENV_FILE"; set +a
+        echo ">> Usando porta livre para a API local: ${SUPABASE_PORT}"
+        return 0
+      fi
+    done
+
+    echo "ERRO: não encontrei porta livre para a API local. Libere a porta ${old_port} e rode novamente."
+    exit 1
+  fi
+}
+
+ensure_supabase_port_available
+
 # ---------- 2) Sobe banco + auth (auth cria o schema auth.users) ----------
 echo ">> Subindo banco de dados..."
 $DC up -d db
