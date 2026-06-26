@@ -66,21 +66,40 @@ auth_curl() {
   curl "$@"
 }
 
-# Faz uma requisição ao Auth DE DENTRO da rede do Docker, usando o wget do
-# próprio container do Auth. Assim não dependemos de curl no host nem de a
-# porta estar publicada corretamente. Ecoa "<corpo>\n<http_code>".
+# Requisição ao Auth via curl do host (presente após instalar o Docker).
+# Ecoa o corpo + "\n<http_code>" na última linha. Se não houver curl, retorna 127.
 auth_req() {
   local method="$1" path="$2" body="${3:-}"
-  $DC exec -T auth wget -q -O - --server-response --method="$method" \
-    --header="apikey: ${SERVICE_ROLE_KEY}" \
-    --header="Authorization: Bearer ${SERVICE_ROLE_KEY}" \
-    --header="Content-Type: application/json" \
-    ${body:+--body-data="$body"} \
-    "http://127.0.0.1:9999${path}" 2>&1 || true
+  if ! command -v curl >/dev/null 2>&1; then
+    return 127
+  fi
+  if [ -n "$body" ]; then
+    curl -sS --max-time 20 -w '\n%{http_code}' -X "$method" "${AUTH_INTERNAL_URL}${path}" \
+      -H "apikey: ${SERVICE_ROLE_KEY}" \
+      -H "Authorization: Bearer ${SERVICE_ROLE_KEY}" \
+      -H "Content-Type: application/json" \
+      -d "$body" 2>/dev/null || true
+  else
+    curl -sS --max-time 20 -w '\n%{http_code}' -X "$method" "${AUTH_INTERNAL_URL}${path}" \
+      -H "apikey: ${SERVICE_ROLE_KEY}" \
+      -H "Authorization: Bearer ${SERVICE_ROLE_KEY}" \
+      -H "Content-Type: application/json" 2>/dev/null || true
+  fi
 }
 
+# Saúde do Auth: checa DENTRO da rede do Docker (wget --spider do próprio
+# container — BusyBox suporta --spider) e, como reforço, pela porta do host.
 auth_health() {
-  $DC exec -T auth wget -q -O /dev/null --spider "http://127.0.0.1:9999/health" 2>/dev/null
+  if $DC exec -T auth wget -q -O /dev/null --spider "http://127.0.0.1:9999/health" 2>/dev/null; then
+    return 0
+  fi
+  if command -v curl >/dev/null 2>&1; then
+    local hc
+    hc="$(curl -sS -o /dev/null -w '%{http_code}' "${AUTH_INTERNAL_URL}/health" 2>/dev/null || printf '000')"
+    [ "$hc" = "200" ] || [ "$hc" = "204" ]
+    return $?
+  fi
+  return 1
 }
 
 # Garante o gateway local quando este script for chamado separadamente.
