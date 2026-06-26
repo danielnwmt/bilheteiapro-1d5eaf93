@@ -10,11 +10,20 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 ENV_FILE="$SCRIPT_DIR/.env"
+AUTO_INSTALL="${AUTO_INSTALL:-0}"
 
 # Detecta (e instala, se preciso) o Docker + Compose
 ensure_docker() {
-  if docker compose version >/dev/null 2>&1; then DC="docker compose"; return; fi
-  if command -v docker-compose >/dev/null 2>&1; then DC="docker-compose"; return; fi
+  if docker compose version >/dev/null 2>&1; then
+    DC="docker compose"
+    systemctl enable --now docker 2>/dev/null || service docker start 2>/dev/null || true
+    return
+  fi
+  if command -v docker-compose >/dev/null 2>&1; then
+    DC="docker-compose"
+    systemctl enable --now docker 2>/dev/null || service docker start 2>/dev/null || true
+    return
+  fi
 
   echo ">> Docker não encontrado. Instalando automaticamente..."
   if command -v apt-get >/dev/null 2>&1; then
@@ -59,18 +68,35 @@ make_jwt() {
 }
 rand() { openssl rand -hex "${1:-24}"; }
 
+prompt_value() {
+  local __var="$1" label="$2" default="$3" value=""
+  if [ "$AUTO_INSTALL" = "1" ] || [ ! -t 0 ]; then
+    value="$default"
+    echo ">> ${label}: ${value:-padrao}"
+  else
+    read -rp "${label} [${default}]: " value
+    value="${value:-$default}"
+  fi
+  printf -v "$__var" '%s' "$value"
+}
+
+env_has_value() {
+  local key="$1"
+  grep -Eq "^${key}=.+" "$ENV_FILE" 2>/dev/null
+}
+
 # ---------- 1) Gera/garante o .env (somente na 1ª vez) ----------
 if [ ! -f "$ENV_FILE" ]; then
   echo ">> Primeira instalação — gerando chaves locais..."
 
   # IP/host público para o navegador acessar a API de auth/dados
   DEFAULT_HOST="$(curl -s --max-time 4 ifconfig.me || true)"
-  read -rp "Domínio ou IP público desta VPS [${DEFAULT_HOST:-seu-ip}]: " PUBHOST
-  PUBHOST="${PUBHOST:-$DEFAULT_HOST}"
-  read -rp "Porta da API Supabase [8000]: " SUPABASE_PORT; SUPABASE_PORT="${SUPABASE_PORT:-8000}"
-  read -rp "Porta do App [3000]: " APP_PORT; APP_PORT="${APP_PORT:-3000}"
-  read -rp "Email do admin [contato@protenexus.com]: " ADMIN_EMAIL; ADMIN_EMAIL="${ADMIN_EMAIL:-contato@protenexus.com}"
-  read -rp "Senha do admin [admin.1234]: " ADMIN_PASSWORD; ADMIN_PASSWORD="${ADMIN_PASSWORD:-admin.1234}"
+  DEFAULT_HOST="${DEFAULT_HOST:-127.0.0.1}"
+  prompt_value PUBHOST "Domínio ou IP público desta VPS" "$DEFAULT_HOST"
+  prompt_value SUPABASE_PORT "Porta da API local" "8000"
+  prompt_value APP_PORT "Porta do App" "3000"
+  prompt_value ADMIN_EMAIL "Email do admin" "contato@protenexus.com"
+  prompt_value ADMIN_PASSWORD "Senha do admin" "admin.1234"
 
   JWT_SECRET="$(rand 32)"
   POSTGRES_PASSWORD="$(rand 16)"
@@ -102,6 +128,23 @@ else
 fi
 
 # Carrega variáveis
+set -a; . "$ENV_FILE"; set +a
+
+# Repara .env antigo/incompleto sem pedir dados durante atualizações.
+if ! env_has_value JWT_SECRET; then save_later_jwt="$(rand 32)"; echo "JWT_SECRET=${save_later_jwt}" >> "$ENV_FILE"; fi
+set -a; . "$ENV_FILE"; set +a
+if ! env_has_value POSTGRES_PASSWORD; then echo "POSTGRES_PASSWORD=$(rand 16)" >> "$ENV_FILE"; fi
+if ! env_has_value INGEST_SECRET; then echo "INGEST_SECRET=$(rand 24)" >> "$ENV_FILE"; fi
+if ! env_has_value ADMIN_EMAIL; then echo "ADMIN_EMAIL=contato@protenexus.com" >> "$ENV_FILE"; fi
+if ! env_has_value ADMIN_PASSWORD; then echo "ADMIN_PASSWORD=admin.1234" >> "$ENV_FILE"; fi
+if ! env_has_value SUPABASE_PORT; then echo "SUPABASE_PORT=8000" >> "$ENV_FILE"; fi
+if ! env_has_value APP_PORT; then echo "APP_PORT=3000" >> "$ENV_FILE"; fi
+set -a; . "$ENV_FILE"; set +a
+if ! env_has_value SUPABASE_PUBLIC_URL; then echo "SUPABASE_PUBLIC_URL=http://127.0.0.1:${SUPABASE_PORT:-8000}" >> "$ENV_FILE"; fi
+if ! env_has_value SITE_URL; then echo "SITE_URL=http://127.0.0.1:${APP_PORT:-3000}" >> "$ENV_FILE"; fi
+if ! env_has_value ANON_KEY; then echo "ANON_KEY=$(make_jwt anon "$JWT_SECRET")" >> "$ENV_FILE"; fi
+if ! env_has_value SERVICE_ROLE_KEY; then echo "SERVICE_ROLE_KEY=$(make_jwt service_role "$JWT_SECRET")" >> "$ENV_FILE"; fi
+chmod 600 "$ENV_FILE"
 set -a; . "$ENV_FILE"; set +a
 
 PSQL=( $DC exec -T db psql -v ON_ERROR_STOP=1 -U postgres -d postgres )
@@ -170,6 +213,35 @@ ensure_app_port_available() {
   fi
 }
 
+ensure_supabase_port_available() {
+  SUPABASE_PORT="${SUPABASE_PORT:-8000}"
+  SUPABASE_PUBLIC_URL="${SUPABASE_PUBLIC_URL:-http://localhost:${SUPABASE_PORT}}"
+
+  stop_docker_containers_on_port "$SUPABASE_PORT"
+
+  if port_is_listening "$SUPABASE_PORT"; then
+    local old_port="$SUPABASE_PORT" candidate base_url
+    echo ">> Porta ${old_port} da API local ocupada por outro processo. Procurando porta livre..."
+    for candidate in $(seq $((old_port + 1)) $((old_port + 30))); do
+      if ! port_is_listening "$candidate" && [ -z "$(docker ps --filter "publish=${candidate}" -q 2>/dev/null || true)" ]; then
+        SUPABASE_PORT="$candidate"
+        base_url="${SUPABASE_PUBLIC_URL%:*}"
+        SUPABASE_PUBLIC_URL="${base_url}:${SUPABASE_PORT}"
+        save_env_value SUPABASE_PORT "$SUPABASE_PORT"
+        save_env_value SUPABASE_PUBLIC_URL "$SUPABASE_PUBLIC_URL"
+        set -a; . "$ENV_FILE"; set +a
+        echo ">> Usando porta livre para a API local: ${SUPABASE_PORT}"
+        return 0
+      fi
+    done
+
+    echo "ERRO: não encontrei porta livre para a API local. Libere a porta ${old_port} e rode novamente."
+    exit 1
+  fi
+}
+
+ensure_supabase_port_available
+
 # ---------- 2) Sobe banco + auth (auth cria o schema auth.users) ----------
 echo ">> Subindo banco de dados..."
 $DC up -d db
@@ -180,7 +252,7 @@ echo ">> Subindo Auth (cria o schema de usuários)..."
 $DC up -d auth
 
 echo ">> Aguardando o schema auth.users..."
-until "${PSQL[@]}" -tAc "SELECT to_regclass('auth.users') IS NOT NULL" 2>/dev/null | grep -q t; do sleep 2; done
+until "${PSQL[@]}" -tAc "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='auth' AND table_name='users')" 2>/dev/null | grep -q t; do sleep 2; done
 
 # ---------- 3) Aplica pré-requisitos + schema do app + cria admin ----------
 echo ">> Aplicando pré-requisitos (roles/funções)..."
@@ -189,15 +261,35 @@ $DC cp pre.sql db:/tmp/pre.sql
 
 echo ">> Aplicando schema do aplicativo..."
 $DC cp schema.sql db:/tmp/schema.sql
-if "${PSQL[@]}" -tAc "SELECT to_regclass('public.profiles') IS NOT NULL AND to_regclass('public.user_roles') IS NOT NULL" 2>/dev/null | grep -q t; then
+if "${PSQL[@]}" -tAc "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='profiles') AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='user_roles')" 2>/dev/null | grep -q t; then
   echo ">> Schema principal já existe; pulando criação das tabelas."
 else
+  if "${PSQL[@]}" -tAc "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name IN ('partidas','odds','bilhetes','profiles','user_roles','subscriptions'))" 2>/dev/null | grep -q t; then
+    echo ">> Schema parcial/incompleto detectado. Recriando schema public para uma instalação limpa..."
+    "${PSQL[@]}" -c "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public; GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;" >/dev/null
+    "${PSQL[@]}" -f /tmp/pre.sql >/dev/null
+  fi
   "${PSQL[@]}" -f /tmp/schema.sql >/dev/null
 fi
 
 # ---------- 4) Sobe Data API + gateway (necessários para a API do Auth) ----------
 echo ">> Subindo Data API e gateway..."
 $DC up -d rest kong
+
+echo ">> Aguardando gateway local responder..."
+KONG_READY=0
+for i in $(seq 1 60); do
+  HTTP_CODE="$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:${SUPABASE_PORT:-8000}/auth/v1/health" 2>/dev/null || printf '000')"
+  if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "204" ]; then
+    KONG_READY=1
+    break
+  fi
+  echo ">> Gateway ainda indisponível (HTTP ${HTTP_CODE}), tentando de novo... ($i/60)"
+  sleep 2
+done
+if [ "$KONG_READY" != "1" ]; then
+  echo "ATENÇÃO: gateway ainda não respondeu; vou criar o admin por fallback SQL se necessário."
+fi
 
 # ---------- 5) Cria/garante o admin via API oficial do Auth ----------
 echo ">> Criando/garantindo o admin..."

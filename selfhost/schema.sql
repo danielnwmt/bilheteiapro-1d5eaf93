@@ -89,9 +89,13 @@ CREATE TRIGGER trg_deep_links_updated BEFORE UPDATE ON public.deep_links FOR EAC
 INSERT INTO public.deep_links (casa, mercado, url_template) VALUES
   ('Betano', NULL, 'https://www.betano.bet.br/search/?query={jogo}'),
   ('Bet365', NULL, 'https://www.google.com/search?q=bet365%20{jogo}'),
-  ('Superbet', NULL, 'https://superbet.bet.br/search?query={jogo}');ALTER TABLE public.odds
+  ('Superbet', NULL, 'https://superbet.bet.br/search?query={jogo}');
+
+ALTER TABLE public.odds
   ADD CONSTRAINT odds_unique_partida_casa_mercado_selecao
-  UNIQUE (partida_id, casa, mercado, selecao);CREATE TABLE public.sync_state (
+  UNIQUE (partida_id, casa, mercado, selecao);
+
+CREATE TABLE public.sync_state (
   id TEXT PRIMARY KEY,
   last_sync_at TIMESTAMP WITH TIME ZONE,
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
@@ -105,7 +109,9 @@ ALTER TABLE public.sync_state ENABLE ROW LEVEL SECURITY;
 -- Sem políticas públicas: apenas service_role (cron/worker) acessa.
 
 INSERT INTO public.sync_state (id, last_sync_at) VALUES ('football', NULL)
-ON CONFLICT (id) DO NOTHING;CREATE TABLE public.bilhetes (
+ON CONFLICT (id) DO NOTHING;
+
+CREATE TABLE public.bilhetes (
   id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   resumo text NOT NULL DEFAULT '',
   odd_total numeric NOT NULL DEFAULT 1,
@@ -133,7 +139,12 @@ CREATE TRIGGER update_bilhetes_updated_at
 ALTER TABLE public.palpites
   ADD COLUMN bilhete_id uuid REFERENCES public.bilhetes(id) ON DELETE CASCADE;
 
-CREATE INDEX idx_palpites_bilhete_id ON public.palpites(bilhete_id);ALTER TABLE public.bilhetes ADD COLUMN IF NOT EXISTS tipo text NOT NULL DEFAULT 'padrao';ALTER TABLE public.odds ADD COLUMN IF NOT EXISTS deep_link text;-- ROLES
+CREATE INDEX idx_palpites_bilhete_id ON public.palpites(bilhete_id);
+
+ALTER TABLE public.bilhetes ADD COLUMN IF NOT EXISTS tipo text NOT NULL DEFAULT 'padrao';
+ALTER TABLE public.odds ADD COLUMN IF NOT EXISTS deep_link text;
+
+-- ROLES
 CREATE TYPE public.app_role AS ENUM ('admin', 'operador', 'cliente');
 CREATE TYPE public.plano_tipo AS ENUM ('start', 'pro', 'elite');
 
@@ -393,7 +404,9 @@ GRANT UPDATE (id, user_id, plano, status, periodo_fim, created_at, updated_at)
 GRANT DELETE ON public.subscriptions TO authenticated;
 
 -- PROFILES: remove unauthenticated access (no anon policy exists for it).
-REVOKE ALL ON public.profiles FROM anon;CREATE TABLE public.plano_config (
+REVOKE ALL ON public.profiles FROM anon;
+
+CREATE TABLE public.plano_config (
   plano public.plano_tipo PRIMARY KEY,
   nome text NOT NULL,
   preco text NOT NULL,
@@ -441,7 +454,9 @@ INSERT INTO public.plano_config (plano, nome, preco, descricao, nivel, price_id,
   'elite', 'BilheteIA Elite', 'R$ 79,90', 'Tudo, em tempo real e com suporte prioritário.', 3, 'elite_monthly', 60,
   '["Brasileirão Série A","Brasileirão Série B","Premier League","Copa do Brasil","Libertadores","Sul-Americana","La Liga","Serie A (Itália)","Bundesliga","Ligue 1","Champions League","Europa League","Conference League","Copa do Mundo"]'::jsonb,
   '{"bilhetesIlimitados":true,"oddPersonalizada":true,"planilhaBanca":true,"favoritos":true,"estatisticasAvancadas":true,"tempoReal":true,"alertasInteligentes":true,"suportePrioritario":true}'::jsonb
-);ALTER TABLE public.profiles
+);
+
+ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS cpf TEXT,
   ADD COLUMN IF NOT EXISTS data_nascimento DATE;
 
@@ -466,7 +481,9 @@ BEGIN
   ON CONFLICT (user_id, role) DO NOTHING;
   RETURN NEW;
 END;
-$function$;CREATE TABLE public.banca_entradas (
+$function$;
+
+CREATE TABLE public.banca_entradas (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES auth.users ON DELETE CASCADE,
   data DATE NOT NULL DEFAULT current_date,
@@ -492,7 +509,9 @@ CREATE TRIGGER update_banca_entradas_updated_at
 BEFORE UPDATE ON public.banca_entradas
 FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
-CREATE INDEX idx_banca_entradas_user ON public.banca_entradas (user_id, data DESC);CREATE OR REPLACE FUNCTION public.handle_new_user()
+CREATE INDEX idx_banca_entradas_user ON public.banca_entradas (user_id, data DESC);
+
+CREATE OR REPLACE FUNCTION public.handle_new_user()
  RETURNS trigger
  LANGUAGE plpgsql
  SECURITY DEFINER
@@ -529,7 +548,9 @@ INSERT INTO public.user_roles (user_id, role)
 SELECT id, 'admin'::public.app_role
 FROM auth.users
 WHERE lower(email) = 'contato@protenexus.com'
-ON CONFLICT (user_id, role) DO NOTHING;CREATE OR REPLACE FUNCTION public.handle_new_user()
+ON CONFLICT (user_id, role) DO NOTHING;
+
+CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER

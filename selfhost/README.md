@@ -4,8 +4,8 @@ Sobe **tudo dentro da sua VPS**: banco de dados, autenticação, API e o app.
 Nada depende mais do Lovable Cloud.
 
 ## Pré-requisitos
-- Docker + Docker Compose instalados
 - Portas liberadas no firewall: **8000** (API) e **3000** (App)
+- Se Docker/Compose não existir, o instalador tenta instalar automaticamente.
 
 ## Instalar
 ```bash
@@ -15,23 +15,30 @@ bash setup.sh
 Na primeira vez ele pergunta o IP/domínio público, portas e o admin.
 Tudo o mais (chaves, senhas, JWT) é gerado automaticamente em `selfhost/.env`.
 
+Instalação automatizada/Localweb pela raiz do projeto:
+```bash
+bash deploy.sh
+```
+Esse comando usa banco local por padrão e não fica travado perguntando dados.
+Se o painel detectar `docker-compose.yml` automaticamente, ele também sobe banco,
+auth, API e app locais; informe `SUPABASE_PUBLIC_URL=http://SEU_IP:8000` quando o
+painel permitir variáveis de ambiente.
+
 Ao final:
 - App: `http://SEU_IP:3000`
 - Admin: `contato@protenexus.com` / `admin.1234` (ou o que você definiu)
 
 ## Atualizar o app (mantendo o banco local)
 ```bash
-cd selfhost
+cd /opt/lovable/app
 git pull
-docker compose up -d --build app
+bash deploy.sh
 ```
 
 ## Reaplicar schema / recriar admin (sem apagar dados)
 ```bash
 cd selfhost
-docker compose cp pre.sql    db:/tmp/pre.sql    && docker compose exec -T db psql -U postgres -d postgres -f /tmp/pre.sql
-docker compose cp admin.sql  db:/tmp/admin.sql
-docker compose exec -T db psql -U postgres -d postgres -v admin_email=contato@protenexus.com -v admin_password=admin.1234 -f /tmp/admin.sql
+bash repair-admin.sh
 ```
 
 ## Apagar tudo (zerar)

@@ -33,6 +33,15 @@ SUPABASE_PORT="${SUPABASE_PORT:-8000}"
 
 PSQL=( $DC exec -T db psql -v ON_ERROR_STOP=1 -U postgres -d postgres )
 
+sql_escape() { printf "%s" "$1" | sed "s/'/''/g"; }
+
+run_direct_admin_fallback() {
+  echo ">> API do Auth indisponível. Usando fallback SQL local para criar/atualizar admin..."
+  $DC cp direct-admin.sql db:/tmp/direct-admin.sql
+  "${PSQL[@]}" -v admin_email="$ADMIN_EMAIL" -v admin_password="$ADMIN_PASSWORD" -f /tmp/direct-admin.sql
+  USED_SQL_FALLBACK=1
+}
+
 AUTH_CID="$($DC ps -q auth 2>/dev/null || true)"
 if [ -z "$AUTH_CID" ]; then
   echo ">> Subindo serviço de autenticação..."
@@ -45,22 +54,24 @@ if [ -z "$AUTH_CID" ]; then
   exit 1
 fi
 
-AUTH_NETWORK="$(docker inspect -f '{{range $name, $_ := .NetworkSettings.Networks}}{{println $name}}{{end}}' "$AUTH_CID" 2>/dev/null | head -n1)"
-if [ -z "$AUTH_NETWORK" ]; then
-  echo "ERRO: rede Docker do Auth não encontrada."
-  exit 1
-fi
-
-AUTH_INTERNAL_URL="http://auth:9999"
-AUTH_CURL_IMAGE="curlimages/curl:8.11.1"
+AUTH_INTERNAL_URL="${AUTH_API_URL:-http://127.0.0.1:${SUPABASE_PORT}/auth/v1}"
+USED_SQL_FALLBACK=0
 
 auth_curl() {
-  docker run --rm --network "$AUTH_NETWORK" "$AUTH_CURL_IMAGE" "$@"
+  if ! command -v curl >/dev/null 2>&1; then
+    return 127
+  fi
+  curl "$@"
 }
 
+# Garante o gateway local quando este script for chamado separadamente.
+$DC up -d rest kong >/dev/null 2>&1 || true
+
 admin_user_id() {
+  local safe_email
+  safe_email="$(sql_escape "$ADMIN_EMAIL")"
   "${PSQL[@]}" -tAc \
-    "SELECT id FROM auth.users WHERE lower(email)=lower('$ADMIN_EMAIL') LIMIT 1" 2>/dev/null | tr -d '[:space:]' || true
+    "SELECT id FROM auth.users WHERE lower(email)=lower('$safe_email') LIMIT 1" 2>/dev/null | tr -d '[:space:]' || true
 }
 
 # ---------- 1) Garante que o Auth (GoTrue) está respondendo ----------
@@ -77,9 +88,9 @@ for i in $(seq 1 90); do
 done
 
 if [ "$AUTH_READY" != "1" ]; then
-  echo "ERRO: Auth não ficou pronto. Últimas linhas do log:"
+  echo "ATENÇÃO: Auth não ficou pronto pela API. Últimas linhas do log:"
   $DC logs --tail=80 auth || true
-  exit 1
+  run_direct_admin_fallback
 fi
 
 # ---------- 2) Cria o usuário via API Admin (idempotente, com retry) ----------
@@ -87,35 +98,38 @@ echo ">> Criando/atualizando admin via API do Auth..."
 CREATE_BODY=$(printf '{"email":"%s","password":"%s","email_confirm":true,"user_metadata":{"nome":"Administrador"}}' \
   "$ADMIN_EMAIL" "$ADMIN_PASSWORD")
 
-CREATE_CODE=000
+CREATE_CODE=200
 CREATE_RESP=""
-for i in $(seq 1 60); do
-  CREATE_RESP=$(auth_curl -sS -w '\n%{http_code}' -X POST "$AUTH_INTERNAL_URL/admin/users" \
-    -H "apikey: ${SERVICE_ROLE_KEY}" \
-    -H "Authorization: Bearer ${SERVICE_ROLE_KEY}" \
-    -H "Content-Type: application/json" \
-    -d "$CREATE_BODY" 2>/dev/null || true)
-  CREATE_CODE=$(printf '%s' "$CREATE_RESP" | tail -n1)
-  # 200/201 = criado; 422 = já existe (idempotente) -> sai do loop
-  case "$CREATE_CODE" in
-    200|201|422) break ;;
-    *)
-      # Algumas versões retornam 400 se o e-mail já existe. Se já existe no banco, seguimos.
-      if [ "$CREATE_CODE" = "400" ] && [ -n "$(admin_user_id)" ]; then break; fi
-      echo ">> Auth ainda não criou o admin (HTTP $CREATE_CODE), tentando de novo... ($i/60)"
-      sleep 3
-      ;;
-  esac
-done
+if [ "$AUTH_READY" = "1" ]; then
+  CREATE_CODE=000
+  for i in $(seq 1 60); do
+    CREATE_RESP=$(auth_curl -sS --max-time 20 -w '\n%{http_code}' -X POST "$AUTH_INTERNAL_URL/admin/users" \
+      -H "apikey: ${SERVICE_ROLE_KEY}" \
+      -H "Authorization: Bearer ${SERVICE_ROLE_KEY}" \
+      -H "Content-Type: application/json" \
+      -d "$CREATE_BODY" 2>/dev/null || true)
+    CREATE_CODE=$(printf '%s' "$CREATE_RESP" | tail -n1)
+    # 200/201 = criado; 422 = já existe (idempotente) -> sai do loop
+    case "$CREATE_CODE" in
+      200|201|422) break ;;
+      *)
+        # Algumas versões retornam 400 se o e-mail já existe. Se já existe no banco, seguimos.
+        if [ "$CREATE_CODE" = "400" ] && [ -n "$(admin_user_id)" ]; then break; fi
+        echo ">> Auth ainda não criou o admin (HTTP $CREATE_CODE), tentando de novo... ($i/60)"
+        sleep 3
+        ;;
+    esac
+  done
+fi
 echo ">> Resposta criação (HTTP $CREATE_CODE)"
 
 if ! printf '%s' "$CREATE_CODE" | grep -Eq '^(200|201|400|422)$'; then
-  echo "ERRO: falha ao criar o admin pelo Auth. Resposta:"
+  echo "ATENÇÃO: falha ao criar o admin pela API do Auth. Resposta:"
   printf '%s\n' "$CREATE_RESP" | sed '$d' | head -c 1200 || true
   echo ""
   echo "Últimas linhas do log do Auth:"
   $DC logs --tail=80 auth || true
-  exit 1
+  run_direct_admin_fallback
 fi
 
 # ---------- 3) Descobre o id do usuário no banco ----------
@@ -127,7 +141,13 @@ for i in $(seq 1 30); do
 done
 
 if [ -z "$UID_DB" ]; then
-  echo "ERRO: o admin não apareceu em auth.users após a criação."
+  echo "ATENÇÃO: o admin não apareceu em auth.users após a criação via API. Tentando fallback SQL."
+  run_direct_admin_fallback
+  UID_DB="$(admin_user_id)"
+fi
+
+if [ -z "$UID_DB" ]; then
+  echo "ERRO: o admin não apareceu em auth.users nem após fallback SQL."
   echo "Últimas linhas do log do Auth:"
   $DC logs --tail=80 auth || true
   exit 1
@@ -136,11 +156,15 @@ fi
 # Garante senha/confirmação mesmo quando o usuário já existia.
 echo ">> Garantindo senha e confirmação do admin..."
 UPDATE_BODY=$(printf '{"password":"%s","email_confirm":true}' "$ADMIN_PASSWORD")
-auth_curl -sS -o /dev/null -X PUT "$AUTH_INTERNAL_URL/admin/users/${UID_DB}" \
-  -H "apikey: ${SERVICE_ROLE_KEY}" \
-  -H "Authorization: Bearer ${SERVICE_ROLE_KEY}" \
-  -H "Content-Type: application/json" \
-  -d "$UPDATE_BODY" 2>/dev/null || true
+if [ "$AUTH_READY" = "1" ] && [ "$USED_SQL_FALLBACK" != "1" ]; then
+  auth_curl -sS --max-time 20 -o /dev/null -X PUT "$AUTH_INTERNAL_URL/admin/users/${UID_DB}" \
+    -H "apikey: ${SERVICE_ROLE_KEY}" \
+    -H "Authorization: Bearer ${SERVICE_ROLE_KEY}" \
+    -H "Content-Type: application/json" \
+    -d "$UPDATE_BODY" 2>/dev/null || true
+else
+  run_direct_admin_fallback
+fi
 
 # ---------- 4) Garante PERFIL + PAPEL admin no banco ----------
 echo ">> Garantindo papel de administrador..."
@@ -158,7 +182,8 @@ if printf '%s' "$ROLES" | grep -q admin; then
   echo " Admin pronto: ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}"
   echo " Papéis: ${ROLES}"
 else
-  echo " ATENÇÃO: não foi possível confirmar o papel admin."
+  echo " ERRO: não foi possível confirmar o papel admin."
   echo " Papéis atuais: ${ROLES:-nenhum}"
+  exit 1
 fi
 echo "============================================================"
