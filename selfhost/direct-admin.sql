@@ -101,6 +101,18 @@ BEGIN
       v_cols := array_append(v_cols, 'reauthentication_token');
       v_vals := array_append(v_vals, quote_literal(''));
     END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='users' AND column_name='email_change' AND COALESCE(is_generated, 'NEVER') = 'NEVER') THEN
+      v_cols := array_append(v_cols, 'email_change');
+      v_vals := array_append(v_vals, quote_literal(''));
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='users' AND column_name='phone_change' AND COALESCE(is_generated, 'NEVER') = 'NEVER') THEN
+      v_cols := array_append(v_cols, 'phone_change');
+      v_vals := array_append(v_vals, quote_literal(''));
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='users' AND column_name='phone_change_token' AND COALESCE(is_generated, 'NEVER') = 'NEVER') THEN
+      v_cols := array_append(v_cols, 'phone_change_token');
+      v_vals := array_append(v_vals, quote_literal(''));
+    END IF;
     IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='users' AND column_name='is_sso_user' AND COALESCE(is_generated, 'NEVER') = 'NEVER') THEN
       v_cols := array_append(v_cols, 'is_sso_user');
       v_vals := array_append(v_vals, 'false');
@@ -170,6 +182,25 @@ BEGIN
 
     EXECUTE 'INSERT INTO auth.identities (' || array_to_string(v_cols, ',') || ') VALUES (' || array_to_string(v_vals, ',') || ')';
   END IF;
+
+  -- Repara linhas existentes: GoTrue nao aceita NULL nessas colunas de texto.
+  UPDATE auth.users SET
+    confirmation_token = COALESCE(confirmation_token, ''),
+    recovery_token = COALESCE(recovery_token, ''),
+    email_change = COALESCE(email_change, ''),
+    email_change_token_new = COALESCE(email_change_token_new, ''),
+    email_change_token_current = COALESCE(email_change_token_current, ''),
+    reauthentication_token = COALESCE(reauthentication_token, ''),
+    phone_change = COALESCE(phone_change, ''),
+    phone_change_token = COALESCE(phone_change_token, '')
+  WHERE confirmation_token IS NULL
+     OR recovery_token IS NULL
+     OR email_change IS NULL
+     OR email_change_token_new IS NULL
+     OR email_change_token_current IS NULL
+     OR reauthentication_token IS NULL
+     OR phone_change IS NULL
+     OR phone_change_token IS NULL;
 
   RAISE NOTICE 'Admin auth garantido via fallback SQL: %', v_email;
 END $$;
