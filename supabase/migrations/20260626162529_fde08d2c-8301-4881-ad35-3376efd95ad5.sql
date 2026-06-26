@@ -1,0 +1,1 @@
+ALTER TABLE public.banca_entradas ADD COLUMN IF NOT EXISTS esporte text NOT NULL DEFAULT 'futebol';

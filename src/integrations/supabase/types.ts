@@ -19,6 +19,7 @@ export type Database = {
           created_at: string
           data: string
           descricao: string
+          esporte: string
           id: string
           odd: number
           resultado: string
@@ -30,6 +31,7 @@ export type Database = {
           created_at?: string
           data?: string
           descricao: string
+          esporte?: string
           id?: string
           odd?: number
           resultado?: string
@@ -41,6 +43,7 @@ export type Database = {
           created_at?: string
           data?: string
           descricao?: string
+          esporte?: string
           id?: string
           odd?: number
           resultado?: string
