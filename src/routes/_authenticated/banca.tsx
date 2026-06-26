@@ -236,10 +236,10 @@ function BancaPage() {
   const taxa = resolvidas.length > 0 ? (greens / resolvidas.length) * 100 : 0;
 
   const handleAdd = () => {
-    const prefixo = tipoAposta === "multipla" ? "[Múltipla] " : "[Simples] ";
+    const prefixo = tipoAposta === "multipla" ? "Múltipla" : "Simples";
     mutAdd.mutate({
       data: format(dataAposta, "yyyy-MM-dd"),
-      descricao: prefixo + descricao,
+      descricao: prefixo,
       esporte,
       valor: parseFloat(valor.replace(",", ".")) || 0,
       odd: parseFloat(odd.replace(",", ".")) || 1,
