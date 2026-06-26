@@ -11,15 +11,38 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 ENV_FILE="$SCRIPT_DIR/.env"
 
-# Detecta comando do docker compose
-if docker compose version >/dev/null 2>&1; then
-  DC="docker compose"
-elif command -v docker-compose >/dev/null 2>&1; then
-  DC="docker-compose"
-else
-  echo "ERRO: Docker/Docker Compose não encontrado. Instale o Docker primeiro."
-  exit 1
-fi
+# Detecta (e instala, se preciso) o Docker + Compose
+ensure_docker() {
+  if docker compose version >/dev/null 2>&1; then DC="docker compose"; return; fi
+  if command -v docker-compose >/dev/null 2>&1; then DC="docker-compose"; return; fi
+
+  echo ">> Docker não encontrado. Instalando automaticamente..."
+  if command -v apt-get >/dev/null 2>&1; then
+    export DEBIAN_FRONTEND=noninteractive
+    curl -fsSL https://get.docker.com | sh
+  elif command -v dnf >/dev/null 2>&1; then
+    dnf install -y dnf-plugins-core || true
+    dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo || true
+    dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  elif command -v yum >/dev/null 2>&1; then
+    yum install -y yum-utils || true
+    yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo || true
+    yum install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  else
+    curl -fsSL https://get.docker.com | sh
+  fi
+
+  systemctl enable --now docker 2>/dev/null || service docker start 2>/dev/null || true
+
+  if docker compose version >/dev/null 2>&1; then DC="docker compose"
+  elif command -v docker-compose >/dev/null 2>&1; then DC="docker-compose"
+  else
+    echo "ERRO: Falha ao instalar o Docker/Compose automaticamente. Instale manualmente e rode de novo."
+    exit 1
+  fi
+  echo ">> Docker instalado com sucesso."
+}
+ensure_docker
 
 # ---------- Helpers para gerar JWT (anon / service_role) com openssl ----------
 b64() { openssl base64 -A | tr '+/' '-_' | tr -d '='; }
