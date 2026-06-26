@@ -154,6 +154,7 @@ function BancaPage() {
   const [dataAposta, setDataAposta] = useState<Date>(new Date());
   const [calOpen, setCalOpen] = useState(false);
   const [descricao, setDescricao] = useState("");
+  const [tipoAposta, setTipoAposta] = useState("simples");
   const [esporte, setEsporte] = useState("futebol");
   const [valor, setValor] = useState("");
   const [odd, setOdd] = useState("");
@@ -235,9 +236,10 @@ function BancaPage() {
   const taxa = resolvidas.length > 0 ? (greens / resolvidas.length) * 100 : 0;
 
   const handleAdd = () => {
+    const prefixo = tipoAposta === "multipla" ? "[Múltipla] " : "[Simples] ";
     mutAdd.mutate({
       data: format(dataAposta, "yyyy-MM-dd"),
-      descricao,
+      descricao: prefixo + descricao,
       esporte,
       valor: parseFloat(valor.replace(",", ".")) || 0,
       odd: parseFloat(odd.replace(",", ".")) || 1,
@@ -407,6 +409,19 @@ function BancaPage() {
                 </div>
 
                 <div className="space-y-1.5 lg:col-span-2">
+                  <Label className="text-xs">Tipo</Label>
+                  <Select value={tipoAposta} onValueChange={setTipoAposta}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="simples">Simples</SelectItem>
+                      <SelectItem value="multipla">Múltipla</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5 lg:col-span-2">
                   <Label className="text-xs">Esporte</Label>
                   <Select value={esporte} onValueChange={setEsporte}>
                     <SelectTrigger>
@@ -469,7 +484,7 @@ function BancaPage() {
                   ) : (
                     <Plus className="mr-2 h-4 w-4" />
                   )}
-                  Adicionar
+                  Nova entrada
                 </Button>
               </div>
             </Card>
