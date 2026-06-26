@@ -484,7 +484,7 @@ function BancaPage() {
                   ) : (
                     <Plus className="mr-2 h-4 w-4" />
                   )}
-                  Adicionar
+                  Nova entrada
                 </Button>
               </div>
             </Card>
