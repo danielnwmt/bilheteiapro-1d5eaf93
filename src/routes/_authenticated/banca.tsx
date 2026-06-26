@@ -474,6 +474,43 @@ function BancaPage() {
               </div>
             </Card>
 
+            {/* Aportes na banca */}
+            {listaDep.length > 0 && (
+              <Card className="mb-8 border-border/60 bg-card p-5">
+                <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                  <PiggyBank className="h-4 w-4" /> Aportes na banca
+                </h2>
+                <div className="space-y-2">
+                  {listaDep.map((d) => (
+                    <div
+                      key={d.id}
+                      className="flex items-center justify-between rounded-md border border-border/60 px-3 py-2 text-sm"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-muted-foreground">
+                          {new Date(d.data + "T00:00:00").toLocaleDateString("pt-BR")}
+                        </span>
+                        <span>{d.descricao}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-green-500">+{brl(d.valor)}</span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => mutDelDep.mutate(d.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
+
+
+
             {/* Histórico */}
             <Card className="border-border/60 bg-card p-0">
               {isLoading ? (
