@@ -8,6 +8,27 @@ DO $$ BEGIN CREATE ROLE anon NOLOGIN NOINHERIT; EXCEPTION WHEN duplicate_object 
 DO $$ BEGIN CREATE ROLE authenticated NOLOGIN NOINHERIT; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 DO $$ BEGIN CREATE ROLE service_role NOLOGIN NOINHERIT; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+-- O GoTrue/Auth precisa rodar como dono do schema auth. Em algumas instalações
+-- locais antigas o container tentava migrar como postgres e recebia 42501.
+SELECT set_config('app.postgres_password', :'postgres_password', false);
+DO $pre$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'supabase_auth_admin') THEN
+    EXECUTE format(
+      'CREATE ROLE supabase_auth_admin LOGIN NOINHERIT PASSWORD %L',
+      current_setting('app.postgres_password', true)
+    );
+  ELSE
+    EXECUTE format(
+      'ALTER ROLE supabase_auth_admin WITH LOGIN NOINHERIT PASSWORD %L',
+      current_setting('app.postgres_password', true)
+    );
+  END IF;
+EXCEPTION WHEN insufficient_privilege THEN
+  RAISE NOTICE 'Sem permissão para criar/alterar supabase_auth_admin; usando role existente.';
+END
+$pre$;
+
 -- Não usamos BYPASSRLS aqui: em algumas imagens/instalações esse atributo exige
 -- superusuário e quebra o setup. O schema cria políticas explícitas para
 -- service_role acessar tudo sem depender desse atributo.
@@ -23,7 +44,7 @@ DECLARE
   obj record;
 BEGIN
   BEGIN
-    EXECUTE 'ALTER SCHEMA auth OWNER TO postgres';
+    EXECUTE 'ALTER SCHEMA auth OWNER TO supabase_auth_admin';
   EXCEPTION WHEN insufficient_privilege OR undefined_object THEN
     RAISE NOTICE 'Sem permissão para ajustar dono do schema auth; seguindo.';
   END;
@@ -36,9 +57,9 @@ BEGIN
   LOOP
     BEGIN
       IF obj.relkind = 'S' THEN
-        EXECUTE format('ALTER SEQUENCE %s OWNER TO postgres', obj.oid::regclass);
+        EXECUTE format('ALTER SEQUENCE %s OWNER TO supabase_auth_admin', obj.oid::regclass);
       ELSE
-        EXECUTE format('ALTER TABLE %s OWNER TO postgres', obj.oid::regclass);
+        EXECUTE format('ALTER TABLE %s OWNER TO supabase_auth_admin', obj.oid::regclass);
       END IF;
     EXCEPTION WHEN OTHERS THEN
       RAISE NOTICE 'Sem permissão para ajustar dono de %; seguindo.', obj.oid::regclass;
@@ -52,7 +73,7 @@ BEGIN
     WHERE n.nspname = 'auth'
   LOOP
     BEGIN
-      EXECUTE format('ALTER FUNCTION %s OWNER TO postgres', obj.oid::regprocedure);
+      EXECUTE format('ALTER FUNCTION %s OWNER TO supabase_auth_admin', obj.oid::regprocedure);
     EXCEPTION WHEN OTHERS THEN
       RAISE NOTICE 'Sem permissão para ajustar dono da função %; seguindo.', obj.oid::regprocedure;
     END;
@@ -62,6 +83,11 @@ $pre$;
 
 -- Extensões usadas
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+GRANT USAGE, CREATE ON SCHEMA auth TO supabase_auth_admin;
+ALTER DEFAULT PRIVILEGES FOR ROLE supabase_auth_admin IN SCHEMA auth GRANT ALL ON TABLES TO supabase_auth_admin;
+ALTER DEFAULT PRIVILEGES FOR ROLE supabase_auth_admin IN SCHEMA auth GRANT ALL ON SEQUENCES TO supabase_auth_admin;
+ALTER DEFAULT PRIVILEGES FOR ROLE supabase_auth_admin IN SCHEMA auth GRANT ALL ON FUNCTIONS TO supabase_auth_admin;
 
 -- Acesso ao schema public para a Data API
 GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;

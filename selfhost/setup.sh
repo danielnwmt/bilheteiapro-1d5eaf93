@@ -150,7 +150,7 @@ if ! env_has_value SERVICE_ROLE_KEY; then echo "SERVICE_ROLE_KEY=$(make_jwt serv
 chmod 600 "$ENV_FILE"
 set -a; . "$ENV_FILE"; set +a
 
-PSQL=( $DC exec -T db psql -v ON_ERROR_STOP=1 -U postgres -d postgres )
+PSQL=( $DC exec -T db psql -v ON_ERROR_STOP=1 -v postgres_password="$POSTGRES_PASSWORD" -U postgres -d postgres )
 
 save_env_value() {
   local key="$1" value="$2"
