@@ -5,7 +5,7 @@ import type { Plano } from "@/lib/planos";
 
 type CheckoutResult = { url: string } | { error: string };
 
-const PLANOS_VALIDOS: Plano[] = ["start", "pro", "elite"];
+
 
 async function getPlanoConfig(plano: Plano): Promise<{ nome: string; preco: string }> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -22,7 +22,7 @@ async function getPlanoConfig(plano: Plano): Promise<{ nome: string; preco: stri
 export const createInfinitePayCheckout = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { plano: Plano; returnUrl: string }) => {
-    if (!PLANOS_VALIDOS.includes(data.plano)) throw new Error("Plano inválido");
+    if (!data.plano) throw new Error("Plano inválido");
     return data;
   })
   .handler(async ({ data, context }): Promise<CheckoutResult> => {

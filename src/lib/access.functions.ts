@@ -194,7 +194,7 @@ export const setClientePassword = createServerFn({ method: "POST" })
 export const setClientePlano = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
-    (d: { clienteId: string; plano: "start" | "pro" | "elite"; status: "ativo" | "inativo" }) => d,
+    (d: { clienteId: string; plano: string; status: "ativo" | "inativo" }) => d,
   )
   .handler(async ({ data, context }) => {
     const { userId } = context;
@@ -223,7 +223,7 @@ export const createCliente = createServerFn({ method: "POST" })
       senha: string;
       cpf?: string;
       data_nascimento?: string | null;
-      plano: "start" | "pro" | "elite";
+      plano: string;
       status: "ativo" | "inativo";
       isAdmin?: boolean;
     }) => d,

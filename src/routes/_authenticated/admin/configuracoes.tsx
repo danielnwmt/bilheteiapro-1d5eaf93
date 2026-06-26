@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Loader2, Save, ShieldAlert } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, Save, ShieldAlert, Trash2 } from "lucide-react";
 import {
   TODAS_LIGAS,
   RECURSO_LABELS,
@@ -14,9 +14,20 @@ import {
   type PlanoConfig,
 } from "@/lib/planos";
 import { usePlanos } from "@/hooks/usePlanos";
-import { updatePlanoConfig } from "@/lib/planoConfig.functions";
+import {
+  createPlanoConfig,
+  deletePlanoConfig,
+  updatePlanoConfig,
+} from "@/lib/planoConfig.functions";
 import { useAccess } from "@/hooks/useAccess";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 const ADMIN_EMAIL = "contato@protenexus.com";
@@ -32,6 +43,8 @@ function ConfiguracoesPage() {
   const { data: access } = useAccess();
   const { list, isLoading } = usePlanos();
   const salvar = useServerFn(updatePlanoConfig);
+  const criar = useServerFn(createPlanoConfig);
+  const remover = useServerFn(deletePlanoConfig);
   const [currentEmail, setCurrentEmail] = useState("");
 
   const isAdmin = (access?.roles ?? []).includes("admin") || currentEmail === ADMIN_EMAIL;
@@ -72,6 +85,37 @@ function ConfiguracoesPage() {
     onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
   });
 
+  const [novoOpen, setNovoOpen] = useState(false);
+  const [novo, setNovo] = useState({ plano: "", nome: "", preco: "" });
+
+  const criarMut = useMutation({
+    mutationFn: () =>
+      criar({
+        data: {
+          plano: novo.plano.trim().toLowerCase(),
+          nome: novo.nome.trim(),
+          preco: novo.preco.trim(),
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Plano criado");
+      setNovoOpen(false);
+      setNovo({ plano: "", nome: "", preco: "" });
+      qc.invalidateQueries({ queryKey: ["plano_config"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao criar plano"),
+  });
+
+  const removerMut = useMutation({
+    mutationFn: (plano: Plano) => remover({ data: { plano } }),
+    onSuccess: () => {
+      toast.success("Plano removido");
+      qc.invalidateQueries({ queryKey: ["plano_config"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao remover"),
+  });
+
+
   function update(plano: Plano, patch: Partial<PlanoConfig>) {
     setDraft((s) => ({ ...s, [plano]: { ...s[plano], ...patch } }));
   }
@@ -102,18 +146,27 @@ function ConfiguracoesPage() {
           </Button>
         </div>
 
-        <h1 className="mb-2 text-2xl font-bold">Configurações dos planos</h1>
-        <p className="mb-6 text-sm text-muted-foreground">
-          Edite preço, descrição, ligas e recursos de cada plano. O preço aqui é o exibido na
-          página de planos.
-        </p>
+        <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="mb-2 text-2xl font-bold">Configurações dos planos</h1>
+            <p className="text-sm text-muted-foreground">
+              Edite preço, descrição, ligas e recursos de cada plano. O preço aqui é o exibido na
+              página de planos.
+            </p>
+          </div>
+          {isAdmin && (
+            <Button size="sm" onClick={() => setNovoOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" /> Adicionar plano
+            </Button>
+          )}
+        </div>
 
         {!isAdmin ? (
           <Card className="flex items-center gap-3 border-border/60 bg-card p-6 text-sm text-muted-foreground">
             <ShieldAlert className="h-5 w-5 text-destructive" />
             Apenas administradores podem editar as configurações de planos.
           </Card>
-        ) : isLoading || !list.length ? (
+        ) : isLoading ? (
           <div className="flex justify-center py-16">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
@@ -125,19 +178,33 @@ function ConfiguracoesPage() {
                 <Card key={base.plano} className="border-border/60 bg-card p-6">
                   <div className="mb-4 flex items-center justify-between">
                     <h2 className="text-lg font-bold capitalize">{base.plano}</h2>
-                    <Button
-                      size="sm"
-                      disabled={mut.isPending}
-                      onClick={() => mut.mutate(cfg)}
-                    >
-                      {mut.isPending ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <Save className="mr-2 h-4 w-4" />
-                      )}
-                      Salvar
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        disabled={mut.isPending}
+                        onClick={() => mut.mutate(cfg)}
+                      >
+                        {mut.isPending ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Save className="mr-2 h-4 w-4" />
+                        )}
+                        Salvar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-destructive hover:text-destructive"
+                        disabled={removerMut.isPending}
+                        onClick={() => {
+                          if (confirm(`Remover o plano "${base.plano}"?`)) removerMut.mutate(base.plano);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
+
 
                   <div className="grid gap-4 md:grid-cols-2">
                     <div>
@@ -229,6 +296,55 @@ function ConfiguracoesPage() {
           </div>
         )}
       </div>
+
+      <Dialog open={novoOpen} onOpenChange={setNovoOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Novo plano</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="mb-1 block text-sm">Identificador (sem espaços)</Label>
+              <Input
+                placeholder="ex: premium"
+                value={novo.plano}
+                onChange={(e) => setNovo((s) => ({ ...s, plano: e.target.value }))}
+                className="bg-input/40"
+              />
+            </div>
+            <div>
+              <Label className="mb-1 block text-sm">Nome</Label>
+              <Input
+                placeholder="ex: Premium"
+                value={novo.nome}
+                onChange={(e) => setNovo((s) => ({ ...s, nome: e.target.value }))}
+                className="bg-input/40"
+              />
+            </div>
+            <div>
+              <Label className="mb-1 block text-sm">Preço</Label>
+              <Input
+                placeholder="ex: R$ 99,90"
+                value={novo.preco}
+                onChange={(e) => setNovo((s) => ({ ...s, preco: e.target.value }))}
+                className="bg-input/40"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setNovoOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              disabled={criarMut.isPending || !novo.plano.trim() || !novo.nome.trim() || !novo.preco.trim()}
+              onClick={() => criarMut.mutate()}
+            >
+              {criarMut.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Criar plano
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

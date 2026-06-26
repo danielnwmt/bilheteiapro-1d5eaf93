@@ -332,7 +332,7 @@ export type Database = {
           ligas: Json
           nivel: number
           nome: string
-          plano: Database["public"]["Enums"]["plano_tipo"]
+          plano: string
           preco: string
           price_id: string
           recursos: Json
@@ -345,9 +345,9 @@ export type Database = {
           ligas?: Json
           nivel: number
           nome: string
-          plano: Database["public"]["Enums"]["plano_tipo"]
+          plano: string
           preco: string
-          price_id: string
+          price_id?: string
           recursos?: Json
           updated_at?: string
         }
@@ -358,7 +358,7 @@ export type Database = {
           ligas?: Json
           nivel?: number
           nome?: string
-          plano?: Database["public"]["Enums"]["plano_tipo"]
+          plano?: string
           preco?: string
           price_id?: string
           recursos?: Json
@@ -401,7 +401,7 @@ export type Database = {
           created_at: string
           id: string
           periodo_fim: string | null
-          plano: Database["public"]["Enums"]["plano_tipo"]
+          plano: string
           status: string
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
@@ -412,7 +412,7 @@ export type Database = {
           created_at?: string
           id?: string
           periodo_fim?: string | null
-          plano: Database["public"]["Enums"]["plano_tipo"]
+          plano: string
           status?: string
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
@@ -423,7 +423,7 @@ export type Database = {
           created_at?: string
           id?: string
           periodo_fim?: string | null
-          plano?: Database["public"]["Enums"]["plano_tipo"]
+          plano?: string
           status?: string
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
