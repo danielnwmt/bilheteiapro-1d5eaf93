@@ -108,13 +108,16 @@ else
   "${PSQL[@]}" -f /tmp/schema.sql >/dev/null
 fi
 
-echo ">> Criando/garantindo o admin..."
-$DC cp admin.sql db:/tmp/admin.sql
-"${PSQL[@]}" -v admin_email="$ADMIN_EMAIL" -v admin_password="$ADMIN_PASSWORD" -f /tmp/admin.sql
-
-# ---------- 4) Sobe Data API + gateway + app ----------
-echo ">> Subindo Data API, gateway e aplicativo (build)..."
+# ---------- 4) Sobe Data API + gateway (necessários para a API do Auth) ----------
+echo ">> Subindo Data API e gateway..."
 $DC up -d rest kong
+
+# ---------- 5) Cria/garante o admin via API oficial do Auth ----------
+echo ">> Criando/garantindo o admin..."
+bash "$SCRIPT_DIR/create-admin.sh"
+
+# ---------- 6) Sobe o app (build) ----------
+echo ">> Subindo o aplicativo (build)..."
 $DC up -d --build app
 
 echo ""
