@@ -434,6 +434,32 @@ function ConfiguracoesPage() {
                   className="bg-input/40"
                 />
               </div>
+              <div>
+                <Label className="mb-1 block text-sm">Desconto semestral (%)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={novo.descontoSemestral}
+                  onChange={(e) =>
+                    setNovo((s) => ({ ...s, descontoSemestral: Number(e.target.value) || 0 }))
+                  }
+                  className="bg-input/40"
+                />
+              </div>
+              <div>
+                <Label className="mb-1 block text-sm">Desconto anual (%)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={novo.descontoAnual}
+                  onChange={(e) =>
+                    setNovo((s) => ({ ...s, descontoAnual: Number(e.target.value) || 0 }))
+                  }
+                  className="bg-input/40"
+                />
+              </div>
               <div className="md:col-span-2">
                 <Label className="mb-1 block text-sm">Descrição</Label>
                 <Input
