@@ -106,6 +106,70 @@ set -a; . "$ENV_FILE"; set +a
 
 PSQL=( $DC exec -T db psql -v ON_ERROR_STOP=1 -U postgres -d postgres )
 
+save_env_value() {
+  local key="$1" value="$2"
+  if grep -q "^${key}=" "$ENV_FILE"; then
+    sed -i.bak "s|^${key}=.*|${key}=${value}|" "$ENV_FILE"
+  else
+    printf '%s=%s\n' "$key" "$value" >> "$ENV_FILE"
+  fi
+}
+
+port_is_listening() {
+  local port="$1"
+  if command -v ss >/dev/null 2>&1; then
+    ss -ltn 2>/dev/null | awk '{print $4}' | grep -Eq "[:.]${port}$"
+  elif command -v netstat >/dev/null 2>&1; then
+    netstat -ltn 2>/dev/null | awk '{print $4}' | grep -Eq "[:.]${port}$"
+  else
+    return 1
+  fi
+}
+
+stop_docker_containers_on_port() {
+  local port="$1"
+  local ids names
+  ids="$(docker ps --filter "publish=${port}" -q 2>/dev/null || true)"
+  [ -z "$ids" ] && return 0
+
+  names="$(docker ps --filter "publish=${port}" --format '{{.Names}}' 2>/dev/null | paste -sd ', ' -)"
+  echo ">> Porta ${port} ocupada por container Docker (${names}). Parando para liberar..."
+  # shellcheck disable=SC2086
+  docker rm -f $ids >/dev/null 2>&1 || true
+
+  for _ in $(seq 1 10); do
+    docker ps --filter "publish=${port}" -q 2>/dev/null | grep -q . || return 0
+    sleep 1
+  done
+}
+
+ensure_app_port_available() {
+  APP_PORT="${APP_PORT:-3000}"
+  SITE_URL="${SITE_URL:-http://localhost:${APP_PORT}}"
+
+  stop_docker_containers_on_port "$APP_PORT"
+
+  if port_is_listening "$APP_PORT"; then
+    local old_port="$APP_PORT" candidate base_url
+    echo ">> Porta ${old_port} ainda ocupada por outro processo. Procurando porta livre..."
+    for candidate in $(seq $((old_port + 1)) $((old_port + 30))); do
+      if ! port_is_listening "$candidate" && [ -z "$(docker ps --filter "publish=${candidate}" -q 2>/dev/null || true)" ]; then
+        APP_PORT="$candidate"
+        base_url="${SITE_URL%:*}"
+        SITE_URL="${base_url}:${APP_PORT}"
+        save_env_value APP_PORT "$APP_PORT"
+        save_env_value SITE_URL "$SITE_URL"
+        set -a; . "$ENV_FILE"; set +a
+        echo ">> Usando porta livre para o app: ${APP_PORT}"
+        return 0
+      fi
+    done
+
+    echo "ERRO: não encontrei porta livre para o app. Libere a porta ${old_port} e rode novamente."
+    exit 1
+  fi
+}
+
 # ---------- 2) Sobe banco + auth (auth cria o schema auth.users) ----------
 echo ">> Subindo banco de dados..."
 $DC up -d db
@@ -141,6 +205,7 @@ bash "$SCRIPT_DIR/create-admin.sh"
 
 # ---------- 6) Sobe o app (build) ----------
 echo ">> Subindo o aplicativo (build)..."
+ensure_app_port_available
 $DC up -d --build app
 
 echo ""
