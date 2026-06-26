@@ -296,6 +296,55 @@ function ConfiguracoesPage() {
           </div>
         )}
       </div>
+
+      <Dialog open={novoOpen} onOpenChange={setNovoOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Novo plano</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="mb-1 block text-sm">Identificador (sem espaços)</Label>
+              <Input
+                placeholder="ex: premium"
+                value={novo.plano}
+                onChange={(e) => setNovo((s) => ({ ...s, plano: e.target.value }))}
+                className="bg-input/40"
+              />
+            </div>
+            <div>
+              <Label className="mb-1 block text-sm">Nome</Label>
+              <Input
+                placeholder="ex: Premium"
+                value={novo.nome}
+                onChange={(e) => setNovo((s) => ({ ...s, nome: e.target.value }))}
+                className="bg-input/40"
+              />
+            </div>
+            <div>
+              <Label className="mb-1 block text-sm">Preço</Label>
+              <Input
+                placeholder="ex: R$ 99,90"
+                value={novo.preco}
+                onChange={(e) => setNovo((s) => ({ ...s, preco: e.target.value }))}
+                className="bg-input/40"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setNovoOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              disabled={criarMut.isPending || !novo.plano.trim() || !novo.nome.trim() || !novo.preco.trim()}
+              onClick={() => criarMut.mutate()}
+            >
+              {criarMut.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Criar plano
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }
