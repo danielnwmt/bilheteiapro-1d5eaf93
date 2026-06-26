@@ -139,7 +139,12 @@ CREATE TRIGGER update_bilhetes_updated_at
 ALTER TABLE public.palpites
   ADD COLUMN bilhete_id uuid REFERENCES public.bilhetes(id) ON DELETE CASCADE;
 
-CREATE INDEX idx_palpites_bilhete_id ON public.palpites(bilhete_id);ALTER TABLE public.bilhetes ADD COLUMN IF NOT EXISTS tipo text NOT NULL DEFAULT 'padrao';ALTER TABLE public.odds ADD COLUMN IF NOT EXISTS deep_link text;-- ROLES
+CREATE INDEX idx_palpites_bilhete_id ON public.palpites(bilhete_id);
+
+ALTER TABLE public.bilhetes ADD COLUMN IF NOT EXISTS tipo text NOT NULL DEFAULT 'padrao';
+ALTER TABLE public.odds ADD COLUMN IF NOT EXISTS deep_link text;
+
+-- ROLES
 CREATE TYPE public.app_role AS ENUM ('admin', 'operador', 'cliente');
 CREATE TYPE public.plano_tipo AS ENUM ('start', 'pro', 'elite');
 
@@ -399,7 +404,9 @@ GRANT UPDATE (id, user_id, plano, status, periodo_fim, created_at, updated_at)
 GRANT DELETE ON public.subscriptions TO authenticated;
 
 -- PROFILES: remove unauthenticated access (no anon policy exists for it).
-REVOKE ALL ON public.profiles FROM anon;CREATE TABLE public.plano_config (
+REVOKE ALL ON public.profiles FROM anon;
+
+CREATE TABLE public.plano_config (
   plano public.plano_tipo PRIMARY KEY,
   nome text NOT NULL,
   preco text NOT NULL,
@@ -447,7 +454,9 @@ INSERT INTO public.plano_config (plano, nome, preco, descricao, nivel, price_id,
   'elite', 'BilheteIA Elite', 'R$ 79,90', 'Tudo, em tempo real e com suporte prioritário.', 3, 'elite_monthly', 60,
   '["Brasileirão Série A","Brasileirão Série B","Premier League","Copa do Brasil","Libertadores","Sul-Americana","La Liga","Serie A (Itália)","Bundesliga","Ligue 1","Champions League","Europa League","Conference League","Copa do Mundo"]'::jsonb,
   '{"bilhetesIlimitados":true,"oddPersonalizada":true,"planilhaBanca":true,"favoritos":true,"estatisticasAvancadas":true,"tempoReal":true,"alertasInteligentes":true,"suportePrioritario":true}'::jsonb
-);ALTER TABLE public.profiles
+);
+
+ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS cpf TEXT,
   ADD COLUMN IF NOT EXISTS data_nascimento DATE;
 
@@ -472,7 +481,9 @@ BEGIN
   ON CONFLICT (user_id, role) DO NOTHING;
   RETURN NEW;
 END;
-$function$;CREATE TABLE public.banca_entradas (
+$function$;
+
+CREATE TABLE public.banca_entradas (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES auth.users ON DELETE CASCADE,
   data DATE NOT NULL DEFAULT current_date,
@@ -498,7 +509,9 @@ CREATE TRIGGER update_banca_entradas_updated_at
 BEFORE UPDATE ON public.banca_entradas
 FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
-CREATE INDEX idx_banca_entradas_user ON public.banca_entradas (user_id, data DESC);CREATE OR REPLACE FUNCTION public.handle_new_user()
+CREATE INDEX idx_banca_entradas_user ON public.banca_entradas (user_id, data DESC);
+
+CREATE OR REPLACE FUNCTION public.handle_new_user()
  RETURNS trigger
  LANGUAGE plpgsql
  SECURITY DEFINER
@@ -535,7 +548,9 @@ INSERT INTO public.user_roles (user_id, role)
 SELECT id, 'admin'::public.app_role
 FROM auth.users
 WHERE lower(email) = 'contato@protenexus.com'
-ON CONFLICT (user_id, role) DO NOTHING;CREATE OR REPLACE FUNCTION public.handle_new_user()
+ON CONFLICT (user_id, role) DO NOTHING;
+
+CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
