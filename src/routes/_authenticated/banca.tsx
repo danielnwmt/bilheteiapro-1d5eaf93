@@ -154,6 +154,7 @@ function BancaPage() {
   const [dataAposta, setDataAposta] = useState<Date>(new Date());
   const [calOpen, setCalOpen] = useState(false);
   const [descricao, setDescricao] = useState("");
+  const [tipoAposta, setTipoAposta] = useState("simples");
   const [esporte, setEsporte] = useState("futebol");
   const [valor, setValor] = useState("");
   const [odd, setOdd] = useState("");
