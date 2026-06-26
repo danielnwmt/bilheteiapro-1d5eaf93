@@ -16,11 +16,6 @@ export const bootstrapDefaultAdmin = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { count: adminCount } = await supabaseAdmin
-      .from("user_roles")
-      .select("user_id", { count: "exact", head: true })
-      .eq("role", "admin");
-
     const { data: listed, error: listError } = await supabaseAdmin.auth.admin.listUsers({
       page: 1,
       perPage: 1000,
@@ -28,16 +23,6 @@ export const bootstrapDefaultAdmin = createServerFn({ method: "POST" })
     if (listError) throw new Error(listError.message);
 
     let user = listed.users.find((u) => String(u.email ?? "").toLowerCase() === ADMIN_EMAIL);
-
-    if ((adminCount ?? 0) > 0) {
-      if (!user) return { ok: false, created: false };
-      const { data: roles } = await supabaseAdmin
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id);
-      if ((roles ?? []).some((r) => r.role === "admin")) return { ok: true, created: false };
-      return { ok: false, created: false };
-    }
 
     if (!user) {
       const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
@@ -49,14 +34,13 @@ export const bootstrapDefaultAdmin = createServerFn({ method: "POST" })
       if (error) throw new Error(error.message);
       if (!created.user) throw new Error("Não foi possível criar o administrador padrão.");
       user = created.user;
-    } else if ((adminCount ?? 0) === 0) {
+    } else {
       const { error } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
         password: data.password,
+        email_confirm: true,
         user_metadata: { ...(user.user_metadata ?? {}), nome: user.user_metadata?.nome ?? "Administrador" },
       });
       if (error) throw new Error(error.message);
-    } else {
-      return { ok: false, created: false };
     }
 
     await supabaseAdmin.from("profiles").upsert(
@@ -74,7 +58,7 @@ export const bootstrapDefaultAdmin = createServerFn({ method: "POST" })
       .upsert({ user_id: user.id, role: "admin" }, { onConflict: "user_id,role" });
     await supabaseAdmin.from("user_roles").delete().eq("user_id", user.id).eq("role", "cliente");
 
-    return { ok: true, created: true };
+    return { ok: true, created: !listed.users.some((u) => String(u.email ?? "").toLowerCase() === ADMIN_EMAIL) };
   });
 
 /**
@@ -87,9 +71,14 @@ export const ensureAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { userId, claims } = context;
-    const email = String((claims as any)?.email ?? "").toLowerCase();
+    let email = String((claims as any)?.email ?? "").trim().toLowerCase();
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    if (!email) {
+      const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId);
+      email = String(userData.user?.email ?? "").trim().toLowerCase();
+    }
 
     // Garante perfil (caso a trigger não tenha rodado).
     await supabaseAdmin
