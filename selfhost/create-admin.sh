@@ -66,6 +66,23 @@ auth_curl() {
   curl "$@"
 }
 
+# Faz uma requisição ao Auth DE DENTRO da rede do Docker, usando o wget do
+# próprio container do Auth. Assim não dependemos de curl no host nem de a
+# porta estar publicada corretamente. Ecoa "<corpo>\n<http_code>".
+auth_req() {
+  local method="$1" path="$2" body="${3:-}"
+  $DC exec -T auth wget -q -O - --server-response --method="$method" \
+    --header="apikey: ${SERVICE_ROLE_KEY}" \
+    --header="Authorization: Bearer ${SERVICE_ROLE_KEY}" \
+    --header="Content-Type: application/json" \
+    ${body:+--body-data="$body"} \
+    "http://127.0.0.1:9999${path}" 2>&1 || true
+}
+
+auth_health() {
+  $DC exec -T auth wget -q -O /dev/null --spider "http://127.0.0.1:9999/health" 2>/dev/null
+}
+
 # Garante o gateway local quando este script for chamado separadamente.
 $DC up -d rest kong >/dev/null 2>&1 || true
 
@@ -79,16 +96,12 @@ admin_user_id() {
 # ---------- 1) Garante que o Auth (GoTrue) está respondendo ----------
 echo ">> Aguardando o serviço de autenticação..."
 AUTH_READY=0
-for i in $(seq 1 8); do
-  HEALTH_CODE="$(auth_curl -sS -o /dev/null -w '%{http_code}' "$AUTH_INTERNAL_URL/health" 2>/dev/null || printf '000')"
-  if [ "$HEALTH_CODE" != "200" ] && [ "$HEALTH_CODE" != "204" ]; then
-    HEALTH_CODE="$(auth_curl -sS -o /dev/null -w '%{http_code}' "$AUTH_GATEWAY_URL/health" 2>/dev/null || printf '000')"
-  fi
-  if [ "$HEALTH_CODE" = "200" ] || [ "$HEALTH_CODE" = "204" ]; then
+for i in $(seq 1 45); do
+  if auth_health; then
     AUTH_READY=1
     break
   fi
-  echo ">> Auth ainda indisponível (HTTP ${HEALTH_CODE}), tentando de novo... ($i/8)"
+  echo ">> Auth ainda subindo, tentando de novo... ($i/45)"
   sleep 2
 done
 
