@@ -14,8 +14,16 @@ AUTO_INSTALL="${AUTO_INSTALL:-0}"
 
 # Detecta (e instala, se preciso) o Docker + Compose
 ensure_docker() {
-  if docker compose version >/dev/null 2>&1; then DC="docker compose"; return; fi
-  if command -v docker-compose >/dev/null 2>&1; then DC="docker-compose"; return; fi
+  if docker compose version >/dev/null 2>&1; then
+    DC="docker compose"
+    systemctl enable --now docker 2>/dev/null || service docker start 2>/dev/null || true
+    return
+  fi
+  if command -v docker-compose >/dev/null 2>&1; then
+    DC="docker-compose"
+    systemctl enable --now docker 2>/dev/null || service docker start 2>/dev/null || true
+    return
+  fi
 
   echo ">> Docker não encontrado. Instalando automaticamente..."
   if command -v apt-get >/dev/null 2>&1; then

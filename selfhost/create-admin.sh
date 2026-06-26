@@ -39,6 +39,7 @@ run_direct_admin_fallback() {
   echo ">> API do Auth indisponível. Usando fallback SQL local para criar/atualizar admin..."
   $DC cp direct-admin.sql db:/tmp/direct-admin.sql
   "${PSQL[@]}" -v admin_email="$ADMIN_EMAIL" -v admin_password="$ADMIN_PASSWORD" -f /tmp/direct-admin.sql
+  USED_SQL_FALLBACK=1
 }
 
 AUTH_CID="$($DC ps -q auth 2>/dev/null || true)"
@@ -61,6 +62,7 @@ fi
 
 AUTH_INTERNAL_URL="http://auth:9999"
 AUTH_CURL_IMAGE="curlimages/curl:8.11.1"
+USED_SQL_FALLBACK=0
 
 auth_curl() {
   docker run --rm --network "$AUTH_NETWORK" "$AUTH_CURL_IMAGE" "$@"
@@ -97,26 +99,29 @@ echo ">> Criando/atualizando admin via API do Auth..."
 CREATE_BODY=$(printf '{"email":"%s","password":"%s","email_confirm":true,"user_metadata":{"nome":"Administrador"}}' \
   "$ADMIN_EMAIL" "$ADMIN_PASSWORD")
 
-CREATE_CODE=000
+CREATE_CODE=200
 CREATE_RESP=""
-for i in $(seq 1 60); do
-  CREATE_RESP=$(auth_curl -sS -w '\n%{http_code}' -X POST "$AUTH_INTERNAL_URL/admin/users" \
-    -H "apikey: ${SERVICE_ROLE_KEY}" \
-    -H "Authorization: Bearer ${SERVICE_ROLE_KEY}" \
-    -H "Content-Type: application/json" \
-    -d "$CREATE_BODY" 2>/dev/null || true)
-  CREATE_CODE=$(printf '%s' "$CREATE_RESP" | tail -n1)
-  # 200/201 = criado; 422 = já existe (idempotente) -> sai do loop
-  case "$CREATE_CODE" in
-    200|201|422) break ;;
-    *)
-      # Algumas versões retornam 400 se o e-mail já existe. Se já existe no banco, seguimos.
-      if [ "$CREATE_CODE" = "400" ] && [ -n "$(admin_user_id)" ]; then break; fi
-      echo ">> Auth ainda não criou o admin (HTTP $CREATE_CODE), tentando de novo... ($i/60)"
-      sleep 3
-      ;;
-  esac
-done
+if [ "$AUTH_READY" = "1" ]; then
+  CREATE_CODE=000
+  for i in $(seq 1 60); do
+    CREATE_RESP=$(auth_curl -sS --max-time 20 -w '\n%{http_code}' -X POST "$AUTH_INTERNAL_URL/admin/users" \
+      -H "apikey: ${SERVICE_ROLE_KEY}" \
+      -H "Authorization: Bearer ${SERVICE_ROLE_KEY}" \
+      -H "Content-Type: application/json" \
+      -d "$CREATE_BODY" 2>/dev/null || true)
+    CREATE_CODE=$(printf '%s' "$CREATE_RESP" | tail -n1)
+    # 200/201 = criado; 422 = já existe (idempotente) -> sai do loop
+    case "$CREATE_CODE" in
+      200|201|422) break ;;
+      *)
+        # Algumas versões retornam 400 se o e-mail já existe. Se já existe no banco, seguimos.
+        if [ "$CREATE_CODE" = "400" ] && [ -n "$(admin_user_id)" ]; then break; fi
+        echo ">> Auth ainda não criou o admin (HTTP $CREATE_CODE), tentando de novo... ($i/60)"
+        sleep 3
+        ;;
+    esac
+  done
+fi
 echo ">> Resposta criação (HTTP $CREATE_CODE)"
 
 if ! printf '%s' "$CREATE_CODE" | grep -Eq '^(200|201|400|422)$'; then
@@ -152,11 +157,15 @@ fi
 # Garante senha/confirmação mesmo quando o usuário já existia.
 echo ">> Garantindo senha e confirmação do admin..."
 UPDATE_BODY=$(printf '{"password":"%s","email_confirm":true}' "$ADMIN_PASSWORD")
-auth_curl -sS -o /dev/null -X PUT "$AUTH_INTERNAL_URL/admin/users/${UID_DB}" \
-  -H "apikey: ${SERVICE_ROLE_KEY}" \
-  -H "Authorization: Bearer ${SERVICE_ROLE_KEY}" \
-  -H "Content-Type: application/json" \
-  -d "$UPDATE_BODY" 2>/dev/null || true
+if [ "$AUTH_READY" = "1" ] && [ "$USED_SQL_FALLBACK" != "1" ]; then
+  auth_curl -sS --max-time 20 -o /dev/null -X PUT "$AUTH_INTERNAL_URL/admin/users/${UID_DB}" \
+    -H "apikey: ${SERVICE_ROLE_KEY}" \
+    -H "Authorization: Bearer ${SERVICE_ROLE_KEY}" \
+    -H "Content-Type: application/json" \
+    -d "$UPDATE_BODY" 2>/dev/null || true
+else
+  run_direct_admin_fallback
+fi
 
 # ---------- 4) Garante PERFIL + PAPEL admin no banco ----------
 echo ">> Garantindo papel de administrador..."
