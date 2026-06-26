@@ -84,15 +84,39 @@ $pre$;
 -- Extensões usadas
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
-GRANT USAGE, CREATE ON SCHEMA auth TO supabase_auth_admin;
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_auth_admin IN SCHEMA auth GRANT ALL ON TABLES TO supabase_auth_admin;
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_auth_admin IN SCHEMA auth GRANT ALL ON SEQUENCES TO supabase_auth_admin;
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_auth_admin IN SCHEMA auth GRANT ALL ON FUNCTIONS TO supabase_auth_admin;
+-- Concede acesso ao schema auth para o GoTrue. Envolvido em bloco para não
+-- abortar o setup quando o usuário atual não é membro de supabase_auth_admin.
+DO $pre$
+BEGIN
+  -- Garante que o usuário atual seja membro de supabase_auth_admin, requisito
+  -- para rodar ALTER DEFAULT PRIVILEGES FOR ROLE supabase_auth_admin.
+  BEGIN
+    EXECUTE format('GRANT supabase_auth_admin TO %I', current_user);
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'Sem permissão para virar membro de supabase_auth_admin; seguindo.';
+  END;
+
+  BEGIN
+    EXECUTE 'GRANT USAGE, CREATE ON SCHEMA auth TO supabase_auth_admin';
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'Sem permissão para conceder uso do schema auth; seguindo.';
+  END;
+
+  BEGIN
+    EXECUTE 'ALTER DEFAULT PRIVILEGES FOR ROLE supabase_auth_admin IN SCHEMA auth GRANT ALL ON TABLES TO supabase_auth_admin';
+    EXECUTE 'ALTER DEFAULT PRIVILEGES FOR ROLE supabase_auth_admin IN SCHEMA auth GRANT ALL ON SEQUENCES TO supabase_auth_admin';
+    EXECUTE 'ALTER DEFAULT PRIVILEGES FOR ROLE supabase_auth_admin IN SCHEMA auth GRANT ALL ON FUNCTIONS TO supabase_auth_admin';
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'Sem permissão para ajustar default privileges de auth; seguindo.';
+  END;
+END
+$pre$;
 
 -- Acesso ao schema public para a Data API
 GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO authenticated;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO service_role;
+
 
 -- Funções auxiliares de autenticação (compatíveis com Supabase).
 -- Em algumas imagens self-host o schema auth já pertence ao GoTrue; nesse caso
