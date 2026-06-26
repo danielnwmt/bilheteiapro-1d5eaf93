@@ -9,7 +9,6 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as TemptestRouteImport } from './routes/temptest'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
@@ -26,11 +25,6 @@ import { Route as ApiPublicHooksSyncOddsDiarioRouteImport } from './routes/api/p
 import { Route as ApiPublicHooksSyncFootballRouteImport } from './routes/api/public/hooks/sync-football'
 import { Route as ApiPublicHooksGerarBilhetesRouteImport } from './routes/api/public/hooks/gerar-bilhetes'
 
-const TemptestRoute = TemptestRouteImport.update({
-  id: '/temptest',
-  path: '/temptest',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -115,7 +109,6 @@ const ApiPublicHooksGerarBilhetesRoute =
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/auth': typeof AuthRoute
-  '/temptest': typeof TemptestRoute
   '/admin': typeof AuthenticatedAdminRouteRouteWithChildren
   '/banca': typeof AuthenticatedBancaRoute
   '/planos': typeof AuthenticatedPlanosRoute
@@ -131,7 +124,6 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
-  '/temptest': typeof TemptestRoute
   '/banca': typeof AuthenticatedBancaRoute
   '/planos': typeof AuthenticatedPlanosRoute
   '/': typeof AuthenticatedIndexRoute
@@ -149,7 +141,6 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
-  '/temptest': typeof TemptestRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteRouteWithChildren
   '/_authenticated/banca': typeof AuthenticatedBancaRoute
   '/_authenticated/planos': typeof AuthenticatedPlanosRoute
@@ -169,7 +160,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
-    | '/temptest'
     | '/admin'
     | '/banca'
     | '/planos'
@@ -185,7 +175,6 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
-    | '/temptest'
     | '/banca'
     | '/planos'
     | '/'
@@ -202,7 +191,6 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_authenticated'
     | '/auth'
-    | '/temptest'
     | '/_authenticated/admin'
     | '/_authenticated/banca'
     | '/_authenticated/planos'
@@ -221,7 +209,6 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
-  TemptestRoute: typeof TemptestRoute
   ApiPublicIngestRoute: typeof ApiPublicIngestRoute
   ApiPublicHooksGerarBilhetesRoute: typeof ApiPublicHooksGerarBilhetesRoute
   ApiPublicHooksSyncFootballRoute: typeof ApiPublicHooksSyncFootballRoute
@@ -231,13 +218,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/temptest': {
-      id: '/temptest'
-      path: '/temptest'
-      fullPath: '/temptest'
-      preLoaderRoute: typeof TemptestRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -386,7 +366,6 @@ const AuthenticatedRouteRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
-  TemptestRoute: TemptestRoute,
   ApiPublicIngestRoute: ApiPublicIngestRoute,
   ApiPublicHooksGerarBilhetesRoute: ApiPublicHooksGerarBilhetesRoute,
   ApiPublicHooksSyncFootballRoute: ApiPublicHooksSyncFootballRoute,
