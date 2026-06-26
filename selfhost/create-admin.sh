@@ -175,11 +175,7 @@ fi
 echo ">> Garantindo senha e confirmação do admin..."
 UPDATE_BODY=$(printf '{"password":"%s","email_confirm":true}' "$ADMIN_PASSWORD")
 if [ "$AUTH_READY" = "1" ] && [ "$USED_SQL_FALLBACK" != "1" ]; then
-  auth_curl -sS --max-time 20 -o /dev/null -X PUT "$AUTH_INTERNAL_URL/admin/users/${UID_DB}" \
-    -H "apikey: ${SERVICE_ROLE_KEY}" \
-    -H "Authorization: Bearer ${SERVICE_ROLE_KEY}" \
-    -H "Content-Type: application/json" \
-    -d "$UPDATE_BODY" 2>/dev/null || true
+  auth_req PUT "/admin/users/${UID_DB}" "$UPDATE_BODY" >/dev/null 2>&1 || true
 else
   run_direct_admin_fallback
 fi
