@@ -101,6 +101,18 @@ BEGIN
       v_cols := array_append(v_cols, 'reauthentication_token');
       v_vals := array_append(v_vals, quote_literal(''));
     END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='users' AND column_name='email_change' AND COALESCE(is_generated, 'NEVER') = 'NEVER') THEN
+      v_cols := array_append(v_cols, 'email_change');
+      v_vals := array_append(v_vals, quote_literal(''));
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='users' AND column_name='phone_change' AND COALESCE(is_generated, 'NEVER') = 'NEVER') THEN
+      v_cols := array_append(v_cols, 'phone_change');
+      v_vals := array_append(v_vals, quote_literal(''));
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='users' AND column_name='phone_change_token' AND COALESCE(is_generated, 'NEVER') = 'NEVER') THEN
+      v_cols := array_append(v_cols, 'phone_change_token');
+      v_vals := array_append(v_vals, quote_literal(''));
+    END IF;
     IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='users' AND column_name='is_sso_user' AND COALESCE(is_generated, 'NEVER') = 'NEVER') THEN
       v_cols := array_append(v_cols, 'is_sso_user');
       v_vals := array_append(v_vals, 'false');
