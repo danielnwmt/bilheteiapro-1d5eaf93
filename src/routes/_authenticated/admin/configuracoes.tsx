@@ -11,6 +11,9 @@ import {
   TODAS_LIGAS,
   RECURSO_LABELS,
   recursosVazios,
+  formatarReais,
+  precoCicloCentavos,
+  precoMensalEquivalenteCentavos,
   type Plano,
   type PlanoConfig,
 } from "@/lib/planos";
