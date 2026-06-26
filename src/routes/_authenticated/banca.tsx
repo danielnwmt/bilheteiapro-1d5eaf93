@@ -1,11 +1,12 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import {
   listBancaEntradas,
   addBancaEntrada,
-  updateBancaEntrada,
   deleteBancaEntrada,
   type BancaEntrada,
   type Resultado,
@@ -15,6 +16,23 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   ArrowLeft,
   Loader2,
@@ -22,12 +40,14 @@ import {
   Trash2,
   Wallet,
   TrendingUp,
-  Target,
   Percent,
+  CheckCircle2,
+  CalendarIcon,
   Lock,
   Crown,
 } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { useAccess } from "@/hooks/useAccess";
 import { usePlanos } from "@/hooks/usePlanos";
 import { recursoLiberado } from "@/lib/planos";
@@ -37,6 +57,8 @@ export const Route = createFileRoute("/_authenticated/banca")({
   component: BancaPage,
 });
 
+const BANCA_INICIAL = 1000;
+
 const RESULTADOS: { v: Resultado; label: string }[] = [
   { v: "pendente", label: "Pendente" },
   { v: "green", label: "Green (ganhou)" },
@@ -44,14 +66,61 @@ const RESULTADOS: { v: Resultado; label: string }[] = [
   { v: "anulada", label: "Anulada" },
 ];
 
+const ESPORTES: { v: string; label: string }[] = [
+  { v: "futebol", label: "Futebol" },
+  { v: "basquete", label: "Basquete" },
+  { v: "tenis", label: "Tênis" },
+  { v: "esports", label: "E-sports" },
+];
+
+const esporteLabel = (v: string) => ESPORTES.find((e) => e.v === v)?.label ?? v;
+
+// Retorno (valor que volta) de uma entrada.
+function retornoDe(e: { valor: number; odd: number; resultado: Resultado }) {
+  if (e.resultado === "green") return e.valor * e.odd;
+  if (e.resultado === "red") return 0;
+  if (e.resultado === "anulada") return e.valor; // reembolso
+  return null; // pendente
+}
+
+// Lucro líquido (retorno - valor apostado) já resolvido.
 function lucroDe(e: { valor: number; odd: number; resultado: Resultado }) {
   if (e.resultado === "green") return e.valor * (e.odd - 1);
   if (e.resultado === "red") return -e.valor;
-  return 0;
+  return 0; // pendente / anulada não impactam o lucro
 }
 
 const brl = (n: number) =>
   n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+function statusBadge(r: Resultado) {
+  switch (r) {
+    case "pendente":
+      return (
+        <Badge className="border-yellow-500/30 bg-yellow-500/15 text-yellow-500 hover:bg-yellow-500/15">
+          Pendente
+        </Badge>
+      );
+    case "green":
+      return (
+        <Badge className="border-green-500/30 bg-green-500/15 text-green-500 hover:bg-green-500/15">
+          Green
+        </Badge>
+      );
+    case "red":
+      return (
+        <Badge className="border-red-500/30 bg-red-500/15 text-red-500 hover:bg-red-500/15">
+          Red
+        </Badge>
+      );
+    case "anulada":
+      return (
+        <Badge className="border-muted-foreground/20 bg-muted text-muted-foreground hover:bg-muted">
+          Anulada
+        </Badge>
+      );
+  }
+}
 
 function BancaPage() {
   const router = useRouter();
@@ -63,17 +132,15 @@ function BancaPage() {
 
   const fetchEntradas = useServerFn(listBancaEntradas);
   const addFn = useServerFn(addBancaEntrada);
-  const updFn = useServerFn(updateBancaEntrada);
   const delFn = useServerFn(deleteBancaEntrada);
 
-  const hoje = new Date().toISOString().slice(0, 10);
-  const [form, setForm] = useState({
-    data: hoje,
-    descricao: "",
-    valor: "",
-    odd: "",
-    resultado: "pendente" as Resultado,
-  });
+  const [dataAposta, setDataAposta] = useState<Date>(new Date());
+  const [calOpen, setCalOpen] = useState(false);
+  const [descricao, setDescricao] = useState("");
+  const [esporte, setEsporte] = useState("futebol");
+  const [valor, setValor] = useState("");
+  const [odd, setOdd] = useState("");
+  const [resultado, setResultado] = useState<Resultado>("pendente");
 
   const { data: entradas, isLoading } = useQuery({
     queryKey: ["banca"],
@@ -87,16 +154,15 @@ function BancaPage() {
     mutationFn: (v: Parameters<typeof addBancaEntrada>[0]["data"]) => addFn({ data: v }),
     onSuccess: () => {
       toast.success("Entrada adicionada");
-      setForm({ data: hoje, descricao: "", valor: "", odd: "", resultado: "pendente" });
+      setDescricao("");
+      setEsporte("futebol");
+      setValor("");
+      setOdd("");
+      setResultado("pendente");
+      setDataAposta(new Date());
       invalidate();
     },
     onError: (e: any) => toast.error(e?.message ?? "Erro ao adicionar"),
-  });
-
-  const mutUpd = useMutation({
-    mutationFn: (v: Parameters<typeof updateBancaEntrada>[0]["data"]) => updFn({ data: v }),
-    onSuccess: invalidate,
-    onError: (e: any) => toast.error(e?.message ?? "Erro ao atualizar"),
   });
 
   const mutDel = useMutation({
@@ -112,43 +178,34 @@ function BancaPage() {
   const resolvidas = lista.filter((e) => e.resultado === "green" || e.resultado === "red");
   const totalApostado = resolvidas.reduce((s, e) => s + e.valor, 0);
   const lucroTotal = lista.reduce((s, e) => s + lucroDe(e), 0);
+  const bancaAtual = BANCA_INICIAL + lucroTotal;
   const roi = totalApostado > 0 ? (lucroTotal / totalApostado) * 100 : 0;
   const greens = lista.filter((e) => e.resultado === "green").length;
   const taxa = resolvidas.length > 0 ? (greens / resolvidas.length) * 100 : 0;
 
   const handleAdd = () => {
     mutAdd.mutate({
-      data: form.data,
-      descricao: form.descricao,
-      valor: parseFloat(form.valor.replace(",", ".")) || 0,
-      odd: parseFloat(form.odd.replace(",", ".")) || 1,
-      resultado: form.resultado,
-    });
-  };
-
-  const setResultado = (e: BancaEntrada, resultado: Resultado) => {
-    mutUpd.mutate({
-      id: e.id,
-      data: e.data,
-      descricao: e.descricao,
-      valor: e.valor,
-      odd: e.odd,
+      data: format(dataAposta, "yyyy-MM-dd"),
+      descricao,
+      esporte,
+      valor: parseFloat(valor.replace(",", ".")) || 0,
+      odd: parseFloat(odd.replace(",", ".")) || 1,
       resultado,
     });
   };
 
   return (
     <main className="min-h-screen bg-background">
-      <div className="mx-auto max-w-5xl px-4 py-10">
-        <div className="mb-6 flex items-center justify-between gap-2">
+      <div className="mx-auto max-w-6xl px-4 py-10">
+        <div className="mb-6">
           <Button variant="ghost" size="sm" onClick={() => router.navigate({ to: "/" })}>
             <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
           </Button>
         </div>
 
-        <div className="mb-6 flex items-center gap-2">
+        <div className="mb-8 flex items-center gap-2">
           <Wallet className="h-6 w-6 text-primary" />
-          <h1 className="text-2xl font-bold">Gestão de Banca</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Gestão de Banca</h1>
         </div>
 
         {!liberado ? (
@@ -165,140 +222,217 @@ function BancaPage() {
           </Card>
         ) : (
           <>
-            <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-              <StatCard icon={TrendingUp} label="Lucro / Prejuízo" value={brl(lucroTotal)} accent={lucroTotal >= 0} />
-              <StatCard icon={Target} label="Total apostado" value={brl(totalApostado)} />
-              <StatCard icon={Percent} label="ROI" value={`${roi.toFixed(1)}%`} accent={roi >= 0} />
-              <StatCard icon={Wallet} label="Taxa de acerto" value={`${taxa.toFixed(0)}%`} />
+            {/* Cards de indicadores */}
+            <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <StatCard
+                icon={Wallet}
+                label="Banca Atual"
+                value={brl(bancaAtual)}
+                hint={`Inicial ${brl(BANCA_INICIAL)}`}
+              />
+              <StatCard
+                icon={TrendingUp}
+                label="Lucro / Prejuízo"
+                value={brl(lucroTotal)}
+                tone={lucroTotal > 0 ? "pos" : lucroTotal < 0 ? "neg" : "neutral"}
+              />
+              <StatCard
+                icon={Percent}
+                label="ROI"
+                value={`${roi.toFixed(1)}%`}
+                tone={roi > 0 ? "pos" : roi < 0 ? "neg" : "neutral"}
+              />
+              <StatCard
+                icon={CheckCircle2}
+                label="Taxa de Acerto"
+                value={`${taxa.toFixed(0)}%`}
+                hint={`${greens}/${resolvidas.length} finalizadas`}
+              />
             </div>
 
-            <Card className="mb-6 border-border/60 bg-card p-5">
+            {/* Formulário nova entrada */}
+            <Card className="mb-8 border-border/60 bg-card p-5">
               <h2 className="mb-4 text-sm font-semibold text-muted-foreground">Nova entrada</h2>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-                <div className="space-y-1 lg:col-span-1">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-12">
+                <div className="space-y-1.5 lg:col-span-2">
                   <Label className="text-xs">Data</Label>
-                  <Input
-                    type="date"
-                    value={form.data}
-                    onChange={(e) => setForm((f) => ({ ...f, data: e.target.value }))}
-                  />
+                  <Popover open={calOpen} onOpenChange={setCalOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !dataAposta && "text-muted-foreground",
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dataAposta ? format(dataAposta, "dd/MM/yyyy") : "Selecionar"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dataAposta}
+                        onSelect={(d) => {
+                          if (d) setDataAposta(d);
+                          setCalOpen(false);
+                        }}
+                        initialFocus
+                        locale={ptBR}
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
-                <div className="space-y-1 sm:col-span-2 lg:col-span-2">
+
+                <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
                   <Label className="text-xs">Descrição / Evento</Label>
                   <Input
                     placeholder="Ex: Flamengo x Palmeiras - Over 2.5"
-                    value={form.descricao}
-                    onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))}
+                    value={descricao}
+                    onChange={(e) => setDescricao(e.target.value)}
                   />
                 </div>
-                <div className="space-y-1">
+
+                <div className="space-y-1.5 lg:col-span-2">
+                  <Label className="text-xs">Esporte</Label>
+                  <Select value={esporte} onValueChange={setEsporte}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ESPORTES.map((e) => (
+                        <SelectItem key={e.v} value={e.v}>
+                          {e.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5 lg:col-span-1">
                   <Label className="text-xs">Valor (R$)</Label>
                   <Input
                     inputMode="decimal"
                     placeholder="0,00"
-                    value={form.valor}
-                    onChange={(e) => setForm((f) => ({ ...f, valor: e.target.value }))}
+                    value={valor}
+                    onChange={(e) => setValor(e.target.value)}
                   />
                 </div>
-                <div className="space-y-1">
+
+                <div className="space-y-1.5 lg:col-span-1">
                   <Label className="text-xs">Odd</Label>
                   <Input
                     inputMode="decimal"
                     placeholder="1.90"
-                    value={form.odd}
-                    onChange={(e) => setForm((f) => ({ ...f, odd: e.target.value }))}
+                    value={odd}
+                    onChange={(e) => setOdd(e.target.value)}
                   />
                 </div>
-                <div className="space-y-1">
+
+                <div className="space-y-1.5 lg:col-span-3">
                   <Label className="text-xs">Resultado</Label>
-                  <select
-                    value={form.resultado}
-                    onChange={(e) => setForm((f) => ({ ...f, resultado: e.target.value as Resultado }))}
-                    className="h-9 w-full rounded-md border border-border bg-input/40 px-2 text-sm"
-                  >
-                    {RESULTADOS.map((r) => (
-                      <option key={r.v} value={r.v}>{r.label}</option>
-                    ))}
-                  </select>
+                  <Select value={resultado} onValueChange={(v) => setResultado(v as Resultado)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {RESULTADOS.map((r) => (
+                        <SelectItem key={r.v} value={r.v}>
+                          {r.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <div className="mt-4">
-                <Button size="sm" disabled={mutAdd.isPending} onClick={handleAdd}>
-                  <Plus className="mr-2 h-4 w-4" /> Adicionar
+                <Button
+                  className="bg-blue-600 text-white hover:bg-blue-700"
+                  disabled={mutAdd.isPending}
+                  onClick={handleAdd}
+                >
+                  {mutAdd.isPending ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Plus className="mr-2 h-4 w-4" />
+                  )}
+                  Adicionar
                 </Button>
               </div>
             </Card>
 
+            {/* Histórico */}
             <Card className="border-border/60 bg-card p-0">
               {isLoading ? (
                 <div className="flex justify-center py-16">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
               ) : lista.length === 0 ? (
-                <p className="py-12 text-center text-sm text-muted-foreground">
+                <p className="py-16 text-center text-sm text-muted-foreground">
                   Nenhuma entrada ainda. Adicione sua primeira aposta acima.
                 </p>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border/60 text-left text-xs text-muted-foreground">
-                        <th className="p-3">Data</th>
-                        <th className="p-3">Descrição</th>
-                        <th className="p-3 text-right">Valor</th>
-                        <th className="p-3 text-right">Odd</th>
-                        <th className="p-3">Resultado</th>
-                        <th className="p-3 text-right">Lucro</th>
-                        <th className="p-3"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {lista.map((e) => {
-                        const l = lucroDe(e);
-                        return (
-                          <tr key={e.id} className="border-b border-border/40">
-                            <td className="whitespace-nowrap p-3 text-muted-foreground">
-                              {new Date(e.data + "T00:00:00").toLocaleDateString("pt-BR")}
-                            </td>
-                            <td className="p-3">{e.descricao}</td>
-                            <td className="p-3 text-right">{brl(e.valor)}</td>
-                            <td className="p-3 text-right">{e.odd.toFixed(2)}</td>
-                            <td className="p-3">
-                              <select
-                                value={e.resultado}
-                                onChange={(ev) => setResultado(e, ev.target.value as Resultado)}
-                                className="rounded-md border border-border bg-input/40 px-2 py-1 text-xs"
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Descrição</TableHead>
+                      <TableHead>Esporte</TableHead>
+                      <TableHead className="text-right">Valor (R$)</TableHead>
+                      <TableHead className="text-right">Odd</TableHead>
+                      <TableHead className="text-right">Retorno (R$)</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {lista.map((e: BancaEntrada) => {
+                      const ret = retornoDe(e);
+                      return (
+                        <TableRow key={e.id}>
+                          <TableCell className="whitespace-nowrap text-muted-foreground">
+                            {new Date(e.data + "T00:00:00").toLocaleDateString("pt-BR")}
+                          </TableCell>
+                          <TableCell className="max-w-[260px] truncate">{e.descricao}</TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {esporteLabel(e.esporte)}
+                          </TableCell>
+                          <TableCell className="text-right">{brl(e.valor)}</TableCell>
+                          <TableCell className="text-right">{e.odd.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">
+                            {ret === null ? (
+                              <span className="text-muted-foreground">-</span>
+                            ) : (
+                              <span
+                                className={
+                                  e.resultado === "green"
+                                    ? "text-green-500"
+                                    : e.resultado === "red"
+                                      ? "text-red-500"
+                                      : "text-muted-foreground"
+                                }
                               >
-                                {RESULTADOS.map((r) => (
-                                  <option key={r.v} value={r.v}>{r.label}</option>
-                                ))}
-                              </select>
-                            </td>
-                            <td className="p-3 text-right">
-                              {e.resultado === "pendente" || e.resultado === "anulada" ? (
-                                <Badge variant="secondary" className="text-[10px]">—</Badge>
-                              ) : (
-                                <span className={l >= 0 ? "text-primary" : "text-destructive"}>
-                                  {brl(l)}
-                                </span>
-                              )}
-                            </td>
-                            <td className="p-3 text-right">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => mutDel.mutate(e.id)}
-                              >
-                                <Trash2 className="h-4 w-4 text-muted-foreground" />
-                              </Button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                                {brl(ret)}
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell>{statusBadge(e.resultado)}</TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => mutDel.mutate(e.id)}
+                            >
+                              <Trash2 className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
               )}
             </Card>
           </>
@@ -312,20 +446,31 @@ function StatCard({
   icon: Icon,
   label,
   value,
-  accent,
+  hint,
+  tone = "neutral",
 }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   value: string;
-  accent?: boolean;
+  hint?: string;
+  tone?: "pos" | "neg" | "neutral";
 }) {
+  const valueColor =
+    tone === "pos" ? "text-green-500" : tone === "neg" ? "text-red-500" : "text-foreground";
+  const iconColor =
+    tone === "pos"
+      ? "text-green-500"
+      : tone === "neg"
+        ? "text-red-500"
+        : "text-muted-foreground";
   return (
-    <Card className="border-border/60 bg-card p-4">
+    <Card className="border-border/60 bg-card p-5">
       <div className="flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">{label}</span>
-        <Icon className={accent ? "h-4 w-4 text-primary" : "h-4 w-4 text-muted-foreground"} />
+        <span className="text-xs font-medium text-muted-foreground">{label}</span>
+        <Icon className={cn("h-4 w-4", iconColor)} />
       </div>
-      <p className="mt-1 text-xl font-bold">{value}</p>
+      <p className={cn("mt-2 text-2xl font-bold tracking-tight", valueColor)}>{value}</p>
+      {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
     </Card>
   );
 }
