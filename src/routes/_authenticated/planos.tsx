@@ -6,7 +6,18 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Check, X, Loader2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import { TODAS_LIGAS, RECURSO_LABELS, type Plano } from "@/lib/planos";
+import {
+  TODAS_LIGAS,
+  RECURSO_LABELS,
+  CICLO_LABEL,
+  CICLO_MESES,
+  descontoDoCiclo,
+  precoCicloCentavos,
+  precoMensalEquivalenteCentavos,
+  formatarReais,
+  type Ciclo,
+  type Plano,
+} from "@/lib/planos";
 import { usePlanos } from "@/hooks/usePlanos";
 import { createInfinitePayCheckout } from "@/lib/payments.functions";
 import { useAccess } from "@/hooks/useAccess";
@@ -37,6 +48,7 @@ function PlanosPage() {
   const { list, byPlano, isLoading } = usePlanos();
   const [checkout, setCheckout] = useState<Plano | null>(null);
   const [carregando, setCarregando] = useState(false);
+  const [ciclo, setCiclo] = useState<Ciclo>("mensal");
 
   const infinitePayCheckout = useServerFn(createInfinitePayCheckout);
 
@@ -48,7 +60,7 @@ function PlanosPage() {
     setCarregando(true);
     try {
       const returnUrl = `${window.location.origin}/?checkout=success`;
-      const result = await infinitePayCheckout({ data: { plano: checkout, returnUrl } });
+      const result = await infinitePayCheckout({ data: { plano: checkout, ciclo, returnUrl } });
       if ("error" in result) {
         toast.error(result.error);
         return;
@@ -98,6 +110,31 @@ function PlanosPage() {
           </p>
         </div>
 
+        <div className="mt-6 flex justify-center">
+          <div className="inline-flex rounded-full border border-border/60 bg-card p-1">
+            {(["mensal", "semestral", "anual"] as Ciclo[]).map((c) => {
+              const ativo = ciclo === c;
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setCiclo(c)}
+                  className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
+                    ativo ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {CICLO_LABEL[c]}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        {ciclo !== "mensal" && (
+          <p className="mt-2 text-center text-xs text-muted-foreground">
+            Pagamento único a cada {CICLO_MESES[ciclo]} meses.
+          </p>
+        )}
+
         {isLoading ? (
           <div className="flex justify-center py-16">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -111,9 +148,21 @@ function PlanosPage() {
               </Button>
             </div>
             <p className="text-2xl font-bold">
-              {checkoutCfg.preco}
-              <span className="text-sm font-normal text-muted-foreground">/mês</span>
+              {formatarReais(precoCicloCentavos(checkoutCfg, ciclo))}
+              <span className="text-sm font-normal text-muted-foreground">
+                /{CICLO_LABEL[ciclo].toLowerCase()}
+              </span>
             </p>
+            {ciclo !== "mensal" && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                Equivale a {formatarReais(precoMensalEquivalenteCentavos(checkoutCfg, ciclo))}/mês
+                {descontoDoCiclo(checkoutCfg, ciclo) > 0 && (
+                  <span className="ml-1 font-semibold text-primary">
+                    ({descontoDoCiclo(checkoutCfg, ciclo)}% off)
+                  </span>
+                )}
+              </p>
+            )}
             <p className="mt-4 mb-3 text-sm text-muted-foreground">
               Pague com Pix ou Cartão em até 12x via InfinitePay.
             </p>
@@ -144,9 +193,21 @@ function PlanosPage() {
                   <h3 className="text-lg font-bold">{info.nome}</h3>
                   <p className="mt-1 text-sm text-muted-foreground">{info.descricao}</p>
                   <p className="mt-4 text-3xl font-bold">
-                    {info.preco}
-                    <span className="text-sm font-normal text-muted-foreground">/mês</span>
+                    {formatarReais(precoCicloCentavos(info, ciclo))}
+                    <span className="text-sm font-normal text-muted-foreground">
+                      /{CICLO_LABEL[ciclo].toLowerCase()}
+                    </span>
                   </p>
+                  {ciclo !== "mensal" && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {formatarReais(precoMensalEquivalenteCentavos(info, ciclo))}/mês
+                      {descontoDoCiclo(info, ciclo) > 0 && (
+                        <span className="ml-1 font-semibold text-primary">
+                          {descontoDoCiclo(info, ciclo)}% off
+                        </span>
+                      )}
+                    </p>
+                  )}
                   <Button
                     className="mt-6 w-full font-semibold"
                     variant={p === "pro" ? "default" : "outline"}

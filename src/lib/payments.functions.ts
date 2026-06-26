@@ -1,43 +1,64 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { criarLinkPagamento, precoEmCentavos } from "@/lib/infinitepay.server";
-import type { Plano } from "@/lib/planos";
+import { criarLinkPagamento } from "@/lib/infinitepay.server";
+import {
+  CICLO_LABEL,
+  precoCicloCentavos,
+  type Ciclo,
+  type Plano,
+  type PlanoConfig,
+} from "@/lib/planos";
 
 type CheckoutResult = { url: string } | { error: string };
 
+const CICLOS: Ciclo[] = ["mensal", "semestral", "anual"];
 
-
-async function getPlanoConfig(plano: Plano): Promise<{ nome: string; preco: string }> {
+async function getPlanoConfig(plano: Plano): Promise<PlanoConfig> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data } = await supabaseAdmin
     .from("plano_config")
-    .select("nome, preco")
+    .select("*")
     .eq("plano", plano)
     .maybeSingle();
   if (!data) throw new Error("Plano não encontrado");
-  return { nome: data.nome, preco: data.preco };
+  return {
+    plano: data.plano,
+    nome: data.nome,
+    preco: data.preco,
+    descricao: data.descricao ?? "",
+    nivel: data.nivel ?? 0,
+    priceId: data.price_id ?? "",
+    historicoDias: data.historico_dias ?? 15,
+    ligas: Array.isArray(data.ligas) ? (data.ligas as string[]) : [],
+    recursos: (data.recursos ?? {}) as PlanoConfig["recursos"],
+    descontoSemestral: Number((data as any).desconto_semestral ?? 0),
+    descontoAnual: Number((data as any).desconto_anual ?? 0),
+  };
 }
 
 // ============ INFINITEPAY (link de pagamento — Pix/Cartão) ============
 export const createInfinitePayCheckout = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { plano: Plano; returnUrl: string }) => {
+  .inputValidator((data: { plano: Plano; ciclo?: Ciclo; returnUrl: string }) => {
     if (!data.plano) throw new Error("Plano inválido");
-    return data;
+    const ciclo: Ciclo = CICLOS.includes(data.ciclo as Ciclo) ? (data.ciclo as Ciclo) : "mensal";
+    return { plano: data.plano, ciclo, returnUrl: data.returnUrl };
   })
   .handler(async ({ data, context }): Promise<CheckoutResult> => {
     try {
       const { userId, supabase } = context;
       const { data: { user } } = await supabase.auth.getUser();
       const cfg = await getPlanoConfig(data.plano);
+      const precoCentavos = precoCicloCentavos(cfg, data.ciclo);
+      if (precoCentavos <= 0) throw new Error("Preço do plano inválido");
 
-      // order_nsu carrega userId|plano para liberar o acesso no webhook.
-      const orderNsu = `${userId}|${data.plano}|${Date.now()}`;
+      // order_nsu carrega userId|plano|ciclo para liberar o acesso no webhook.
+      const orderNsu = `${userId}|${data.plano}|${data.ciclo}|${Date.now()}`;
       const origin = new URL(data.returnUrl).origin;
 
       const { url } = await criarLinkPagamento({
-        descricao: `BilheteIA PRO — ${cfg.nome}`,
-        precoCentavos: precoEmCentavos(cfg.preco),
+        descricao: `BilheteIA PRO — ${cfg.nome} (${CICLO_LABEL[data.ciclo]})`,
+        precoCentavos,
         orderNsu,
         redirectUrl: data.returnUrl,
         webhookUrl: `${origin}/api/public/payments/infinitepay`,

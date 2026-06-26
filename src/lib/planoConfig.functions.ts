@@ -16,6 +16,8 @@ const UpdateSchema = z.object({
   historicoDias: z.number().int().min(1).max(365),
   ligas: z.array(z.string()).max(100),
   recursos: RecursosSchema,
+  descontoSemestral: z.number().int().min(0).max(100).optional(),
+  descontoAnual: z.number().int().min(0).max(100).optional(),
 });
 
 const CreateSchema = z.object({
@@ -26,6 +28,8 @@ const CreateSchema = z.object({
   historicoDias: z.number().int().min(1).max(365).optional(),
   ligas: z.array(z.string()).max(100).optional(),
   recursos: RecursosSchema.optional(),
+  descontoSemestral: z.number().int().min(0).max(100).optional(),
+  descontoAnual: z.number().int().min(0).max(100).optional(),
 });
 
 async function assertAdmin(userId: string, claims: unknown) {
@@ -55,6 +59,8 @@ export const updatePlanoConfig = createServerFn({ method: "POST" })
         historico_dias: data.historicoDias,
         ligas: data.ligas,
         recursos: data.recursos,
+        desconto_semestral: data.descontoSemestral ?? 0,
+        desconto_anual: data.descontoAnual ?? 0,
       })
       .eq("plano", data.plano);
     if (error) throw new Error(error.message);
@@ -92,6 +98,8 @@ export const createPlanoConfig = createServerFn({ method: "POST" })
       historico_dias: data.historicoDias ?? 15,
       ligas: data.ligas ?? [],
       recursos: data.recursos ?? {},
+      desconto_semestral: data.descontoSemestral ?? 0,
+      desconto_anual: data.descontoAnual ?? 0,
     });
     if (error) throw new Error(error.message);
     return { ok: true };
