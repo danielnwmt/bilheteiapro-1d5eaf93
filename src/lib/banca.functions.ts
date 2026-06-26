@@ -130,3 +130,57 @@ export const deleteBancaEntrada = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+export type BancaDeposito = {
+  id: string;
+  data: string;
+  descricao: string;
+  valor: number;
+};
+
+export const listBancaDepositos = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    await assertBancaLiberada(supabase, userId);
+    const { data, error } = await supabase
+      .from("banca_depositos")
+      .select("id, data, descricao, valor")
+      .eq("user_id", userId)
+      .order("data", { ascending: false })
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((d) => ({ ...d, valor: Number(d.valor) })) as BancaDeposito[];
+  });
+
+export const addBancaDeposito = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { data: string; descricao: string; valor: number }) => d)
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    await assertBancaLiberada(supabase, userId);
+    if (!data.valor || data.valor <= 0) throw new Error("Informe um valor maior que zero.");
+    const { error } = await supabase.from("banca_depositos").insert({
+      user_id: userId,
+      data: data.data || new Date().toISOString().slice(0, 10),
+      descricao: data.descricao.trim() || "Aporte",
+      valor: data.valor,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const deleteBancaDeposito = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string }) => d)
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    await assertBancaLiberada(supabase, userId);
+    const { error } = await supabase
+      .from("banca_depositos")
+      .delete()
+      .eq("id", data.id)
+      .eq("user_id", userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });

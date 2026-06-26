@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      banca_depositos: {
+        Row: {
+          created_at: string
+          data: string
+          descricao: string
+          id: string
+          updated_at: string
+          user_id: string
+          valor: number
+        }
+        Insert: {
+          created_at?: string
+          data?: string
+          descricao?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+          valor?: number
+        }
+        Update: {
+          created_at?: string
+          data?: string
+          descricao?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+          valor?: number
+        }
+        Relationships: []
+      }
       banca_entradas: {
         Row: {
           created_at: string
