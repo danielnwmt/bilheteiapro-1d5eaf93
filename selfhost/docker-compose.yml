@@ -35,7 +35,11 @@ services:
       GOTRUE_DB_DRIVER: postgres
       # Usa o usuário postgres no self-host local para evitar travas de permissão
       # durante as migrações internas do Auth em VPS/Localweb.
-      GOTRUE_DB_DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@db:5432/postgres?sslmode=disable
+      # IMPORTANTE: o GoTrue consulta tabelas como "identities" sem prefixar
+      # "auth." em algumas rotas da API Admin. Sem search_path=auth ele retorna
+      # HTTP 500: relation "identities" does not exist.
+      GOTRUE_DB_DATABASE_URL: "postgres://postgres:${POSTGRES_PASSWORD}@db:5432/postgres?sslmode=disable&options=-csearch_path%3Dauth"
+      GOTRUE_DB_NAMESPACE: auth
       GOTRUE_SITE_URL: ${SITE_URL}
       GOTRUE_URI_ALLOW_LIST: "*"
       GOTRUE_DISABLE_SIGNUP: "false"
