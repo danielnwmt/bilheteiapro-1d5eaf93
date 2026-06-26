@@ -30,6 +30,7 @@ set -a; . ./.env; set +a
 ADMIN_EMAIL="${ADMIN_EMAIL:-contato@protenexus.com}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-admin.1234}"
 SUPABASE_PORT="${SUPABASE_PORT:-8000}"
+AUTH_PORT="${AUTH_PORT:-9999}"
 
 PSQL=( $DC exec -T db psql -v ON_ERROR_STOP=1 -U postgres -d postgres )
 
@@ -54,7 +55,7 @@ if [ -z "$AUTH_CID" ]; then
   exit 1
 fi
 
-AUTH_INTERNAL_URL="${AUTH_API_URL:-http://127.0.0.1:${SUPABASE_PORT}/auth/v1}"
+AUTH_INTERNAL_URL="${AUTH_API_URL:-http://127.0.0.1:${AUTH_PORT}}"
 USED_SQL_FALLBACK=0
 
 auth_curl() {
