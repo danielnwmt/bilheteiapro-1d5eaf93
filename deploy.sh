@@ -22,6 +22,19 @@ fi
 
 cd "$APP_DIR"
 
+# Modo padrão para VPS/Localweb: banco 100% local via selfhost/docker-compose.
+# Para forçar o container único apontando para o Cloud, rode: BILHETEIA_SINGLE_CONTAINER=1 bash deploy.sh
+if [ "${BILHETEIA_SINGLE_CONTAINER:-0}" != "1" ] && [ -f "$APP_DIR/selfhost/setup.sh" ]; then
+  echo ">> Modo local detectado: subindo banco + auth + app com Docker Compose..."
+  if [ -d "$APP_DIR/.git" ]; then
+    echo ">> Atualizando código..."
+    git pull || true
+  fi
+  cd "$APP_DIR/selfhost"
+  AUTO_INSTALL=1 bash setup.sh
+  exit 0
+fi
+
 # 1) Garante o arquivo .env sem travar atualização pedindo dados.
 #    Chaves de APIs são configuradas depois pelo painel Admin.
 

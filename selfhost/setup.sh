@@ -10,6 +10,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 ENV_FILE="$SCRIPT_DIR/.env"
+AUTO_INSTALL="${AUTO_INSTALL:-0}"
 
 # Detecta (e instala, se preciso) o Docker + Compose
 ensure_docker() {
@@ -59,18 +60,35 @@ make_jwt() {
 }
 rand() { openssl rand -hex "${1:-24}"; }
 
+prompt_value() {
+  local __var="$1" label="$2" default="$3" value=""
+  if [ "$AUTO_INSTALL" = "1" ] || [ ! -t 0 ]; then
+    value="$default"
+    echo ">> ${label}: ${value:-padrao}"
+  else
+    read -rp "${label} [${default}]: " value
+    value="${value:-$default}"
+  fi
+  printf -v "$__var" '%s' "$value"
+}
+
+env_has_value() {
+  local key="$1"
+  grep -Eq "^${key}=.+" "$ENV_FILE" 2>/dev/null
+}
+
 # ---------- 1) Gera/garante o .env (somente na 1ª vez) ----------
 if [ ! -f "$ENV_FILE" ]; then
   echo ">> Primeira instalação — gerando chaves locais..."
 
   # IP/host público para o navegador acessar a API de auth/dados
   DEFAULT_HOST="$(curl -s --max-time 4 ifconfig.me || true)"
-  read -rp "Domínio ou IP público desta VPS [${DEFAULT_HOST:-seu-ip}]: " PUBHOST
-  PUBHOST="${PUBHOST:-$DEFAULT_HOST}"
-  read -rp "Porta da API Supabase [8000]: " SUPABASE_PORT; SUPABASE_PORT="${SUPABASE_PORT:-8000}"
-  read -rp "Porta do App [3000]: " APP_PORT; APP_PORT="${APP_PORT:-3000}"
-  read -rp "Email do admin [contato@protenexus.com]: " ADMIN_EMAIL; ADMIN_EMAIL="${ADMIN_EMAIL:-contato@protenexus.com}"
-  read -rp "Senha do admin [admin.1234]: " ADMIN_PASSWORD; ADMIN_PASSWORD="${ADMIN_PASSWORD:-admin.1234}"
+  DEFAULT_HOST="${DEFAULT_HOST:-127.0.0.1}"
+  prompt_value PUBHOST "Domínio ou IP público desta VPS" "$DEFAULT_HOST"
+  prompt_value SUPABASE_PORT "Porta da API local" "8000"
+  prompt_value APP_PORT "Porta do App" "3000"
+  prompt_value ADMIN_EMAIL "Email do admin" "contato@protenexus.com"
+  prompt_value ADMIN_PASSWORD "Senha do admin" "admin.1234"
 
   JWT_SECRET="$(rand 32)"
   POSTGRES_PASSWORD="$(rand 16)"
@@ -102,6 +120,23 @@ else
 fi
 
 # Carrega variáveis
+set -a; . "$ENV_FILE"; set +a
+
+# Repara .env antigo/incompleto sem pedir dados durante atualizações.
+if ! env_has_value JWT_SECRET; then save_later_jwt="$(rand 32)"; echo "JWT_SECRET=${save_later_jwt}" >> "$ENV_FILE"; fi
+set -a; . "$ENV_FILE"; set +a
+if ! env_has_value POSTGRES_PASSWORD; then echo "POSTGRES_PASSWORD=$(rand 16)" >> "$ENV_FILE"; fi
+if ! env_has_value INGEST_SECRET; then echo "INGEST_SECRET=$(rand 24)" >> "$ENV_FILE"; fi
+if ! env_has_value ADMIN_EMAIL; then echo "ADMIN_EMAIL=contato@protenexus.com" >> "$ENV_FILE"; fi
+if ! env_has_value ADMIN_PASSWORD; then echo "ADMIN_PASSWORD=admin.1234" >> "$ENV_FILE"; fi
+if ! env_has_value SUPABASE_PORT; then echo "SUPABASE_PORT=8000" >> "$ENV_FILE"; fi
+if ! env_has_value APP_PORT; then echo "APP_PORT=3000" >> "$ENV_FILE"; fi
+set -a; . "$ENV_FILE"; set +a
+if ! env_has_value SUPABASE_PUBLIC_URL; then echo "SUPABASE_PUBLIC_URL=http://127.0.0.1:${SUPABASE_PORT:-8000}" >> "$ENV_FILE"; fi
+if ! env_has_value SITE_URL; then echo "SITE_URL=http://127.0.0.1:${APP_PORT:-3000}" >> "$ENV_FILE"; fi
+if ! env_has_value ANON_KEY; then echo "ANON_KEY=$(make_jwt anon "$JWT_SECRET")" >> "$ENV_FILE"; fi
+if ! env_has_value SERVICE_ROLE_KEY; then echo "SERVICE_ROLE_KEY=$(make_jwt service_role "$JWT_SECRET")" >> "$ENV_FILE"; fi
+chmod 600 "$ENV_FILE"
 set -a; . "$ENV_FILE"; set +a
 
 PSQL=( $DC exec -T db psql -v ON_ERROR_STOP=1 -U postgres -d postgres )

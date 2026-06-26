@@ -33,6 +33,14 @@ SUPABASE_PORT="${SUPABASE_PORT:-8000}"
 
 PSQL=( $DC exec -T db psql -v ON_ERROR_STOP=1 -U postgres -d postgres )
 
+sql_escape() { printf "%s" "$1" | sed "s/'/''/g"; }
+
+run_direct_admin_fallback() {
+  echo ">> API do Auth indisponível. Usando fallback SQL local para criar/atualizar admin..."
+  $DC cp direct-admin.sql db:/tmp/direct-admin.sql
+  "${PSQL[@]}" -v admin_email="$ADMIN_EMAIL" -v admin_password="$ADMIN_PASSWORD" -f /tmp/direct-admin.sql
+}
+
 AUTH_CID="$($DC ps -q auth 2>/dev/null || true)"
 if [ -z "$AUTH_CID" ]; then
   echo ">> Subindo serviço de autenticação..."
@@ -59,8 +67,10 @@ auth_curl() {
 }
 
 admin_user_id() {
+  local safe_email
+  safe_email="$(sql_escape "$ADMIN_EMAIL")"
   "${PSQL[@]}" -tAc \
-    "SELECT id FROM auth.users WHERE lower(email)=lower('$ADMIN_EMAIL') LIMIT 1" 2>/dev/null | tr -d '[:space:]' || true
+    "SELECT id FROM auth.users WHERE lower(email)=lower('$safe_email') LIMIT 1" 2>/dev/null | tr -d '[:space:]' || true
 }
 
 # ---------- 1) Garante que o Auth (GoTrue) está respondendo ----------
@@ -77,9 +87,9 @@ for i in $(seq 1 90); do
 done
 
 if [ "$AUTH_READY" != "1" ]; then
-  echo "ERRO: Auth não ficou pronto. Últimas linhas do log:"
+  echo "ATENÇÃO: Auth não ficou pronto pela API. Últimas linhas do log:"
   $DC logs --tail=80 auth || true
-  exit 1
+  run_direct_admin_fallback
 fi
 
 # ---------- 2) Cria o usuário via API Admin (idempotente, com retry) ----------
@@ -110,12 +120,12 @@ done
 echo ">> Resposta criação (HTTP $CREATE_CODE)"
 
 if ! printf '%s' "$CREATE_CODE" | grep -Eq '^(200|201|400|422)$'; then
-  echo "ERRO: falha ao criar o admin pelo Auth. Resposta:"
+  echo "ATENÇÃO: falha ao criar o admin pela API do Auth. Resposta:"
   printf '%s\n' "$CREATE_RESP" | sed '$d' | head -c 1200 || true
   echo ""
   echo "Últimas linhas do log do Auth:"
   $DC logs --tail=80 auth || true
-  exit 1
+  run_direct_admin_fallback
 fi
 
 # ---------- 3) Descobre o id do usuário no banco ----------
@@ -127,7 +137,13 @@ for i in $(seq 1 30); do
 done
 
 if [ -z "$UID_DB" ]; then
-  echo "ERRO: o admin não apareceu em auth.users após a criação."
+  echo "ATENÇÃO: o admin não apareceu em auth.users após a criação via API. Tentando fallback SQL."
+  run_direct_admin_fallback
+  UID_DB="$(admin_user_id)"
+fi
+
+if [ -z "$UID_DB" ]; then
+  echo "ERRO: o admin não apareceu em auth.users nem após fallback SQL."
   echo "Últimas linhas do log do Auth:"
   $DC logs --tail=80 auth || true
   exit 1
