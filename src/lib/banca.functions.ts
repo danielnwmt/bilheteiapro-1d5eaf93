@@ -7,6 +7,7 @@ export type BancaEntrada = {
   id: string;
   data: string;
   descricao: string;
+  esporte: string;
   valor: number;
   odd: number;
   resultado: Resultado;
