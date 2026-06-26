@@ -39,8 +39,10 @@ export function usePlanos() {
 
   const list = (query.data ?? []).slice().sort((a, b) => a.nivel - b.nivel);
   const byPlano = Object.fromEntries(list.map((c) => [c.plano, c])) as Record<Plano, PlanoConfig>;
-  // Mantém a ordem canônica Start/Pro/Elite mesmo se faltar algo.
-  const ordered = PLANOS.map((p) => byPlano[p]).filter(Boolean) as PlanoConfig[];
+  // Ordena pelos canônicos (Start/Pro/Elite) primeiro e mantém os planos novos no fim.
+  const canonicos = PLANOS.map((p) => byPlano[p]).filter(Boolean) as PlanoConfig[];
+  const extras = list.filter((c) => !PLANOS.includes(c.plano));
+  const ordered = [...canonicos, ...extras];
 
   return { ...query, list: ordered.length ? ordered : list, byPlano };
 }
