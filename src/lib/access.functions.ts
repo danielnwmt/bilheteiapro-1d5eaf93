@@ -223,7 +223,7 @@ export const createCliente = createServerFn({ method: "POST" })
       senha: string;
       cpf?: string;
       data_nascimento?: string | null;
-      plano: "start" | "pro" | "elite";
+      plano: string;
       status: "ativo" | "inativo";
       isAdmin?: boolean;
     }) => d,
