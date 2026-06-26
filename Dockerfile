@@ -45,4 +45,15 @@ ENV SUPABASE_PROJECT_ID="zzjrfmiqhlwomablszdj"
 
 COPY --from=build /app/runtime ./
 EXPOSE 3000
-CMD ["sh", "-c", "PUBLIC_URL=\"${SUPABASE_PUBLIC_URL:-}\"; if [ -z \"$PUBLIC_URL\" ]; then IP=$(wget -qO- --timeout=4 https://ifconfig.me 2>/dev/null || true); PUBLIC_URL=\"http://${IP:-localhost}:8000\"; fi; find . -type f \( -name '*.js' -o -name '*.mjs' -o -name '*.html' -o -name '*.json' \) -exec sed -i \"s#http://localhost:8000#$PUBLIC_URL#g;s#http://127.0.0.1:8000#$PUBLIC_URL#g\" {} + 2>/dev/null || true; if [ -f .output/server/index.mjs ]; then node .output/server/index.mjs; else node serve.mjs; fi"]
+RUN printf '%s\n' \
+    '#!/bin/sh' \
+    'set -e' \
+    'PUBLIC_URL="${SUPABASE_PUBLIC_URL:-}"' \
+    'if [ -z "$PUBLIC_URL" ]; then' \
+    '  IP=$(wget -qO- --timeout=4 https://ifconfig.me 2>/dev/null || true)' \
+    '  PUBLIC_URL="http://${IP:-localhost}:8000"' \
+    'fi' \
+    'find . -type f \( -name "*.js" -o -name "*.mjs" -o -name "*.html" -o -name "*.json" \) -exec sed -i "s#http://localhost:8000#$PUBLIC_URL#g;s#http://127.0.0.1:8000#$PUBLIC_URL#g" {} + 2>/dev/null || true' \
+    'if [ -f .output/server/index.mjs ]; then node .output/server/index.mjs; else node serve.mjs; fi' \
+    > /app/start.sh && chmod +x /app/start.sh
+CMD ["/app/start.sh"]
