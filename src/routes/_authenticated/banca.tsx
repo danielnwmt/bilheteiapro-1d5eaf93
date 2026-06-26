@@ -399,15 +399,6 @@ function BancaPage() {
                   </Popover>
                 </div>
 
-                <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
-                  <Label className="text-xs">Descrição / Evento</Label>
-                  <Input
-                    placeholder="Ex: Flamengo x Palmeiras - Over 2.5"
-                    value={descricao}
-                    onChange={(e) => setDescricao(e.target.value)}
-                  />
-                </div>
-
                 <div className="space-y-1.5 lg:col-span-2">
                   <Label className="text-xs">Tipo</Label>
                   <Select value={tipoAposta} onValueChange={setTipoAposta}>
