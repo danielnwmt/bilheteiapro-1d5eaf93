@@ -29,9 +29,17 @@ EXCEPTION WHEN insufficient_privilege THEN
 END
 $pre$;
 
--- Não usamos BYPASSRLS aqui: em algumas imagens/instalações esse atributo exige
--- superusuário e quebra o setup. O schema cria políticas explícitas para
--- service_role acessar tudo sem depender desse atributo.
+-- No modo tudo-em-um rodamos como postgres local; o service_role precisa
+-- atravessar RLS para as funções server-side conseguirem reparar admin/perfis.
+DO $pre$
+BEGIN
+  BEGIN
+    EXECUTE 'ALTER ROLE service_role BYPASSRLS';
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'Sem permissão para habilitar BYPASSRLS no service_role; seguindo.';
+  END;
+END
+$pre$;
 
 -- Schemas
 CREATE SCHEMA IF NOT EXISTS auth;
@@ -123,68 +131,69 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO service_role;
 -- não tentamos sobrescrever funções existentes para evitar "permission denied".
 DO $pre$
 BEGIN
-  IF to_regprocedure('auth.uid()') IS NULL THEN
-    EXECUTE $fn$
-      CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$
-        SELECT COALESCE(
-          NULLIF(current_setting('request.jwt.claim.sub', true), ''),
-          (NULLIF(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub')
-        )::uuid
-      $$
-    $fn$;
-  END IF;
+  EXECUTE $fn$
+    CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid
+    LANGUAGE sql STABLE
+    AS $$
+      SELECT COALESCE(
+        NULLIF(current_setting('request.jwt.claim.sub', true), ''),
+        NULLIF(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub'
+      )::uuid
+    $$
+  $fn$;
 EXCEPTION WHEN insufficient_privilege THEN
-  RAISE NOTICE 'Sem permissão para criar auth.uid(); seguindo com as funções existentes do auth.';
+  RAISE NOTICE 'Sem permissão para atualizar auth.uid(); seguindo com a função existente do auth.';
 END
 $pre$;
 
 DO $pre$
 BEGIN
-  IF to_regprocedure('auth.role()') IS NULL THEN
-    EXECUTE $fn$
-      CREATE FUNCTION auth.role() RETURNS text LANGUAGE sql STABLE AS $$
-        SELECT COALESCE(
-          NULLIF(current_setting('request.jwt.claim.role', true), ''),
-          (NULLIF(current_setting('request.jwt.claims', true), '')::jsonb ->> 'role')
-        )
-      $$
-    $fn$;
-  END IF;
+  EXECUTE $fn$
+    CREATE OR REPLACE FUNCTION auth.role() RETURNS text
+    LANGUAGE sql STABLE
+    AS $$
+      SELECT COALESCE(
+        NULLIF(current_setting('request.jwt.claim.role', true), ''),
+        NULLIF(current_setting('request.jwt.claims', true), '')::jsonb ->> 'role'
+      )
+    $$
+  $fn$;
 EXCEPTION WHEN insufficient_privilege THEN
-  RAISE NOTICE 'Sem permissão para criar auth.role(); seguindo com as funções existentes do auth.';
+  RAISE NOTICE 'Sem permissão para atualizar auth.role(); seguindo com a função existente do auth.';
 END
 $pre$;
 
 DO $pre$
 BEGIN
-  IF to_regprocedure('auth.email()') IS NULL THEN
-    EXECUTE $fn$
-      CREATE FUNCTION auth.email() RETURNS text LANGUAGE sql STABLE AS $$
-        SELECT COALESCE(
-          NULLIF(current_setting('request.jwt.claim.email', true), ''),
-          (NULLIF(current_setting('request.jwt.claims', true), '')::jsonb ->> 'email')
-        )
-      $$
-    $fn$;
-  END IF;
+  EXECUTE $fn$
+    CREATE OR REPLACE FUNCTION auth.email() RETURNS text
+    LANGUAGE sql STABLE
+    AS $$
+      SELECT COALESCE(
+        NULLIF(current_setting('request.jwt.claim.email', true), ''),
+        NULLIF(current_setting('request.jwt.claims', true), '')::jsonb ->> 'email'
+      )
+    $$
+  $fn$;
 EXCEPTION WHEN insufficient_privilege THEN
-  RAISE NOTICE 'Sem permissão para criar auth.email(); seguindo com as funções existentes do auth.';
+  RAISE NOTICE 'Sem permissão para atualizar auth.email(); seguindo com a função existente do auth.';
 END
 $pre$;
 
 DO $pre$
 BEGIN
-  IF to_regprocedure('auth.jwt()') IS NULL THEN
-    EXECUTE $fn$
-      CREATE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql STABLE AS $$
-        SELECT COALESCE(
-          NULLIF(current_setting('request.jwt.claim', true), ''),
-          NULLIF(current_setting('request.jwt.claims', true), '')
-        )::jsonb
-      $$
-    $fn$;
-  END IF;
+  EXECUTE $fn$
+    CREATE OR REPLACE FUNCTION auth.jwt() RETURNS jsonb
+    LANGUAGE sql STABLE
+    AS $$
+      SELECT COALESCE(
+        NULLIF(current_setting('request.jwt.claims', true), ''),
+        NULLIF(current_setting('request.jwt.claim', true), ''),
+        '{}'
+      )::jsonb
+    $$
+  $fn$;
 EXCEPTION WHEN insufficient_privilege THEN
-  RAISE NOTICE 'Sem permissão para criar auth.jwt(); seguindo com as funções existentes do auth.';
+  RAISE NOTICE 'Sem permissão para atualizar auth.jwt(); seguindo com a função existente do auth.';
 END
 $pre$;
