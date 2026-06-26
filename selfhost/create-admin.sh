@@ -44,18 +44,25 @@ for i in $(seq 1 60); do
   sleep 2
 done
 
-# ---------- 2) Cria o usuário via API Admin (idempotente) ----------
+# ---------- 2) Cria o usuário via API Admin (idempotente, com retry) ----------
 echo ">> Criando/atualizando admin via API do Auth..."
 CREATE_BODY=$(printf '{"email":"%s","password":"%s","email_confirm":true,"user_metadata":{"nome":"Administrador"}}' \
   "$ADMIN_EMAIL" "$ADMIN_PASSWORD")
 
-CREATE_RESP=$(curl -s -w '\n%{http_code}' -X POST "$BASE/auth/v1/admin/users" \
-  -H "apikey: ${SERVICE_ROLE_KEY}" \
-  -H "Authorization: Bearer ${SERVICE_ROLE_KEY}" \
-  -H "Content-Type: application/json" \
-  -d "$CREATE_BODY" || true)
-
-CREATE_CODE=$(printf '%s' "$CREATE_RESP" | tail -n1)
+CREATE_CODE=000
+for i in $(seq 1 30); do
+  CREATE_RESP=$(curl -s -w '\n%{http_code}' -X POST "$BASE/auth/v1/admin/users" \
+    -H "apikey: ${SERVICE_ROLE_KEY}" \
+    -H "Authorization: Bearer ${SERVICE_ROLE_KEY}" \
+    -H "Content-Type: application/json" \
+    -d "$CREATE_BODY" || true)
+  CREATE_CODE=$(printf '%s' "$CREATE_RESP" | tail -n1)
+  # 200/201 = criado; 422 = já existe (idempotente) -> sai do loop
+  case "$CREATE_CODE" in
+    200|201|422) break ;;
+    *) echo ">> Auth ainda indisponivel (HTTP $CREATE_CODE), tentando de novo... ($i/30)"; sleep 3 ;;
+  esac
+done
 echo ">> Resposta criação (HTTP $CREATE_CODE)"
 
 # ---------- 3) Descobre o id do usuário no banco ----------
