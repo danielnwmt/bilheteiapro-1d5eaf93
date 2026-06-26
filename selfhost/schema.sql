@@ -89,9 +89,13 @@ CREATE TRIGGER trg_deep_links_updated BEFORE UPDATE ON public.deep_links FOR EAC
 INSERT INTO public.deep_links (casa, mercado, url_template) VALUES
   ('Betano', NULL, 'https://www.betano.bet.br/search/?query={jogo}'),
   ('Bet365', NULL, 'https://www.google.com/search?q=bet365%20{jogo}'),
-  ('Superbet', NULL, 'https://superbet.bet.br/search?query={jogo}');ALTER TABLE public.odds
+  ('Superbet', NULL, 'https://superbet.bet.br/search?query={jogo}');
+
+ALTER TABLE public.odds
   ADD CONSTRAINT odds_unique_partida_casa_mercado_selecao
-  UNIQUE (partida_id, casa, mercado, selecao);CREATE TABLE public.sync_state (
+  UNIQUE (partida_id, casa, mercado, selecao);
+
+CREATE TABLE public.sync_state (
   id TEXT PRIMARY KEY,
   last_sync_at TIMESTAMP WITH TIME ZONE,
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
@@ -105,7 +109,9 @@ ALTER TABLE public.sync_state ENABLE ROW LEVEL SECURITY;
 -- Sem políticas públicas: apenas service_role (cron/worker) acessa.
 
 INSERT INTO public.sync_state (id, last_sync_at) VALUES ('football', NULL)
-ON CONFLICT (id) DO NOTHING;CREATE TABLE public.bilhetes (
+ON CONFLICT (id) DO NOTHING;
+
+CREATE TABLE public.bilhetes (
   id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   resumo text NOT NULL DEFAULT '',
   odd_total numeric NOT NULL DEFAULT 1,
