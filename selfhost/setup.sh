@@ -153,9 +153,10 @@ set -a; . "$ENV_FILE"; set +a
 PSQL=( $DC exec -T db psql -v ON_ERROR_STOP=1 -v postgres_password="$POSTGRES_PASSWORD" -U postgres -d postgres )
 
 reset_runtime_services() {
-  # Remove serviços que podem guardar IP antigo do banco na rede Docker.
+  # Recria containers/rede para não guardar IP antigo do banco.
   # O volume do banco NÃO é removido.
-  $DC rm -sf auth rest kong app >/dev/null 2>&1 || true
+  echo ">> Reiniciando rede local dos containers..."
+  $DC down --remove-orphans >/dev/null 2>&1 || true
 }
 
 save_env_value() {

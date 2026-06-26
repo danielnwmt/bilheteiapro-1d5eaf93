@@ -14,6 +14,7 @@ DECLARE
   v_cols text[] := ARRAY[]::text[];
   v_vals text[] := ARRAY[]::text[];
   v_sql text;
+  v_should_insert_identity boolean := false;
 BEGIN
   IF v_email IS NULL OR v_email = '' OR v_password IS NULL OR v_password = '' THEN
     RAISE EXCEPTION 'admin_email/admin_password nao informados';
@@ -120,8 +121,13 @@ BEGIN
   END IF;
 
   IF to_regclass('auth.identities') IS NOT NULL
-     AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='identities' AND column_name='provider')
-     AND NOT EXISTS (SELECT 1 FROM auth.identities WHERE user_id = v_uid AND provider = 'email') THEN
+     AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='auth' AND table_name='identities' AND column_name='provider') THEN
+    EXECUTE 'SELECT NOT EXISTS (SELECT 1 FROM auth.identities WHERE user_id = $1 AND provider = $2)'
+      INTO v_should_insert_identity
+      USING v_uid, 'email';
+  END IF;
+
+  IF v_should_insert_identity THEN
     v_cols := ARRAY[]::text[];
     v_vals := ARRAY[]::text[];
 
