@@ -130,7 +130,40 @@ export const listClientes = createServerFn({ method: "GET" })
     const subMap = new Map<string, any>();
     for (const s of subs ?? []) subMap.set(s.user_id, s);
 
-    return (profiles ?? []).map((p) => ({
+    // Indexa os perfis existentes.
+    const byId = new Map<string, any>();
+    for (const p of profiles ?? []) byId.set(p.id, p);
+
+    // Robustez (inclui instalações locais): qualquer usuário que tenha papel
+    // mas esteja sem linha em profiles ainda assim deve aparecer na lista.
+    // Buscamos os dados básicos direto do Auth para preencher nome/e-mail.
+    const missingIds = Array.from(roleMap.keys()).filter((id) => !byId.has(id));
+    if (missingIds.length > 0) {
+      try {
+        const { data: authList } = await supabaseAdmin.auth.admin.listUsers({
+          page: 1,
+          perPage: 1000,
+        });
+        const authById = new Map(
+          (authList?.users ?? []).map((u: any) => [u.id, u]),
+        );
+        for (const id of missingIds) {
+          const u: any = authById.get(id);
+          byId.set(id, {
+            id,
+            nome: u?.user_metadata?.nome ?? u?.user_metadata?.full_name ?? null,
+            email: u?.email ?? null,
+            cpf: u?.user_metadata?.cpf ?? null,
+            data_nascimento: u?.user_metadata?.data_nascimento ?? null,
+            created_at: u?.created_at ?? new Date().toISOString(),
+          });
+        }
+      } catch (error) {
+        console.error("Falha ao buscar usuários sem perfil no Auth", error);
+      }
+    }
+
+    return Array.from(byId.values()).map((p) => ({
       id: p.id,
       nome: p.nome,
       email: p.email,
@@ -142,6 +175,7 @@ export const listClientes = createServerFn({ method: "GET" })
       status: subMap.get(p.id)?.status ?? "inativo",
     }));
   });
+
 
 export const updateClienteProfile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
