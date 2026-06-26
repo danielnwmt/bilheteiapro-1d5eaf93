@@ -45,7 +45,7 @@ export const listBancaEntradas = createServerFn({ method: "GET" })
     await assertBancaLiberada(supabase, userId);
     const { data, error } = await supabase
       .from("banca_entradas")
-      .select("id, data, descricao, valor, odd, resultado")
+      .select("id, data, descricao, esporte, valor, odd, resultado")
       .eq("user_id", userId)
       .order("data", { ascending: false })
       .order("created_at", { ascending: false });
