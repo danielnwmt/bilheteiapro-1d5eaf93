@@ -86,12 +86,12 @@ export const createPlanoConfig = createServerFn({ method: "POST" })
       plano: data.plano,
       nome: data.nome,
       preco: data.preco,
-      descricao: "",
+      descricao: data.descricao ?? "",
       nivel,
       price_id: "",
-      historico_dias: 15,
-      ligas: [],
-      recursos: {},
+      historico_dias: data.historicoDias ?? 15,
+      ligas: data.ligas ?? [],
+      recursos: data.recursos ?? {},
     });
     if (error) throw new Error(error.message);
     return { ok: true };
