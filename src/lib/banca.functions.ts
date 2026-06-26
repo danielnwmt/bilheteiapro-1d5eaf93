@@ -60,7 +60,14 @@ export const listBancaEntradas = createServerFn({ method: "GET" })
 export const addBancaEntrada = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
-    (d: { data: string; descricao: string; valor: number; odd: number; resultado: Resultado }) => d,
+    (d: {
+      data: string;
+      descricao: string;
+      esporte: string;
+      valor: number;
+      odd: number;
+      resultado: Resultado;
+    }) => d,
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
@@ -70,6 +77,7 @@ export const addBancaEntrada = createServerFn({ method: "POST" })
       user_id: userId,
       data: data.data || new Date().toISOString().slice(0, 10),
       descricao: data.descricao.trim(),
+      esporte: data.esporte || "futebol",
       valor: data.valor,
       odd: data.odd,
       resultado: data.resultado,
