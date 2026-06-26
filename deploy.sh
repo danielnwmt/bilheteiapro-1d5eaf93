@@ -28,6 +28,37 @@ cd "$APP_DIR"
 #   BILHETEIA_CLOUD=1 bash deploy.sh
 if [ "${BILHETEIA_CLOUD:-0}" != "1" ] && [ -f "$APP_DIR/docker-compose.yml" ]; then
   echo ">> Modo local (tudo-em-um) detectado: Postgres + Auth + API + app num só container..."
+
+  # Garante Docker + Compose instalados (instala automaticamente se faltar).
+  ensure_docker() {
+    if docker compose version >/dev/null 2>&1; then
+      systemctl enable --now docker 2>/dev/null || service docker start 2>/dev/null || true
+      return
+    fi
+    echo ">> Docker não encontrado. Instalando automaticamente..."
+    if command -v apt-get >/dev/null 2>&1; then
+      export DEBIAN_FRONTEND=noninteractive
+      curl -fsSL https://get.docker.com | sh
+    elif command -v dnf >/dev/null 2>&1; then
+      dnf install -y dnf-plugins-core || true
+      dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo || true
+      dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    elif command -v yum >/dev/null 2>&1; then
+      yum install -y yum-utils || true
+      yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo || true
+      yum install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    else
+      curl -fsSL https://get.docker.com | sh
+    fi
+    systemctl enable --now docker 2>/dev/null || service docker start 2>/dev/null || true
+    if ! docker compose version >/dev/null 2>&1; then
+      echo "ERRO: falha ao instalar o Docker automaticamente. Instale manualmente e rode de novo."
+      exit 1
+    fi
+    echo ">> Docker instalado com sucesso."
+  }
+  ensure_docker
+
   if [ -d "$APP_DIR/.git" ]; then
     echo ">> Atualizando código..."
     git pull || true
