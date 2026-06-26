@@ -33,7 +33,7 @@ services:
       GOTRUE_API_PORT: 9999
       API_EXTERNAL_URL: ${SUPABASE_PUBLIC_URL}
       GOTRUE_DB_DRIVER: postgres
-      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@db:5432/postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@db:5432/postgres?sslmode=disable
       GOTRUE_SITE_URL: ${SITE_URL}
       GOTRUE_URI_ALLOW_LIST: "*"
       GOTRUE_DISABLE_SIGNUP: "false"
@@ -51,6 +51,11 @@ services:
       GOTRUE_LOG_LEVEL: info
     ports:
       - "127.0.0.1:${AUTH_PORT:-9999}:9999"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:9999/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
   # ---------- Data API (PostgREST) ----------
   rest:

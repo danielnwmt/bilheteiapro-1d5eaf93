@@ -46,7 +46,7 @@ run_direct_admin_fallback() {
 AUTH_CID="$($DC ps -q auth 2>/dev/null || true)"
 if [ -z "$AUTH_CID" ]; then
   echo ">> Subindo serviço de autenticação..."
-  $DC up -d auth
+  $DC up -d --force-recreate auth
   AUTH_CID="$($DC ps -q auth 2>/dev/null || true)"
 fi
 

@@ -152,6 +152,12 @@ set -a; . "$ENV_FILE"; set +a
 
 PSQL=( $DC exec -T db psql -v ON_ERROR_STOP=1 -v postgres_password="$POSTGRES_PASSWORD" -U postgres -d postgres )
 
+reset_runtime_services() {
+  # Remove serviços que podem guardar IP antigo do banco na rede Docker.
+  # O volume do banco NÃO é removido.
+  $DC rm -sf auth rest kong app >/dev/null 2>&1 || true
+}
+
 save_env_value() {
   local key="$1" value="$2"
   if grep -q "^${key}=" "$ENV_FILE"; then
@@ -269,9 +275,13 @@ ensure_auth_port_available() {
 
 ensure_auth_port_available
 
+# Em atualizações/reinstalações, containers antigos podem ficar apontando para
+# um IP antigo do Postgres e o Auth trava com "dial tcp ... connect: refused".
+reset_runtime_services
+
 # ---------- 2) Sobe banco + auth (auth cria o schema auth.users) ----------
 echo ">> Subindo banco de dados..."
-$DC up -d db
+$DC up -d --force-recreate db
 echo ">> Aguardando banco..."
 until $DC exec -T db pg_isready -U postgres -d postgres >/dev/null 2>&1; do sleep 2; done
 
@@ -280,7 +290,7 @@ $DC cp pre.sql db:/tmp/pre.sql
 "${PSQL[@]}" -f /tmp/pre.sql >/dev/null
 
 echo ">> Subindo Auth (cria o schema de usuários)..."
-$DC up -d auth
+$DC up -d --force-recreate auth
 
 echo ">> Aguardando o schema auth.users..."
 until "${PSQL[@]}" -tAc "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='auth' AND table_name='users')" 2>/dev/null | grep -q t; do sleep 2; done
