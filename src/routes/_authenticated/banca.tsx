@@ -409,6 +409,19 @@ function BancaPage() {
                 </div>
 
                 <div className="space-y-1.5 lg:col-span-2">
+                  <Label className="text-xs">Tipo</Label>
+                  <Select value={tipoAposta} onValueChange={setTipoAposta}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="simples">Simples</SelectItem>
+                      <SelectItem value="multipla">Múltipla</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5 lg:col-span-2">
                   <Label className="text-xs">Esporte</Label>
                   <Select value={esporte} onValueChange={setEsporte}>
                     <SelectTrigger>
