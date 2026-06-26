@@ -144,7 +144,8 @@ function Index() {
   const { byPlano } = usePlanos();
   const roles = access?.roles ?? [];
   const isDefaultAdmin = currentEmail === ADMIN_EMAIL;
-  const isStaff = roles.includes("admin") || roles.includes("operador") || isDefaultAdmin;
+  const isAdmin = roles.includes("admin") || isDefaultAdmin;
+  const isStaff = isAdmin || roles.includes("operador");
   const plano = access?.plano ?? null;
   const planoCfg = plano ? byPlano?.[plano] ?? null : null;
   const temAcesso = isStaff || !!plano;
@@ -237,7 +238,7 @@ function Index() {
                 <Crown className="mr-1 h-3.5 w-3.5" /> {planoCfg?.nome ?? "Plano ativo"}
               </Badge>
             )}
-            {isStaff && (
+            {isAdmin && (
               <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/admin" })}>
                 <Users className="mr-2 h-4 w-4" /> Admin
               </Button>

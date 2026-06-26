@@ -15,18 +15,16 @@ export const Route = createFileRoute("/_authenticated/admin")({
       .select("role")
       .eq("user_id", uid);
     const list = (roles ?? []).map((r) => r.role);
-    let isStaff = list.includes("admin") || list.includes("operador") || isDefaultAdmin;
     let isAdmin = list.includes("admin") || isDefaultAdmin;
     if (!list.includes("admin")) {
       try {
         const fixed = await ensureAdmin();
         isAdmin = isAdmin || !!fixed.isAdmin;
-        isStaff = isStaff || isAdmin;
       } catch {
         // sem reparo: segue o bloqueio normal
       }
     }
-    if (!isStaff) throw redirect({ to: "/" });
+    if (!isAdmin) throw redirect({ to: "/" });
     return { isAdmin };
   },
   component: () => <Outlet />,
