@@ -89,8 +89,8 @@ env_has_value() {
 if [ ! -f "$ENV_FILE" ]; then
   echo ">> Primeira instalação — gerando chaves locais..."
 
-  # IP público IPv4 para o navegador acessar a API de auth/dados.
-  # Força IPv4 (-4) e tenta vários provedores para não pegar IPv6.
+  # IP público para o navegador acessar a API de auth/dados.
+  # Tenta IPv4 primeiro; se não houver, cai para IPv6.
   detect_ipv4() {
     local ip=""
     for url in "https://api.ipify.org" "https://ifconfig.me/ip" "https://ipv4.icanhazip.com" "https://checkip.amazonaws.com"; do
@@ -101,7 +101,22 @@ if [ ! -f "$ENV_FILE" ]; then
     done
     return 1
   }
+  detect_ipv6() {
+    local ip=""
+    for url in "https://api6.ipify.org" "https://ifconfig.co/ip" "https://ipv6.icanhazip.com"; do
+      ip="$(curl -6 -s --max-time 5 "$url" 2>/dev/null | tr -d '[:space:]')"
+      if printf '%s' "$ip" | grep -Eq '^[0-9a-fA-F:]+:[0-9a-fA-F:]+$'; then
+        printf '%s' "$ip"; return 0
+      fi
+    done
+    return 1
+  }
   DEFAULT_HOST="$(detect_ipv4 || true)"
+  if [ -z "$DEFAULT_HOST" ]; then
+    IPV6="$(detect_ipv6 || true)"
+    # Em URL, IPv6 precisa ficar entre colchetes: http://[::1]:8000
+    [ -n "$IPV6" ] && DEFAULT_HOST="[${IPV6}]"
+  fi
   DEFAULT_HOST="${DEFAULT_HOST:-127.0.0.1}"
   prompt_value PUBHOST "Domínio (ex: app.seudominio.com) ou IP público desta VPS" "$DEFAULT_HOST"
 
