@@ -101,9 +101,9 @@ services:
       - -ec
       - |
         until pg_isready -h db -U postgres -d postgres >/dev/null 2>&1; do sleep 2; done;
-        until psql -h db -U postgres -d postgres -tAc "SELECT to_regclass('auth.users') IS NOT NULL" 2>/dev/null | grep -q t; do sleep 2; done;
+        until psql -h db -U postgres -d postgres -tAc "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='auth' AND table_name='users')" 2>/dev/null | grep -q t; do sleep 2; done;
         psql -v ON_ERROR_STOP=1 -h db -U postgres -d postgres -f /tmp/pre.sql;
-        if psql -h db -U postgres -d postgres -tAc "SELECT to_regclass('public.profiles') IS NOT NULL AND to_regclass('public.user_roles') IS NOT NULL" | grep -q t; then
+        if psql -h db -U postgres -d postgres -tAc "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='profiles') AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='user_roles')" | grep -q t; then
           echo ">> Schema principal já existe; pulando criação das tabelas.";
         else
           psql -v ON_ERROR_STOP=1 -h db -U postgres -d postgres -f /tmp/schema.sql;
