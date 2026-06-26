@@ -236,10 +236,10 @@ function BancaPage() {
   const taxa = resolvidas.length > 0 ? (greens / resolvidas.length) * 100 : 0;
 
   const handleAdd = () => {
-    const prefixo = tipoAposta === "multipla" ? "[Múltipla] " : "[Simples] ";
+    const prefixo = tipoAposta === "multipla" ? "Múltipla" : "Simples";
     mutAdd.mutate({
       data: format(dataAposta, "yyyy-MM-dd"),
-      descricao: prefixo + descricao,
+      descricao: prefixo,
       esporte,
       valor: parseFloat(valor.replace(",", ".")) || 0,
       odd: parseFloat(odd.replace(",", ".")) || 1,
@@ -397,15 +397,6 @@ function BancaPage() {
                       />
                     </PopoverContent>
                   </Popover>
-                </div>
-
-                <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
-                  <Label className="text-xs">Descrição / Evento</Label>
-                  <Input
-                    placeholder="Ex: Flamengo x Palmeiras - Over 2.5"
-                    value={descricao}
-                    onChange={(e) => setDescricao(e.target.value)}
-                  />
                 </div>
 
                 <div className="space-y-1.5 lg:col-span-2">
