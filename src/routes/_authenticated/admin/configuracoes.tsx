@@ -146,18 +146,27 @@ function ConfiguracoesPage() {
           </Button>
         </div>
 
-        <h1 className="mb-2 text-2xl font-bold">Configurações dos planos</h1>
-        <p className="mb-6 text-sm text-muted-foreground">
-          Edite preço, descrição, ligas e recursos de cada plano. O preço aqui é o exibido na
-          página de planos.
-        </p>
+        <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="mb-2 text-2xl font-bold">Configurações dos planos</h1>
+            <p className="text-sm text-muted-foreground">
+              Edite preço, descrição, ligas e recursos de cada plano. O preço aqui é o exibido na
+              página de planos.
+            </p>
+          </div>
+          {isAdmin && (
+            <Button size="sm" onClick={() => setNovoOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" /> Adicionar plano
+            </Button>
+          )}
+        </div>
 
         {!isAdmin ? (
           <Card className="flex items-center gap-3 border-border/60 bg-card p-6 text-sm text-muted-foreground">
             <ShieldAlert className="h-5 w-5 text-destructive" />
             Apenas administradores podem editar as configurações de planos.
           </Card>
-        ) : isLoading || !list.length ? (
+        ) : isLoading ? (
           <div className="flex justify-center py-16">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
