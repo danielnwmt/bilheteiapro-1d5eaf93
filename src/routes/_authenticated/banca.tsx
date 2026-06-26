@@ -70,7 +70,8 @@ export const Route = createFileRoute("/_authenticated/banca")({
   component: BancaPage,
 });
 
-const BANCA_INICIAL = 1000;
+
+
 
 const RESULTADOS: { v: Resultado; label: string }[] = [
   { v: "pendente", label: "Pendente" },
