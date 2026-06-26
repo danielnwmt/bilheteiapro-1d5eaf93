@@ -5,7 +5,7 @@ import type { Plano } from "@/lib/planos";
 
 type CheckoutResult = { url: string } | { error: string };
 
-const PLANOS_VALIDOS: Plano[] = ["start", "pro", "elite"];
+
 
 async function getPlanoConfig(plano: Plano): Promise<{ nome: string; preco: string }> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
