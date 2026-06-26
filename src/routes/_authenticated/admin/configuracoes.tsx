@@ -87,7 +87,16 @@ function ConfiguracoesPage() {
   });
 
   const [novoOpen, setNovoOpen] = useState(false);
-  const [novo, setNovo] = useState({ plano: "", nome: "", preco: "" });
+  const emptyNovo = () => ({
+    plano: "",
+    nome: "",
+    preco: "",
+    descricao: "",
+    historicoDias: 15,
+    ligas: [] as string[],
+    recursos: recursosVazios() as Record<string, boolean>,
+  });
+  const [novo, setNovo] = useState(emptyNovo);
 
   const criarMut = useMutation({
     mutationFn: () =>
@@ -96,16 +105,32 @@ function ConfiguracoesPage() {
           plano: novo.plano.trim().toLowerCase(),
           nome: novo.nome.trim(),
           preco: novo.preco.trim(),
+          descricao: novo.descricao.trim(),
+          historicoDias: Number(novo.historicoDias) || 15,
+          ligas: novo.ligas,
+          recursos: novo.recursos,
         },
       }),
     onSuccess: () => {
       toast.success("Plano criado");
       setNovoOpen(false);
-      setNovo({ plano: "", nome: "", preco: "" });
+      setNovo(emptyNovo());
       qc.invalidateQueries({ queryKey: ["plano_config"] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Erro ao criar plano"),
   });
+
+  function toggleNovoLiga(liga: string) {
+    setNovo((s) => ({
+      ...s,
+      ligas: s.ligas.includes(liga) ? s.ligas.filter((l) => l !== liga) : [...s.ligas, liga],
+    }));
+  }
+
+  function toggleNovoRecurso(key: string) {
+    setNovo((s) => ({ ...s, recursos: { ...s.recursos, [key]: !s.recursos[key] } }));
+  }
+
 
   const removerMut = useMutation({
     mutationFn: (plano: Plano) => remover({ data: { plano } }),
