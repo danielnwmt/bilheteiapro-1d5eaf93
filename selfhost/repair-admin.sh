@@ -26,16 +26,12 @@ set -a; . ./.env; set +a
 ADMIN_EMAIL="${ADMIN_EMAIL:-contato@protenexus.com}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-admin.1234}"
 
-echo ">> Garantindo banco no ar..."
+echo ">> Garantindo banco/auth/gateway no ar..."
 $DC up -d db auth rest kong
 until $DC exec -T db pg_isready -U postgres -d postgres >/dev/null 2>&1; do sleep 2; done
 
-echo ">> Reaplicando admin padrão..."
-$DC cp admin.sql db:/tmp/admin.sql
-$DC exec -T db psql -v ON_ERROR_STOP=1 -U postgres -d postgres \
-  -v admin_email="$ADMIN_EMAIL" \
-  -v admin_password="$ADMIN_PASSWORD" \
-  -f /tmp/admin.sql
+echo ">> Recriando/garantindo admin padrão via API do Auth..."
+bash "$SCRIPT_DIR/create-admin.sh"
 
 echo ">> Reiniciando app..."
 $DC up -d --build app
