@@ -90,6 +90,8 @@ function ConfiguracoesPage() {
           historicoDias: cfg.historicoDias,
           ligas: cfg.ligas,
           recursos: cfg.recursos,
+          descontoSemestral: cfg.descontoSemestral ?? 0,
+          descontoAnual: cfg.descontoAnual ?? 0,
         },
       }),
     onSuccess: () => {
