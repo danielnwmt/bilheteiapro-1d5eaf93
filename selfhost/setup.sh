@@ -290,11 +290,39 @@ echo ">> Preparando banco local para autenticação..."
 $DC cp pre.sql db:/tmp/pre.sql
 "${PSQL[@]}" -f /tmp/pre.sql >/dev/null
 
+wait_for_auth_users() {
+  local attempts="${1:-60}" i
+  for i in $(seq 1 "$attempts"); do
+    if "${PSQL[@]}" -tAc "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='auth' AND table_name='users')" 2>/dev/null | grep -q t; then
+      return 0
+    fi
+    if [ $((i % 10)) -eq 0 ]; then
+      echo ">> Auth ainda criando schema auth.users... ($i/$attempts)"
+      $DC logs --tail=20 auth || true
+    fi
+    sleep 2
+  done
+  return 1
+}
+
 echo ">> Subindo Auth (cria o schema de usuários)..."
 $DC up -d --force-recreate auth
 
 echo ">> Aguardando o schema auth.users..."
-until "${PSQL[@]}" -tAc "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='auth' AND table_name='users')" 2>/dev/null | grep -q t; do sleep 2; done
+if ! wait_for_auth_users 60; then
+  echo "ATENÇÃO: Auth travou antes de criar auth.users. Limpando schema auth incompleto e tentando novamente..."
+  echo ">> Últimas linhas do Auth antes do reparo:"
+  $DC logs --tail=100 auth || true
+  $DC stop auth >/dev/null 2>&1 || true
+  "${PSQL[@]}" -c "DROP SCHEMA IF EXISTS auth CASCADE; CREATE SCHEMA auth; GRANT USAGE ON SCHEMA auth TO anon, authenticated, service_role;" >/dev/null
+  $DC up -d --force-recreate auth
+
+  if ! wait_for_auth_users 60; then
+    echo "ERRO: Auth não conseguiu criar auth.users. Veja o erro real abaixo:"
+    $DC logs --tail=160 auth || true
+    exit 1
+  fi
+fi
 
 # ---------- 3) Aplica pré-requisitos + schema do app + cria admin ----------
 echo ">> Aplicando pré-requisitos (roles/funções)..."

@@ -33,7 +33,9 @@ services:
       GOTRUE_API_PORT: 9999
       API_EXTERNAL_URL: ${SUPABASE_PUBLIC_URL}
       GOTRUE_DB_DRIVER: postgres
-      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@db:5432/postgres?sslmode=disable
+      # Usa o usuário postgres no self-host local para evitar travas de permissão
+      # durante as migrações internas do Auth em VPS/Localweb.
+      GOTRUE_DB_DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@db:5432/postgres?sslmode=disable
       GOTRUE_SITE_URL: ${SITE_URL}
       GOTRUE_URI_ALLOW_LIST: "*"
       GOTRUE_DISABLE_SIGNUP: "false"
