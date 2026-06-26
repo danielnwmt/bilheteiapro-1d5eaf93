@@ -94,6 +94,7 @@ if [ ! -f "$ENV_FILE" ]; then
   DEFAULT_HOST="${DEFAULT_HOST:-127.0.0.1}"
   prompt_value PUBHOST "Domínio ou IP público desta VPS" "$DEFAULT_HOST"
   prompt_value SUPABASE_PORT "Porta da API local" "8000"
+  prompt_value AUTH_PORT "Porta interna do Auth" "9999"
   prompt_value APP_PORT "Porta do App" "3000"
   prompt_value ADMIN_EMAIL "Email do admin" "contato@protenexus.com"
   prompt_value ADMIN_PASSWORD "Senha do admin" "admin.1234"
@@ -110,6 +111,7 @@ if [ ! -f "$ENV_FILE" ]; then
 SUPABASE_PUBLIC_URL=${SUPABASE_PUBLIC_URL}
 SITE_URL=http://${PUBHOST}:${APP_PORT}
 SUPABASE_PORT=${SUPABASE_PORT}
+AUTH_PORT=${AUTH_PORT}
 APP_PORT=${APP_PORT}
 
 JWT_SECRET=${JWT_SECRET}
@@ -138,6 +140,7 @@ if ! env_has_value INGEST_SECRET; then echo "INGEST_SECRET=$(rand 24)" >> "$ENV_
 if ! env_has_value ADMIN_EMAIL; then echo "ADMIN_EMAIL=contato@protenexus.com" >> "$ENV_FILE"; fi
 if ! env_has_value ADMIN_PASSWORD; then echo "ADMIN_PASSWORD=admin.1234" >> "$ENV_FILE"; fi
 if ! env_has_value SUPABASE_PORT; then echo "SUPABASE_PORT=8000" >> "$ENV_FILE"; fi
+if ! env_has_value AUTH_PORT; then echo "AUTH_PORT=9999" >> "$ENV_FILE"; fi
 if ! env_has_value APP_PORT; then echo "APP_PORT=3000" >> "$ENV_FILE"; fi
 set -a; . "$ENV_FILE"; set +a
 if ! env_has_value SUPABASE_PUBLIC_URL; then echo "SUPABASE_PUBLIC_URL=http://127.0.0.1:${SUPABASE_PORT:-8000}" >> "$ENV_FILE"; fi
@@ -242,6 +245,30 @@ ensure_supabase_port_available() {
 
 ensure_supabase_port_available
 
+ensure_auth_port_available() {
+  AUTH_PORT="${AUTH_PORT:-9999}"
+  stop_docker_containers_on_port "$AUTH_PORT"
+
+  if port_is_listening "$AUTH_PORT"; then
+    local old_port="$AUTH_PORT" candidate
+    echo ">> Porta ${old_port} do Auth local ocupada. Procurando porta livre..."
+    for candidate in $(seq $((old_port + 1)) $((old_port + 30))); do
+      if ! port_is_listening "$candidate" && [ -z "$(docker ps --filter "publish=${candidate}" -q 2>/dev/null || true)" ]; then
+        AUTH_PORT="$candidate"
+        save_env_value AUTH_PORT "$AUTH_PORT"
+        set -a; . "$ENV_FILE"; set +a
+        echo ">> Usando porta livre para o Auth local: ${AUTH_PORT}"
+        return 0
+      fi
+    done
+
+    echo "ERRO: não encontrei porta livre para o Auth local. Libere a porta ${old_port} e rode novamente."
+    exit 1
+  fi
+}
+
+ensure_auth_port_available
+
 # ---------- 2) Sobe banco + auth (auth cria o schema auth.users) ----------
 echo ">> Subindo banco de dados..."
 $DC up -d db
@@ -276,19 +303,21 @@ fi
 echo ">> Subindo Data API e gateway..."
 $DC up -d rest kong
 
-echo ">> Aguardando gateway local responder..."
+echo ">> Aguardando Auth local responder..."
 KONG_READY=0
 for i in $(seq 1 60); do
-  HTTP_CODE="$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:${SUPABASE_PORT:-8000}/auth/v1/health" 2>/dev/null || printf '000')"
+  HTTP_CODE="$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:${AUTH_PORT:-9999}/health" 2>/dev/null || printf '000')"
   if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "204" ]; then
     KONG_READY=1
     break
   fi
-  echo ">> Gateway ainda indisponível (HTTP ${HTTP_CODE}), tentando de novo... ($i/60)"
+  echo ">> Auth local ainda indisponível (HTTP ${HTTP_CODE}), tentando de novo... ($i/60)"
   sleep 2
 done
 if [ "$KONG_READY" != "1" ]; then
-  echo "ATENÇÃO: gateway ainda não respondeu; vou criar o admin por fallback SQL se necessário."
+  echo "ATENÇÃO: Auth local ainda não respondeu; vou criar o admin por fallback SQL se necessário."
+  echo ">> Últimas linhas do Auth:"
+  $DC logs --tail=80 auth || true
 fi
 
 # ---------- 5) Cria/garante o admin via API oficial do Auth ----------

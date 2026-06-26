@@ -49,6 +49,8 @@ services:
       GOTRUE_PASSWORD_REQUIRED_CHARACTERS: ""
       GOTRUE_SMTP_ADMIN_EMAIL: ${ADMIN_EMAIL}
       GOTRUE_LOG_LEVEL: info
+    ports:
+      - "127.0.0.1:${AUTH_PORT:-9999}:9999"
 
   # ---------- Data API (PostgREST) ----------
   rest:
