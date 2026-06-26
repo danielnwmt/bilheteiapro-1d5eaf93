@@ -10,6 +10,7 @@ import { ArrowLeft, Loader2, Plus, Save, ShieldAlert, Trash2 } from "lucide-reac
 import {
   TODAS_LIGAS,
   RECURSO_LABELS,
+  recursosVazios,
   type Plano,
   type PlanoConfig,
 } from "@/lib/planos";
@@ -86,7 +87,16 @@ function ConfiguracoesPage() {
   });
 
   const [novoOpen, setNovoOpen] = useState(false);
-  const [novo, setNovo] = useState({ plano: "", nome: "", preco: "" });
+  const emptyNovo = () => ({
+    plano: "",
+    nome: "",
+    preco: "",
+    descricao: "",
+    historicoDias: 15,
+    ligas: [] as string[],
+    recursos: recursosVazios() as Record<string, boolean>,
+  });
+  const [novo, setNovo] = useState(emptyNovo);
 
   const criarMut = useMutation({
     mutationFn: () =>
@@ -95,16 +105,32 @@ function ConfiguracoesPage() {
           plano: novo.plano.trim().toLowerCase(),
           nome: novo.nome.trim(),
           preco: novo.preco.trim(),
+          descricao: novo.descricao.trim(),
+          historicoDias: Number(novo.historicoDias) || 15,
+          ligas: novo.ligas,
+          recursos: novo.recursos,
         },
       }),
     onSuccess: () => {
       toast.success("Plano criado");
       setNovoOpen(false);
-      setNovo({ plano: "", nome: "", preco: "" });
+      setNovo(emptyNovo());
       qc.invalidateQueries({ queryKey: ["plano_config"] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Erro ao criar plano"),
   });
+
+  function toggleNovoLiga(liga: string) {
+    setNovo((s) => ({
+      ...s,
+      ligas: s.ligas.includes(liga) ? s.ligas.filter((l) => l !== liga) : [...s.ligas, liga],
+    }));
+  }
+
+  function toggleNovoRecurso(key: string) {
+    setNovo((s) => ({ ...s, recursos: { ...s.recursos, [key]: !s.recursos[key] } }));
+  }
+
 
   const removerMut = useMutation({
     mutationFn: (plano: Plano) => remover({ data: { plano } }),
@@ -298,37 +324,106 @@ function ConfiguracoesPage() {
       </div>
 
       <Dialog open={novoOpen} onOpenChange={setNovoOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Novo plano</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label className="mb-1 block text-sm">Identificador (sem espaços)</Label>
-              <Input
-                placeholder="ex: premium"
-                value={novo.plano}
-                onChange={(e) => setNovo((s) => ({ ...s, plano: e.target.value }))}
-                className="bg-input/40"
-              />
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <Label className="mb-1 block text-sm">Identificador (sem espaços)</Label>
+                <Input
+                  placeholder="ex: premium"
+                  value={novo.plano}
+                  onChange={(e) => setNovo((s) => ({ ...s, plano: e.target.value }))}
+                  className="bg-input/40"
+                />
+              </div>
+              <div>
+                <Label className="mb-1 block text-sm">Nome</Label>
+                <Input
+                  placeholder="ex: Premium"
+                  value={novo.nome}
+                  onChange={(e) => setNovo((s) => ({ ...s, nome: e.target.value }))}
+                  className="bg-input/40"
+                />
+              </div>
+              <div>
+                <Label className="mb-1 block text-sm">Preço</Label>
+                <Input
+                  placeholder="ex: R$ 99,90"
+                  value={novo.preco}
+                  onChange={(e) => setNovo((s) => ({ ...s, preco: e.target.value }))}
+                  className="bg-input/40"
+                />
+              </div>
+              <div>
+                <Label className="mb-1 block text-sm">Dias de histórico</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={novo.historicoDias}
+                  onChange={(e) =>
+                    setNovo((s) => ({ ...s, historicoDias: Number(e.target.value) || 0 }))
+                  }
+                  className="bg-input/40"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <Label className="mb-1 block text-sm">Descrição</Label>
+                <Input
+                  placeholder="ex: Para quem busca múltiplas inteligentes com IA."
+                  value={novo.descricao}
+                  onChange={(e) => setNovo((s) => ({ ...s, descricao: e.target.value }))}
+                  className="bg-input/40"
+                />
+              </div>
             </div>
+
             <div>
-              <Label className="mb-1 block text-sm">Nome</Label>
-              <Input
-                placeholder="ex: Premium"
-                value={novo.nome}
-                onChange={(e) => setNovo((s) => ({ ...s, nome: e.target.value }))}
-                className="bg-input/40"
-              />
+              <Label className="mb-2 block text-sm font-semibold">Ligas liberadas</Label>
+              <div className="flex flex-wrap gap-2">
+                {TODAS_LIGAS.map((liga) => {
+                  const on = novo.ligas.includes(liga);
+                  return (
+                    <button
+                      type="button"
+                      key={liga}
+                      onClick={() => toggleNovoLiga(liga)}
+                      className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                        on
+                          ? "border-primary bg-primary/15 text-primary"
+                          : "border-border bg-input/40 text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {liga}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
+
             <div>
-              <Label className="mb-1 block text-sm">Preço</Label>
-              <Input
-                placeholder="ex: R$ 99,90"
-                value={novo.preco}
-                onChange={(e) => setNovo((s) => ({ ...s, preco: e.target.value }))}
-                className="bg-input/40"
-              />
+              <Label className="mb-2 block text-sm font-semibold">Recursos liberados</Label>
+              <div className="flex flex-wrap gap-2">
+                {RECURSO_LABELS.map((r) => {
+                  const on = !!novo.recursos[r.key];
+                  return (
+                    <button
+                      type="button"
+                      key={r.key}
+                      onClick={() => toggleNovoRecurso(r.key)}
+                      className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                        on
+                          ? "border-primary bg-primary/15 text-primary"
+                          : "border-border bg-input/40 text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {r.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
           <DialogFooter>
@@ -345,6 +440,7 @@ function ConfiguracoesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
     </main>
   );
 }
