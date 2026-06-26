@@ -262,9 +262,61 @@ function BancaPage() {
           </Button>
         </div>
 
-        <div className="mb-8 flex items-center gap-2">
-          <Wallet className="h-6 w-6 text-primary" />
-          <h1 className="text-2xl font-bold tracking-tight">Gestão de Banca</h1>
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Wallet className="h-6 w-6 text-primary" />
+            <h1 className="text-2xl font-bold tracking-tight">Gestão de Banca</h1>
+          </div>
+          {liberado && (
+            <Dialog open={depOpen} onOpenChange={setDepOpen}>
+              <DialogTrigger asChild>
+                <Button className="bg-green-600 text-white hover:bg-green-700">
+                  <PiggyBank className="mr-2 h-4 w-4" /> Adicionar dinheiro
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Adicionar dinheiro à banca</DialogTitle>
+                  <DialogDescription>
+                    Registre um aporte (depósito) que entra na sua banca.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-2">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Valor (R$)</Label>
+                    <Input
+                      inputMode="decimal"
+                      placeholder="0,00"
+                      value={depValor}
+                      onChange={(e) => setDepValor(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Descrição (opcional)</Label>
+                    <Input
+                      placeholder="Ex: Aporte inicial, recarga..."
+                      value={depDescricao}
+                      onChange={(e) => setDepDescricao(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button
+                    className="bg-green-600 text-white hover:bg-green-700"
+                    disabled={mutAddDep.isPending}
+                    onClick={handleAddDep}
+                  >
+                    {mutAddDep.isPending ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Plus className="mr-2 h-4 w-4" />
+                    )}
+                    Adicionar
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
 
         {!liberado ? (
