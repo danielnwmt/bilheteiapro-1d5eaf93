@@ -48,8 +48,12 @@ echo ">> Aplicando pré-requisitos (roles, schemas, extensões)..."
 psql -v ON_ERROR_STOP=1 -v postgres_password="$POSTGRES_PASSWORD" -f "$SELF/pre.sql"
 
 # --- GoTrue (Auth) -------------------------------------------------
+# IMPORTANTE: search_path=auth + namespace=auth fazem o GoTrue criar a tabela
+# schema_migrations dentro do schema "auth" (onde supabase_auth_admin tem
+# permissão), evitando "permission denied for schema public" na migração.
 export GOTRUE_DB_DRIVER=postgres
-export GOTRUE_DB_DATABASE_URL="postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@127.0.0.1:5432/postgres?sslmode=disable"
+export GOTRUE_DB_DATABASE_URL="postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@127.0.0.1:5432/postgres?sslmode=disable&options=-csearch_path%3Dauth"
+export GOTRUE_DB_NAMESPACE=auth
 export GOTRUE_API_HOST=0.0.0.0
 export GOTRUE_API_PORT=9999
 export API_EXTERNAL_URL="$PUBLIC_URL"

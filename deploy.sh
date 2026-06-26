@@ -22,18 +22,42 @@ fi
 
 cd "$APP_DIR"
 
-# Modo padrão para VPS/Localweb: banco 100% local via selfhost/docker-compose.
-# Para forçar o container único apontando para o Cloud, rode: BILHETEIA_SINGLE_CONTAINER=1 bash deploy.sh
-if [ "${BILHETEIA_SINGLE_CONTAINER:-0}" != "1" ] && [ -f "$APP_DIR/selfhost/setup.sh" ]; then
-  echo ">> Modo local detectado: subindo banco + auth + app com Docker Compose..."
+# Modo padrão para VPS/Localweb: TUDO-EM-UM (Postgres + Auth + API + app)
+# num único container, na mesma porta. Sem serviços duplicados.
+# Para usar o backend do Cloud em vez do banco local, rode:
+#   BILHETEIA_CLOUD=1 bash deploy.sh
+if [ "${BILHETEIA_CLOUD:-0}" != "1" ] && [ -f "$APP_DIR/docker-compose.yml" ]; then
+  echo ">> Modo local (tudo-em-um) detectado: Postgres + Auth + API + app num só container..."
   if [ -d "$APP_DIR/.git" ]; then
     echo ">> Atualizando código..."
     git pull || true
   fi
-  cd "$APP_DIR/selfhost"
-  AUTO_INSTALL=1 bash setup.sh
+
+  # Detecta a URL pública (IPv4, depois IPv6) só se ainda não estiver no .env.
+  touch "$APP_DIR/.env"
+  if [ -z "${SUPABASE_PUBLIC_URL:-}" ] && ! grep -q "^SUPABASE_PUBLIC_URL=." "$APP_DIR/.env"; then
+    IP4=$(curl -4 -s --max-time 5 https://api.ipify.org 2>/dev/null || curl -4 -s --max-time 5 https://ifconfig.me 2>/dev/null || true)
+    if [ -n "$IP4" ]; then
+      HOSTADDR="$IP4"
+    else
+      IP6=$(curl -6 -s --max-time 5 https://api6.ipify.org 2>/dev/null || true)
+      [ -n "$IP6" ] && HOSTADDR="[$IP6]" || HOSTADDR="localhost"
+    fi
+    echo "SUPABASE_PUBLIC_URL=http://${HOSTADDR}:${PORT}" >> "$APP_DIR/.env"
+    echo ">> URL pública detectada: http://${HOSTADDR}:${PORT}"
+  fi
+
+  # Limpa serviços antigos da arquitetura anterior (db/auth/rest/kong separados).
+  if [ -f "$APP_DIR/selfhost/docker-compose.yml" ]; then
+    (cd "$APP_DIR/selfhost" && docker compose down 2>/dev/null || true)
+  fi
+
+  echo ">> Buildando e subindo o container..."
+  docker compose up -d --build
+  echo ">> Pronto! App rodando na porta $PORT."
   exit 0
 fi
+
 
 # 1) Garante o arquivo .env sem travar atualização pedindo dados.
 #    Chaves de APIs são configuradas depois pelo painel Admin.
