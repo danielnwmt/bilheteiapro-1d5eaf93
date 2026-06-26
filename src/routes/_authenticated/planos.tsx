@@ -48,6 +48,7 @@ function PlanosPage() {
   const { list, byPlano, isLoading } = usePlanos();
   const [checkout, setCheckout] = useState<Plano | null>(null);
   const [carregando, setCarregando] = useState(false);
+  const [ciclo, setCiclo] = useState<Ciclo>("mensal");
 
   const infinitePayCheckout = useServerFn(createInfinitePayCheckout);
 
@@ -59,7 +60,7 @@ function PlanosPage() {
     setCarregando(true);
     try {
       const returnUrl = `${window.location.origin}/?checkout=success`;
-      const result = await infinitePayCheckout({ data: { plano: checkout, returnUrl } });
+      const result = await infinitePayCheckout({ data: { plano: checkout, ciclo, returnUrl } });
       if ("error" in result) {
         toast.error(result.error);
         return;
