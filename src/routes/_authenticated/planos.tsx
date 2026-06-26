@@ -110,6 +110,31 @@ function PlanosPage() {
           </p>
         </div>
 
+        <div className="mt-6 flex justify-center">
+          <div className="inline-flex rounded-full border border-border/60 bg-card p-1">
+            {(["mensal", "semestral", "anual"] as Ciclo[]).map((c) => {
+              const ativo = ciclo === c;
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setCiclo(c)}
+                  className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${
+                    ativo ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {CICLO_LABEL[c]}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        {ciclo !== "mensal" && (
+          <p className="mt-2 text-center text-xs text-muted-foreground">
+            Pagamento único a cada {CICLO_MESES[ciclo]} meses.
+          </p>
+        )}
+
         {isLoading ? (
           <div className="flex justify-center py-16">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
