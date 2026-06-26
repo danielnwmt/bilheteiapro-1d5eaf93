@@ -89,10 +89,22 @@ env_has_value() {
 if [ ! -f "$ENV_FILE" ]; then
   echo ">> Primeira instalação — gerando chaves locais..."
 
-  # IP/host público para o navegador acessar a API de auth/dados
-  DEFAULT_HOST="$(curl -s --max-time 4 ifconfig.me || true)"
+  # IP público IPv4 para o navegador acessar a API de auth/dados.
+  # Força IPv4 (-4) e tenta vários provedores para não pegar IPv6.
+  detect_ipv4() {
+    local ip=""
+    for url in "https://api.ipify.org" "https://ifconfig.me/ip" "https://ipv4.icanhazip.com" "https://checkip.amazonaws.com"; do
+      ip="$(curl -4 -s --max-time 5 "$url" 2>/dev/null | tr -d '[:space:]')"
+      if printf '%s' "$ip" | grep -Eq '^([0-9]{1,3}\.){3}[0-9]{1,3}$'; then
+        printf '%s' "$ip"; return 0
+      fi
+    done
+    return 1
+  }
+  DEFAULT_HOST="$(detect_ipv4 || true)"
   DEFAULT_HOST="${DEFAULT_HOST:-127.0.0.1}"
-  prompt_value PUBHOST "Domínio ou IP público desta VPS" "$DEFAULT_HOST"
+  prompt_value PUBHOST "Domínio (ex: app.seudominio.com) ou IP público desta VPS" "$DEFAULT_HOST"
+
   prompt_value SUPABASE_PORT "Porta da API local" "8000"
   prompt_value AUTH_PORT "Porta interna do Auth" "9999"
   prompt_value APP_PORT "Porta do App" "3000"
