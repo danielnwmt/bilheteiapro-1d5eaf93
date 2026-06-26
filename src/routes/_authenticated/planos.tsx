@@ -193,9 +193,21 @@ function PlanosPage() {
                   <h3 className="text-lg font-bold">{info.nome}</h3>
                   <p className="mt-1 text-sm text-muted-foreground">{info.descricao}</p>
                   <p className="mt-4 text-3xl font-bold">
-                    {info.preco}
-                    <span className="text-sm font-normal text-muted-foreground">/mês</span>
+                    {formatarReais(precoCicloCentavos(info, ciclo))}
+                    <span className="text-sm font-normal text-muted-foreground">
+                      /{CICLO_LABEL[ciclo].toLowerCase()}
+                    </span>
                   </p>
+                  {ciclo !== "mensal" && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {formatarReais(precoMensalEquivalenteCentavos(info, ciclo))}/mês
+                      {descontoDoCiclo(info, ciclo) > 0 && (
+                        <span className="ml-1 font-semibold text-primary">
+                          {descontoDoCiclo(info, ciclo)}% off
+                        </span>
+                      )}
+                    </p>
+                  )}
                   <Button
                     className="mt-6 w-full font-semibold"
                     variant={p === "pro" ? "default" : "outline"}
