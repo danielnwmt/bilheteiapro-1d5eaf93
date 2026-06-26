@@ -141,8 +141,8 @@ if [ "$AUTH_READY" = "1" ]; then
   CREATE_CODE=000
   for i in $(seq 1 60); do
     CREATE_RESP="$(auth_req POST /admin/users "$CREATE_BODY")"
-    # extrai o último "HTTP/1.1 <code>" do --server-response
-    CREATE_CODE="$(printf '%s' "$CREATE_RESP" | grep -oE 'HTTP/[0-9.]+ [0-9]{3}' | tail -n1 | grep -oE '[0-9]{3}' || true)"
+    # o curl coloca o código HTTP na última linha (-w '\n%{http_code}')
+    CREATE_CODE="$(printf '%s' "$CREATE_RESP" | tail -n1 | tr -dc '0-9')"
     [ -z "$CREATE_CODE" ] && CREATE_CODE=000
     # 200/201 = criado; 422 = já existe (idempotente) -> sai do loop
     case "$CREATE_CODE" in
