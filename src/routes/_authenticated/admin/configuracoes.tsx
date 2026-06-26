@@ -110,6 +110,8 @@ function ConfiguracoesPage() {
     historicoDias: 15,
     ligas: [] as string[],
     recursos: recursosVazios() as Record<string, boolean>,
+    descontoSemestral: 0,
+    descontoAnual: 0,
   });
   const [novo, setNovo] = useState(emptyNovo);
 
@@ -124,6 +126,8 @@ function ConfiguracoesPage() {
           historicoDias: Number(novo.historicoDias) || 15,
           ligas: novo.ligas,
           recursos: novo.recursos,
+          descontoSemestral: Number(novo.descontoSemestral) || 0,
+          descontoAnual: Number(novo.descontoAnual) || 0,
         },
       }),
     onSuccess: () => {
