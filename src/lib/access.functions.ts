@@ -105,7 +105,7 @@ async function assertStaff(supabase: any, userId: string) {
           .from("user_roles")
           .upsert({ user_id: userId, role: "admin" }, { onConflict: "user_id,role" });
         await supabaseAdmin.from("user_roles").delete().eq("user_id", userId).eq("role", "cliente");
-        roles = Array.from(new Set<AppRole>(["admin", ...roles.filter((role) => role !== "cliente")]));
+        roles = Array.from(new Set<AppRole>(["admin", ...roles.filter((role: AppRole) => role !== "cliente")]));
       }
     } catch {
       // Se não der para reparar, mantém bloqueio abaixo.
