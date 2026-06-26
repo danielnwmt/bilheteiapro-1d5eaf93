@@ -6,7 +6,18 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Check, X, Loader2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import { TODAS_LIGAS, RECURSO_LABELS, type Plano } from "@/lib/planos";
+import {
+  TODAS_LIGAS,
+  RECURSO_LABELS,
+  CICLO_LABEL,
+  CICLO_MESES,
+  descontoDoCiclo,
+  precoCicloCentavos,
+  precoMensalEquivalenteCentavos,
+  formatarReais,
+  type Ciclo,
+  type Plano,
+} from "@/lib/planos";
 import { usePlanos } from "@/hooks/usePlanos";
 import { createInfinitePayCheckout } from "@/lib/payments.functions";
 import { useAccess } from "@/hooks/useAccess";
