@@ -1,0 +1,136 @@
+# ============================================================
+# BilheteIA PRO — instalação automática com banco LOCAL
+# Arquivo na raiz para painéis Git/Localweb que detectam Docker Compose.
+# ============================================================
+
+services:
+  db:
+    image: supabase/postgres:15.14.1.139
+    container_name: bia-db
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bilheteia_local_postgres_2026}
+      POSTGRES_DB: postgres
+    volumes:
+      - bia-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  auth:
+    image: supabase/gotrue:v2.191.0
+    container_name: bia-auth
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      API_EXTERNAL_URL: ${SUPABASE_PUBLIC_URL:-http://localhost:8000}
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:-bilheteia_local_postgres_2026}@db:5432/postgres
+      GOTRUE_SITE_URL: ${SITE_URL:-http://localhost:3000}
+      GOTRUE_URI_ALLOW_LIST: "*"
+      GOTRUE_DISABLE_SIGNUP: "false"
+      GOTRUE_JWT_SECRET: ${JWT_SECRET:-bilheteia-localweb-default-jwt-secret-change-me-2026}
+      GOTRUE_JWT_EXP: "3600"
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
+      GOTRUE_MAILER_AUTOCONFIRM: "true"
+      GOTRUE_SMTP_ADMIN_EMAIL: ${ADMIN_EMAIL:-contato@protenexus.com}
+      GOTRUE_LOG_LEVEL: info
+
+  rest:
+    image: postgrest/postgrest:v14.13
+    container_name: bia-rest
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGRST_DB_URI: postgres://postgres:${POSTGRES_PASSWORD:-bilheteia_local_postgres_2026}@db:5432/postgres
+      PGRST_DB_SCHEMAS: public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${JWT_SECRET:-bilheteia-localweb-default-jwt-secret-change-me-2026}
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+
+  kong:
+    image: kong:2.8.1
+    container_name: bia-kong
+    restart: always
+    depends_on:
+      - auth
+      - rest
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_PLUGINS: request-transformer,cors
+    volumes:
+      - ./selfhost/kong.yml:/home/kong/kong.yml:ro
+    ports:
+      - "${SUPABASE_PORT:-8000}:8000"
+
+  init:
+    image: supabase/postgres:15.14.1.139
+    container_name: bia-init
+    depends_on:
+      db:
+        condition: service_healthy
+      auth:
+        condition: service_started
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:-bilheteia_local_postgres_2026}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-contato@protenexus.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin.1234}
+    volumes:
+      - ./selfhost/pre.sql:/tmp/pre.sql:ro
+      - ./selfhost/schema.sql:/tmp/schema.sql:ro
+      - ./selfhost/direct-admin.sql:/tmp/direct-admin.sql:ro
+      - ./selfhost/admin.sql:/tmp/admin.sql:ro
+    command: >
+      sh -ec '
+        until pg_isready -h db -U postgres -d postgres >/dev/null 2>&1; do sleep 2; done;
+        until psql -h db -U postgres -d postgres -tAc "SELECT to_regclass(''auth.users'') IS NOT NULL" 2>/dev/null | grep -q t; do sleep 2; done;
+        psql -v ON_ERROR_STOP=1 -h db -U postgres -d postgres -f /tmp/pre.sql;
+        if psql -h db -U postgres -d postgres -tAc "SELECT to_regclass(''public.profiles'') IS NOT NULL AND to_regclass(''public.user_roles'') IS NOT NULL" | grep -q t; then
+          echo ">> Schema principal já existe; pulando criação das tabelas.";
+        else
+          psql -v ON_ERROR_STOP=1 -h db -U postgres -d postgres -f /tmp/schema.sql;
+        fi;
+        psql -v ON_ERROR_STOP=1 -h db -U postgres -d postgres -v admin_email="$${ADMIN_EMAIL}" -v admin_password="$${ADMIN_PASSWORD}" -f /tmp/direct-admin.sql;
+        psql -v ON_ERROR_STOP=1 -h db -U postgres -d postgres -v admin_email="$${ADMIN_EMAIL}" -f /tmp/admin.sql;
+        echo ">> Admin local garantido.";
+      '
+    restart: "no"
+
+  app:
+    build:
+      context: .
+      args:
+        VITE_SUPABASE_URL: ${SUPABASE_PUBLIC_URL:-http://localhost:8000}
+        VITE_SUPABASE_PUBLISHABLE_KEY: ${ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzgyNDQwMDAwLCJleHAiOjIwOTc4MDAwMDB9.mX6rq28Z0cpvC22UaLwB1AZHIrjrurs5W-faJBMopsg}
+        VITE_SUPABASE_PROJECT_ID: local
+    container_name: bia-app
+    restart: always
+    depends_on:
+      init:
+        condition: service_completed_successfully
+      kong:
+        condition: service_started
+    environment:
+      SUPABASE_URL: http://kong:8000
+      SUPABASE_PUBLISHABLE_KEY: ${ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzgyNDQwMDAwLCJleHAiOjIwOTc4MDAwMDB9.mX6rq28Z0cpvC22UaLwB1AZHIrjrurs5W-faJBMopsg}
+      SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3ODI0NDAwMDAsImV4cCI6MjA5NzgwMDAwMH0.NmDPQQ9qo1Uct2qZepO-EcrMcZNG-V3oj-PglOmMSas}
+      SUPABASE_PROJECT_ID: local
+      INGEST_SECRET: ${INGEST_SECRET:-local-ingest-secret}
+    ports:
+      - "${APP_PORT:-3000}:3000"
+
+volumes:
+  bia-db-data:

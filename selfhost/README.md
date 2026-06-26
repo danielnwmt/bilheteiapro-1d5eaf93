@@ -20,6 +20,9 @@ Instalação automatizada/Localweb pela raiz do projeto:
 bash deploy.sh
 ```
 Esse comando usa banco local por padrão e não fica travado perguntando dados.
+Se o painel detectar `docker-compose.yml` automaticamente, ele também sobe banco,
+auth, API e app locais; informe `SUPABASE_PUBLIC_URL=http://SEU_IP:8000` quando o
+painel permitir variáveis de ambiente.
 
 Ao final:
 - App: `http://SEU_IP:3000`
