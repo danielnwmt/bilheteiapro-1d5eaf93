@@ -320,22 +320,25 @@ $DC up -d rest kong
 
 echo ">> Aguardando Auth local responder..."
 AUTH_READY=0
-AUTH_HEALTH_URL="http://127.0.0.1:${AUTH_PORT:-9999}/health"
-KONG_AUTH_HEALTH_URL="http://127.0.0.1:${SUPABASE_PORT:-8000}/auth/v1/health"
-for i in $(seq 1 8); do
-  HTTP_CODE="$(curl -sS -o /dev/null -w '%{http_code}' "$AUTH_HEALTH_URL" 2>/dev/null || printf '000')"
-  if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "204" ]; then
-    HTTP_CODE="$(curl -sS -o /dev/null -w '%{http_code}' "$KONG_AUTH_HEALTH_URL" 2>/dev/null || printf '000')"
-  fi
-  if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "204" ]; then
+# A checagem é feita DENTRO da rede do Docker (wget do próprio container do
+# Auth). Isso evita falsos "indisponível" quando o host não tem curl, quando a
+# porta só escuta em IPv6/loopback diferente, ou quando o GoTrue ainda está
+# rodando as migrações da primeira inicialização.
+for i in $(seq 1 45); do
+  if $DC exec -T auth wget -q -O /dev/null --spider "http://127.0.0.1:9999/health" 2>/dev/null; then
     AUTH_READY=1
     break
   fi
-  echo ">> Auth local ainda indisponível (HTTP ${HTTP_CODE}), tentando de novo... ($i/8)"
+  # fallback: tenta pela porta publicada no host (curl), se existir
+  if command -v curl >/dev/null 2>&1; then
+    HC="$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:${AUTH_PORT:-9999}/health" 2>/dev/null || printf '000')"
+    if [ "$HC" = "200" ] || [ "$HC" = "204" ]; then AUTH_READY=1; break; fi
+  fi
+  echo ">> Auth local ainda subindo (tentativa $i/45)..."
   sleep 2
 done
 if [ "$AUTH_READY" != "1" ]; then
-  echo "ATENÇÃO: Auth não respondeu pela porta local; seguindo com criação do admin via SQL local."
+  echo "ATENÇÃO: Auth não respondeu a tempo; seguindo com criação do admin via SQL local."
   echo ">> Últimas linhas do Auth:"
   $DC logs --tail=80 auth || true
 fi

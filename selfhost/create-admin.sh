@@ -66,6 +66,42 @@ auth_curl() {
   curl "$@"
 }
 
+# Requisição ao Auth via curl do host (presente após instalar o Docker).
+# Ecoa o corpo + "\n<http_code>" na última linha. Se não houver curl, retorna 127.
+auth_req() {
+  local method="$1" path="$2" body="${3:-}"
+  if ! command -v curl >/dev/null 2>&1; then
+    return 127
+  fi
+  if [ -n "$body" ]; then
+    curl -sS --max-time 20 -w '\n%{http_code}' -X "$method" "${AUTH_INTERNAL_URL}${path}" \
+      -H "apikey: ${SERVICE_ROLE_KEY}" \
+      -H "Authorization: Bearer ${SERVICE_ROLE_KEY}" \
+      -H "Content-Type: application/json" \
+      -d "$body" 2>/dev/null || true
+  else
+    curl -sS --max-time 20 -w '\n%{http_code}' -X "$method" "${AUTH_INTERNAL_URL}${path}" \
+      -H "apikey: ${SERVICE_ROLE_KEY}" \
+      -H "Authorization: Bearer ${SERVICE_ROLE_KEY}" \
+      -H "Content-Type: application/json" 2>/dev/null || true
+  fi
+}
+
+# Saúde do Auth: checa DENTRO da rede do Docker (wget --spider do próprio
+# container — BusyBox suporta --spider) e, como reforço, pela porta do host.
+auth_health() {
+  if $DC exec -T auth wget -q -O /dev/null --spider "http://127.0.0.1:9999/health" 2>/dev/null; then
+    return 0
+  fi
+  if command -v curl >/dev/null 2>&1; then
+    local hc
+    hc="$(curl -sS -o /dev/null -w '%{http_code}' "${AUTH_INTERNAL_URL}/health" 2>/dev/null || printf '000')"
+    [ "$hc" = "200" ] || [ "$hc" = "204" ]
+    return $?
+  fi
+  return 1
+}
+
 # Garante o gateway local quando este script for chamado separadamente.
 $DC up -d rest kong >/dev/null 2>&1 || true
 
@@ -79,16 +115,12 @@ admin_user_id() {
 # ---------- 1) Garante que o Auth (GoTrue) está respondendo ----------
 echo ">> Aguardando o serviço de autenticação..."
 AUTH_READY=0
-for i in $(seq 1 8); do
-  HEALTH_CODE="$(auth_curl -sS -o /dev/null -w '%{http_code}' "$AUTH_INTERNAL_URL/health" 2>/dev/null || printf '000')"
-  if [ "$HEALTH_CODE" != "200" ] && [ "$HEALTH_CODE" != "204" ]; then
-    HEALTH_CODE="$(auth_curl -sS -o /dev/null -w '%{http_code}' "$AUTH_GATEWAY_URL/health" 2>/dev/null || printf '000')"
-  fi
-  if [ "$HEALTH_CODE" = "200" ] || [ "$HEALTH_CODE" = "204" ]; then
+for i in $(seq 1 45); do
+  if auth_health; then
     AUTH_READY=1
     break
   fi
-  echo ">> Auth ainda indisponível (HTTP ${HEALTH_CODE}), tentando de novo... ($i/8)"
+  echo ">> Auth ainda subindo, tentando de novo... ($i/45)"
   sleep 2
 done
 
@@ -108,18 +140,18 @@ CREATE_RESP=""
 if [ "$AUTH_READY" = "1" ]; then
   CREATE_CODE=000
   for i in $(seq 1 60); do
-    CREATE_RESP=$(auth_curl -sS --max-time 20 -w '\n%{http_code}' -X POST "$AUTH_INTERNAL_URL/admin/users" \
-      -H "apikey: ${SERVICE_ROLE_KEY}" \
-      -H "Authorization: Bearer ${SERVICE_ROLE_KEY}" \
-      -H "Content-Type: application/json" \
-      -d "$CREATE_BODY" 2>/dev/null || true)
-    CREATE_CODE=$(printf '%s' "$CREATE_RESP" | tail -n1)
+    CREATE_RESP="$(auth_req POST /admin/users "$CREATE_BODY")"
+    # o curl coloca o código HTTP na última linha (-w '\n%{http_code}')
+    CREATE_CODE="$(printf '%s' "$CREATE_RESP" | tail -n1 | tr -dc '0-9')"
+    [ -z "$CREATE_CODE" ] && CREATE_CODE=000
     # 200/201 = criado; 422 = já existe (idempotente) -> sai do loop
     case "$CREATE_CODE" in
       200|201|422) break ;;
       *)
         # Algumas versões retornam 400 se o e-mail já existe. Se já existe no banco, seguimos.
         if [ "$CREATE_CODE" = "400" ] && [ -n "$(admin_user_id)" ]; then break; fi
+        # Se o usuário já apareceu no banco, também seguimos.
+        if [ -n "$(admin_user_id)" ]; then break; fi
         echo ">> Auth ainda não criou o admin (HTTP $CREATE_CODE), tentando de novo... ($i/60)"
         sleep 3
         ;;
@@ -162,11 +194,7 @@ fi
 echo ">> Garantindo senha e confirmação do admin..."
 UPDATE_BODY=$(printf '{"password":"%s","email_confirm":true}' "$ADMIN_PASSWORD")
 if [ "$AUTH_READY" = "1" ] && [ "$USED_SQL_FALLBACK" != "1" ]; then
-  auth_curl -sS --max-time 20 -o /dev/null -X PUT "$AUTH_INTERNAL_URL/admin/users/${UID_DB}" \
-    -H "apikey: ${SERVICE_ROLE_KEY}" \
-    -H "Authorization: Bearer ${SERVICE_ROLE_KEY}" \
-    -H "Content-Type: application/json" \
-    -d "$UPDATE_BODY" 2>/dev/null || true
+  auth_req PUT "/admin/users/${UID_DB}" "$UPDATE_BODY" >/dev/null 2>&1 || true
 else
   run_direct_admin_fallback
 fi
