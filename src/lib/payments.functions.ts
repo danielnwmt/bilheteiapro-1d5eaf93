@@ -22,7 +22,7 @@ async function getPlanoConfig(plano: Plano): Promise<{ nome: string; preco: stri
 export const createInfinitePayCheckout = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { plano: Plano; returnUrl: string }) => {
-    if (!PLANOS_VALIDOS.includes(data.plano)) throw new Error("Plano inválido");
+    if (!data.plano) throw new Error("Plano inválido");
     return data;
   })
   .handler(async ({ data, context }): Promise<CheckoutResult> => {
