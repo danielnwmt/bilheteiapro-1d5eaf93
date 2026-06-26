@@ -182,7 +182,8 @@ if printf '%s' "$ROLES" | grep -q admin; then
   echo " Admin pronto: ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}"
   echo " Papéis: ${ROLES}"
 else
-  echo " ATENÇÃO: não foi possível confirmar o papel admin."
+  echo " ERRO: não foi possível confirmar o papel admin."
   echo " Papéis atuais: ${ROLES:-nenhum}"
+  exit 1
 fi
 echo "============================================================"
