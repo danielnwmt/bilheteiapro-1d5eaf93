@@ -148,9 +148,21 @@ function PlanosPage() {
               </Button>
             </div>
             <p className="text-2xl font-bold">
-              {checkoutCfg.preco}
-              <span className="text-sm font-normal text-muted-foreground">/mês</span>
+              {formatarReais(precoCicloCentavos(checkoutCfg, ciclo))}
+              <span className="text-sm font-normal text-muted-foreground">
+                /{CICLO_LABEL[ciclo].toLowerCase()}
+              </span>
             </p>
+            {ciclo !== "mensal" && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                Equivale a {formatarReais(precoMensalEquivalenteCentavos(checkoutCfg, ciclo))}/mês
+                {descontoDoCiclo(checkoutCfg, ciclo) > 0 && (
+                  <span className="ml-1 font-semibold text-primary">
+                    ({descontoDoCiclo(checkoutCfg, ciclo)}% off)
+                  </span>
+                )}
+              </p>
+            )}
             <p className="mt-4 mb-3 text-sm text-muted-foreground">
               Pague com Pix ou Cartão em até 12x via InfinitePay.
             </p>
