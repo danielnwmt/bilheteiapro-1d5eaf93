@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Loader2, Save, ShieldAlert } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, Save, ShieldAlert, Trash2 } from "lucide-react";
 import {
   TODAS_LIGAS,
   RECURSO_LABELS,
@@ -14,9 +14,20 @@ import {
   type PlanoConfig,
 } from "@/lib/planos";
 import { usePlanos } from "@/hooks/usePlanos";
-import { updatePlanoConfig } from "@/lib/planoConfig.functions";
+import {
+  createPlanoConfig,
+  deletePlanoConfig,
+  updatePlanoConfig,
+} from "@/lib/planoConfig.functions";
 import { useAccess } from "@/hooks/useAccess";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 const ADMIN_EMAIL = "contato@protenexus.com";
