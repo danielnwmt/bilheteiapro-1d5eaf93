@@ -303,7 +303,7 @@ fi
 echo ">> Subindo Data API e gateway..."
 $DC up -d rest kong
 
-echo ">> Aguardando gateway local responder..."
+echo ">> Aguardando Auth local responder..."
 KONG_READY=0
 for i in $(seq 1 60); do
   HTTP_CODE="$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:${AUTH_PORT:-9999}/health" 2>/dev/null || printf '000')"
