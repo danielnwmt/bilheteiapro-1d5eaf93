@@ -146,6 +146,9 @@ function BancaPage() {
   const fetchEntradas = useServerFn(listBancaEntradas);
   const addFn = useServerFn(addBancaEntrada);
   const delFn = useServerFn(deleteBancaEntrada);
+  const fetchDepositos = useServerFn(listBancaDepositos);
+  const addDepFn = useServerFn(addBancaDeposito);
+  const delDepFn = useServerFn(deleteBancaDeposito);
 
   const [dataAposta, setDataAposta] = useState<Date>(new Date());
   const [calOpen, setCalOpen] = useState(false);
@@ -155,13 +158,24 @@ function BancaPage() {
   const [odd, setOdd] = useState("");
   const [resultado, setResultado] = useState<Resultado>("pendente");
 
+  const [depOpen, setDepOpen] = useState(false);
+  const [depValor, setDepValor] = useState("");
+  const [depDescricao, setDepDescricao] = useState("");
+
   const { data: entradas, isLoading } = useQuery({
     queryKey: ["banca"],
     queryFn: () => fetchEntradas(),
     enabled: liberado,
   });
 
+  const { data: depositos } = useQuery({
+    queryKey: ["banca-depositos"],
+    queryFn: () => fetchDepositos(),
+    enabled: liberado,
+  });
+
   const invalidate = () => qc.invalidateQueries({ queryKey: ["banca"] });
+  const invalidateDep = () => qc.invalidateQueries({ queryKey: ["banca-depositos"] });
 
   const mutAdd = useMutation({
     mutationFn: (v: Parameters<typeof addBancaEntrada>[0]["data"]) => addFn({ data: v }),
@@ -187,11 +201,35 @@ function BancaPage() {
     onError: (e: any) => toast.error(e?.message ?? "Erro ao remover"),
   });
 
+  const mutAddDep = useMutation({
+    mutationFn: (v: Parameters<typeof addBancaDeposito>[0]["data"]) => addDepFn({ data: v }),
+    onSuccess: () => {
+      toast.success("Dinheiro adicionado à banca");
+      setDepValor("");
+      setDepDescricao("");
+      setDepOpen(false);
+      invalidateDep();
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao adicionar"),
+  });
+
+  const mutDelDep = useMutation({
+    mutationFn: (id: string) => delDepFn({ data: { id } }),
+    onSuccess: () => {
+      toast.success("Aporte removido");
+      invalidateDep();
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao remover"),
+  });
+
   const lista = entradas ?? [];
+  const listaDep = depositos ?? [];
   const resolvidas = lista.filter((e) => e.resultado === "green" || e.resultado === "red");
   const totalApostado = resolvidas.reduce((s, e) => s + e.valor, 0);
   const lucroTotal = lista.reduce((s, e) => s + lucroDe(e), 0);
-  const bancaAtual = BANCA_INICIAL + lucroTotal;
+  const totalDepositado = listaDep.reduce((s, d) => s + d.valor, 0);
+  const bancaInicial = totalDepositado > 0 ? totalDepositado : BANCA_INICIAL;
+  const bancaAtual = bancaInicial + lucroTotal;
   const roi = totalApostado > 0 ? (lucroTotal / totalApostado) * 100 : 0;
   const greens = lista.filter((e) => e.resultado === "green").length;
   const taxa = resolvidas.length > 0 ? (greens / resolvidas.length) * 100 : 0;
@@ -204,6 +242,14 @@ function BancaPage() {
       valor: parseFloat(valor.replace(",", ".")) || 0,
       odd: parseFloat(odd.replace(",", ".")) || 1,
       resultado,
+    });
+  };
+
+  const handleAddDep = () => {
+    mutAddDep.mutate({
+      data: new Date().toISOString().slice(0, 10),
+      descricao: depDescricao,
+      valor: parseFloat(depValor.replace(",", ".")) || 0,
     });
   };
 
