@@ -178,19 +178,33 @@ function ConfiguracoesPage() {
                 <Card key={base.plano} className="border-border/60 bg-card p-6">
                   <div className="mb-4 flex items-center justify-between">
                     <h2 className="text-lg font-bold capitalize">{base.plano}</h2>
-                    <Button
-                      size="sm"
-                      disabled={mut.isPending}
-                      onClick={() => mut.mutate(cfg)}
-                    >
-                      {mut.isPending ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <Save className="mr-2 h-4 w-4" />
-                      )}
-                      Salvar
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        disabled={mut.isPending}
+                        onClick={() => mut.mutate(cfg)}
+                      >
+                        {mut.isPending ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Save className="mr-2 h-4 w-4" />
+                        )}
+                        Salvar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-destructive hover:text-destructive"
+                        disabled={removerMut.isPending}
+                        onClick={() => {
+                          if (confirm(`Remover o plano "${base.plano}"?`)) removerMut.mutate(base.plano);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
+
 
                   <div className="grid gap-4 md:grid-cols-2">
                     <div>
