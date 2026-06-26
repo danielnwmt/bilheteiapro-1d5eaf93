@@ -10,6 +10,7 @@ import { ArrowLeft, Loader2, Plus, Save, ShieldAlert, Trash2 } from "lucide-reac
 import {
   TODAS_LIGAS,
   RECURSO_LABELS,
+  recursosVazios,
   type Plano,
   type PlanoConfig,
 } from "@/lib/planos";
