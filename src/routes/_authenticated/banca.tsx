@@ -70,7 +70,8 @@ export const Route = createFileRoute("/_authenticated/banca")({
   component: BancaPage,
 });
 
-const BANCA_INICIAL = 1000;
+
+
 
 const RESULTADOS: { v: Resultado; label: string }[] = [
   { v: "pendente", label: "Pendente" },
@@ -228,8 +229,7 @@ function BancaPage() {
   const totalApostado = resolvidas.reduce((s, e) => s + e.valor, 0);
   const lucroTotal = lista.reduce((s, e) => s + lucroDe(e), 0);
   const totalDepositado = listaDep.reduce((s, d) => s + d.valor, 0);
-  const bancaInicial = totalDepositado > 0 ? totalDepositado : BANCA_INICIAL;
-  const bancaAtual = bancaInicial + lucroTotal;
+  const bancaAtual = totalDepositado + lucroTotal;
   const roi = totalApostado > 0 ? (lucroTotal / totalApostado) * 100 : 0;
   const greens = lista.filter((e) => e.resultado === "green").length;
   const taxa = resolvidas.length > 0 ? (greens / resolvidas.length) * 100 : 0;
