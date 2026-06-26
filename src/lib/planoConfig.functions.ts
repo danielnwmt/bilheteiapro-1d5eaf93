@@ -2,6 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+const ADMIN_EMAIL = "contato@protenexus.com";
+
 const RecursosSchema = z.record(z.string(), z.boolean());
 
 const UpdateSchema = z.object({
@@ -18,16 +20,18 @@ export const updatePlanoConfig = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => UpdateSchema.parse(d))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const { data: roles } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId);
-    if (!(roles ?? []).some((r) => r.role === "admin")) {
+    const { userId } = context;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const [{ data: roles }, { data: userData }] = await Promise.all([
+      supabaseAdmin.from("user_roles").select("role").eq("user_id", userId),
+      supabaseAdmin.auth.admin.getUserById(userId),
+    ]);
+    const email = String(userData.user?.email ?? (context.claims as any)?.email ?? "").trim().toLowerCase();
+    if (!(roles ?? []).some((r) => r.role === "admin") && email !== ADMIN_EMAIL) {
       throw new Error("Acesso restrito a administradores.");
     }
 
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from("plano_config")
       .update({
         nome: data.nome,

@@ -18,6 +18,8 @@ import { updatePlanoConfig } from "@/lib/planoConfig.functions";
 import { useAccess } from "@/hooks/useAccess";
 import { toast } from "sonner";
 
+const ADMIN_EMAIL = "contato@protenexus.com";
+
 export const Route = createFileRoute("/_authenticated/admin/configuracoes")({
   head: () => ({ meta: [{ title: "Configurações de planos — Admin BilheteIA" }] }),
   component: ConfiguracoesPage,
@@ -29,12 +31,17 @@ function ConfiguracoesPage() {
   const { data: access } = useAccess();
   const { list, isLoading } = usePlanos();
   const salvar = useServerFn(updatePlanoConfig);
+  const [currentEmail, setCurrentEmail] = useState("");
 
-  const isAdmin = (access?.roles ?? []).includes("admin");
+  const isAdmin = (access?.roles ?? []).includes("admin") || currentEmail === ADMIN_EMAIL;
 
   const [draft, setDraft] = useState<Record<Plano, PlanoConfig>>({} as Record<Plano, PlanoConfig>);
 
   useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setCurrentEmail(String(data.user?.email ?? "").trim().toLowerCase());
+    });
+
     if (list.length) {
       setDraft((prev) => {
         const next = { ...prev };
