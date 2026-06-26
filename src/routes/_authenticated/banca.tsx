@@ -37,6 +37,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
   ArrowLeft,
   Loader2,
   Plus,
@@ -48,6 +57,7 @@ import {
   CalendarIcon,
   Lock,
   Crown,
+  PiggyBank,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
