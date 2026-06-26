@@ -21,7 +21,17 @@ export const getMyAccess = createServerFn({ method: "GET" })
     ]);
 
     let accessRoles = (roles ?? []).map((r) => r.role as AppRole);
-    const email = String((claims as any)?.email ?? "").trim().toLowerCase();
+    let email = String((claims as any)?.email ?? "").trim().toLowerCase();
+
+    if (!email) {
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId);
+        email = String(userData.user?.email ?? "").trim().toLowerCase();
+      } catch {
+        // Sem service role disponível: mantém a regra normal por roles.
+      }
+    }
 
     // Reparo automático para instalações locais: se o admin padrão entrou mas
     // ficou sem papel, corrige na hora em qualquer carregamento do sistema.
@@ -73,7 +83,35 @@ async function assertStaff(supabase: any, userId: string) {
     .from("user_roles")
     .select("role")
     .eq("user_id", userId);
-  const roles = (data ?? []).map((r: any) => r.role);
+  let roles = (data ?? []).map((r: any) => r.role);
+
+  if (!roles.includes("admin") && !roles.includes("operador")) {
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId);
+      const email = String(userData.user?.email ?? "").trim().toLowerCase();
+
+      if (email === ADMIN_EMAIL) {
+        await supabaseAdmin.from("profiles").upsert(
+          {
+            id: userId,
+            nome: "Administrador",
+            email: ADMIN_EMAIL,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "id" },
+        );
+        await supabaseAdmin
+          .from("user_roles")
+          .upsert({ user_id: userId, role: "admin" }, { onConflict: "user_id,role" });
+        await supabaseAdmin.from("user_roles").delete().eq("user_id", userId).eq("role", "cliente");
+        roles = Array.from(new Set<AppRole>(["admin", ...roles.filter((role) => role !== "cliente")]));
+      }
+    } catch {
+      // Se não der para reparar, mantém bloqueio abaixo.
+    }
+  }
+
   if (!roles.includes("admin") && !roles.includes("operador")) {
     throw new Error("Acesso restrito");
   }
