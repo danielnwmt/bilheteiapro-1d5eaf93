@@ -327,6 +327,8 @@ export type Database = {
       plano_config: {
         Row: {
           created_at: string
+          desconto_anual: number
+          desconto_semestral: number
           descricao: string
           historico_dias: number
           ligas: Json
@@ -340,6 +342,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          desconto_anual?: number
+          desconto_semestral?: number
           descricao: string
           historico_dias?: number
           ligas?: Json
@@ -353,6 +357,8 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          desconto_anual?: number
+          desconto_semestral?: number
           descricao?: string
           historico_dias?: number
           ligas?: Json
