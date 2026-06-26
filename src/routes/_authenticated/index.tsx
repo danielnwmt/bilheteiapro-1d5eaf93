@@ -125,6 +125,8 @@ const MERCADOS = [
   "Time Marca Gol",
 ];
 
+const ADMIN_EMAIL = "contato@protenexus.com";
+
 function Index() {
   const router = useRouter();
   const run = useServerFn(gerarBilhete);
@@ -137,10 +139,12 @@ function Index() {
   const [mercSel, setMercSel] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [ticket, setTicket] = useState<Ticket | null>(null);
+  const [currentEmail, setCurrentEmail] = useState("");
 
   const { byPlano } = usePlanos();
   const roles = access?.roles ?? [];
-  const isStaff = roles.includes("admin") || roles.includes("operador");
+  const isDefaultAdmin = currentEmail === ADMIN_EMAIL;
+  const isStaff = roles.includes("admin") || roles.includes("operador") || isDefaultAdmin;
   const plano = access?.plano ?? null;
   const planoCfg = plano ? byPlano?.[plano] ?? null : null;
   const temAcesso = isStaff || !!plano;
@@ -148,6 +152,10 @@ function Index() {
 
   // Volta do checkout: atualiza o plano.
   useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setCurrentEmail(String(data.user?.email ?? "").trim().toLowerCase());
+    });
+
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     if (params.get("checkout") === "success") {
