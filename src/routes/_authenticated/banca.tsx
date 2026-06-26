@@ -339,8 +339,9 @@ function BancaPage() {
                 icon={Wallet}
                 label="Banca Atual"
                 value={brl(bancaAtual)}
-                hint={`Inicial ${brl(BANCA_INICIAL)}`}
+                hint={`Depositado ${brl(totalDepositado)}`}
               />
+
               <StatCard
                 icon={TrendingUp}
                 label="Lucro / Prejuízo"
