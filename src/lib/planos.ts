@@ -2,7 +2,8 @@
 // vivem no banco (tabela plano_config) e são editáveis pelo admin.
 // Client-safe: sem imports de servidor.
 
-export type Plano = "start" | "pro" | "elite";
+// Plano é texto livre: além de start/pro/elite, o admin pode criar novos.
+export type Plano = string;
 
 export const PLANOS: Plano[] = ["start", "pro", "elite"];
 
