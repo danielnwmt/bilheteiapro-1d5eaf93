@@ -264,6 +264,11 @@ $DC cp schema.sql db:/tmp/schema.sql
 if "${PSQL[@]}" -tAc "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='profiles') AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='user_roles')" 2>/dev/null | grep -q t; then
   echo ">> Schema principal já existe; pulando criação das tabelas."
 else
+  if "${PSQL[@]}" -tAc "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name IN ('partidas','odds','bilhetes','profiles','user_roles','subscriptions'))" 2>/dev/null | grep -q t; then
+    echo ">> Schema parcial/incompleto detectado. Recriando schema public para uma instalação limpa..."
+    "${PSQL[@]}" -c "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public; GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;" >/dev/null
+    "${PSQL[@]}" -f /tmp/pre.sql >/dev/null
+  fi
   "${PSQL[@]}" -f /tmp/schema.sql >/dev/null
 fi
 

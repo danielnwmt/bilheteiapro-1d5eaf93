@@ -106,6 +106,11 @@ services:
         if psql -h db -U postgres -d postgres -tAc "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='profiles') AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='user_roles')" | grep -q t; then
           echo ">> Schema principal já existe; pulando criação das tabelas.";
         else
+          if psql -h db -U postgres -d postgres -tAc "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name IN ('partidas','odds','bilhetes','profiles','user_roles','subscriptions'))" | grep -q t; then
+            echo ">> Schema parcial/incompleto detectado. Recriando schema public para uma instalação limpa...";
+            psql -v ON_ERROR_STOP=1 -h db -U postgres -d postgres -c "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public; GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;";
+            psql -v ON_ERROR_STOP=1 -h db -U postgres -d postgres -f /tmp/pre.sql;
+          fi;
           psql -v ON_ERROR_STOP=1 -h db -U postgres -d postgres -f /tmp/schema.sql;
         fi;
         psql -v ON_ERROR_STOP=1 -h db -U postgres -d postgres -v admin_email="$${ADMIN_EMAIL}" -v admin_password="$${ADMIN_PASSWORD}" -f /tmp/direct-admin.sql;
