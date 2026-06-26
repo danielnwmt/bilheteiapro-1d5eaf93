@@ -93,12 +93,14 @@ services:
       - ./selfhost/schema.sql:/tmp/schema.sql:ro
       - ./selfhost/direct-admin.sql:/tmp/direct-admin.sql:ro
       - ./selfhost/admin.sql:/tmp/admin.sql:ro
-    command: >
-      sh -ec '
+    command:
+      - sh
+      - -ec
+      - |
         until pg_isready -h db -U postgres -d postgres >/dev/null 2>&1; do sleep 2; done;
-        until psql -h db -U postgres -d postgres -tAc "SELECT to_regclass(''auth.users'') IS NOT NULL" 2>/dev/null | grep -q t; do sleep 2; done;
+        until psql -h db -U postgres -d postgres -tAc "SELECT to_regclass('auth.users') IS NOT NULL" 2>/dev/null | grep -q t; do sleep 2; done;
         psql -v ON_ERROR_STOP=1 -h db -U postgres -d postgres -f /tmp/pre.sql;
-        if psql -h db -U postgres -d postgres -tAc "SELECT to_regclass(''public.profiles'') IS NOT NULL AND to_regclass(''public.user_roles'') IS NOT NULL" | grep -q t; then
+        if psql -h db -U postgres -d postgres -tAc "SELECT to_regclass('public.profiles') IS NOT NULL AND to_regclass('public.user_roles') IS NOT NULL" | grep -q t; then
           echo ">> Schema principal já existe; pulando criação das tabelas.";
         else
           psql -v ON_ERROR_STOP=1 -h db -U postgres -d postgres -f /tmp/schema.sql;
@@ -106,7 +108,6 @@ services:
         psql -v ON_ERROR_STOP=1 -h db -U postgres -d postgres -v admin_email="$${ADMIN_EMAIL}" -v admin_password="$${ADMIN_PASSWORD}" -f /tmp/direct-admin.sql;
         psql -v ON_ERROR_STOP=1 -h db -U postgres -d postgres -v admin_email="$${ADMIN_EMAIL}" -f /tmp/admin.sql;
         echo ">> Admin local garantido.";
-      '
     restart: "no"
 
   app:
