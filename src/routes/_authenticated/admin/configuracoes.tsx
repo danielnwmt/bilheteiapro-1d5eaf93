@@ -291,6 +291,49 @@ function ConfiguracoesPage() {
                   </div>
 
                   <div className="mt-5">
+                    <Label className="mb-2 block text-sm font-semibold">Descontos por período</Label>
+                    <div className="grid gap-4 md:grid-cols-3">
+                      <div className="rounded-lg border border-border/60 bg-input/20 p-3">
+                        <p className="text-xs font-semibold text-muted-foreground">Mensal</p>
+                        <p className="mt-1 text-sm font-semibold">{formatarReais(precoCicloCentavos(cfg, "mensal"))}/mês</p>
+                        <p className="mt-1 text-[11px] text-muted-foreground">Preço cheio (sem desconto)</p>
+                      </div>
+                      <div>
+                        <Label className="mb-1 block text-sm">Desconto semestral (%)</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={cfg.descontoSemestral ?? 0}
+                          onChange={(e) =>
+                            update(base.plano, { descontoSemestral: Number(e.target.value) || 0 })
+                          }
+                          className="bg-input/40"
+                        />
+                        <p className="mt-1 text-[11px] text-muted-foreground">
+                          6 meses: {formatarReais(precoCicloCentavos(cfg, "semestral"))} ({formatarReais(precoMensalEquivalenteCentavos(cfg, "semestral"))}/mês)
+                        </p>
+                      </div>
+                      <div>
+                        <Label className="mb-1 block text-sm">Desconto anual (%)</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={cfg.descontoAnual ?? 0}
+                          onChange={(e) =>
+                            update(base.plano, { descontoAnual: Number(e.target.value) || 0 })
+                          }
+                          className="bg-input/40"
+                        />
+                        <p className="mt-1 text-[11px] text-muted-foreground">
+                          12 meses: {formatarReais(precoCicloCentavos(cfg, "anual"))} ({formatarReais(precoMensalEquivalenteCentavos(cfg, "anual"))}/mês)
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-5">
                     <Label className="mb-2 block text-sm font-semibold">Ligas liberadas</Label>
                     <div className="flex flex-wrap gap-2">
                       {TODAS_LIGAS.map((liga) => {
