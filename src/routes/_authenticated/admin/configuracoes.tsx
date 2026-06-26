@@ -16,6 +16,7 @@ import {
 import { usePlanos } from "@/hooks/usePlanos";
 import { updatePlanoConfig } from "@/lib/planoConfig.functions";
 import { useAccess } from "@/hooks/useAccess";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const ADMIN_EMAIL = "contato@protenexus.com";
