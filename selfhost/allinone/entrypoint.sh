@@ -16,6 +16,7 @@ export PATH="$PGBIN:$PATH"
 LISTEN_PORT="${PORT:-3000}"
 APP_INTERNAL_PORT=8080
 JWT_SECRET="${JWT_SECRET:-bilheteia-localweb-default-jwt-secret-change-me-2026}"
+POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-local-postgres-password}"
 ADMIN_EMAIL="${ADMIN_EMAIL:-contato@protenexus.com}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-admin.1234}"
 ANON_KEY="${ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzgyNDQwMDAwLCJleHAiOjIwOTc4MDAwMDB9.mX6rq28Z0cpvC22UaLwB1AZHIrjrurs5W-faJBMopsg}"
@@ -44,11 +45,11 @@ export PGHOST=127.0.0.1 PGPORT=5432 PGUSER=postgres PGDATABASE=postgres
 until pg_isready -h 127.0.0.1 -U postgres >/dev/null 2>&1; do sleep 1; done
 
 echo ">> Aplicando pré-requisitos (roles, schemas, extensões)..."
-psql -v ON_ERROR_STOP=1 -f "$SELF/pre.sql"
+psql -v ON_ERROR_STOP=1 -v postgres_password="$POSTGRES_PASSWORD" -f "$SELF/pre.sql"
 
 # --- GoTrue (Auth) -------------------------------------------------
 export GOTRUE_DB_DRIVER=postgres
-export GOTRUE_DB_DATABASE_URL="postgres://postgres@127.0.0.1:5432/postgres?sslmode=disable"
+export GOTRUE_DB_DATABASE_URL="postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@127.0.0.1:5432/postgres?sslmode=disable"
 export GOTRUE_API_HOST=0.0.0.0
 export GOTRUE_API_PORT=9999
 export API_EXTERNAL_URL="$PUBLIC_URL"
