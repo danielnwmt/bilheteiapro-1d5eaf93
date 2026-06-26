@@ -8,10 +8,13 @@ const ADMIN_EMAIL = "contato@protenexus.com";
 export const getMyAccess = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabase, userId, claims } = context;
-    const [{ data: roles }, { data: sub }] = await Promise.all([
-      supabase.from("user_roles").select("role").eq("user_id", userId),
-      supabase
+    const { userId, claims } = context;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const [{ data: userData }, { data: roles }, { data: sub }] = await Promise.all([
+      supabaseAdmin.auth.admin.getUserById(userId),
+      supabaseAdmin.from("user_roles").select("role").eq("user_id", userId),
+      supabaseAdmin
         .from("subscriptions")
         .select("plano, status, periodo_fim")
         .eq("user_id", userId)
@@ -22,22 +25,12 @@ export const getMyAccess = createServerFn({ method: "GET" })
 
     let accessRoles = (roles ?? []).map((r) => r.role as AppRole);
     let email = String((claims as any)?.email ?? "").trim().toLowerCase();
-
-    if (!email) {
-      try {
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId);
-        email = String(userData.user?.email ?? "").trim().toLowerCase();
-      } catch {
-        // Sem service role disponível: mantém a regra normal por roles.
-      }
-    }
+    if (!email) email = String(userData.user?.email ?? "").trim().toLowerCase();
 
     // Reparo automático para instalações locais: se o admin padrão entrou mas
     // ficou sem papel, corrige na hora em qualquer carregamento do sistema.
     if (!accessRoles.includes("admin") && (email === ADMIN_EMAIL || accessRoles.length === 0)) {
       try {
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { count } = await supabaseAdmin
           .from("user_roles")
           .select("user_id", { count: "exact", head: true })
@@ -79,15 +72,12 @@ export const getMyAccess = createServerFn({ method: "GET" })
   });
 
 async function assertStaff(supabase: any, userId: string) {
-  const { data } = await supabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId);
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await supabaseAdmin.from("user_roles").select("role").eq("user_id", userId);
   let roles = (data ?? []).map((r: any) => r.role);
 
   if (!roles.includes("admin") && !roles.includes("operador")) {
     try {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId);
       const email = String(userData.user?.email ?? "").trim().toLowerCase();
 
@@ -387,11 +377,8 @@ export const getSystemConfig = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const { data: roles } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId);
-    if (!(roles ?? []).some((r) => r.role === "admin")) throw new Error("Acesso restrito");
+    const roles = await assertStaff(supabase, userId);
+    if (!roles.includes("admin")) throw new Error("Acesso restrito");
 
     const { data } = await supabase
       .from("system_config")
@@ -405,11 +392,8 @@ export const setSystemConfig = createServerFn({ method: "POST" })
   .inputValidator((d: { chave: string; valor: string; descricao?: string }) => d)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { data: roles } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId);
-    if (!(roles ?? []).some((r) => r.role === "admin")) throw new Error("Acesso restrito");
+    const roles = await assertStaff(supabase, userId);
+    if (!roles.includes("admin")) throw new Error("Acesso restrito");
 
     const { error } = await supabase.from("system_config").upsert(
       {
