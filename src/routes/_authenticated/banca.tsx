@@ -8,6 +8,9 @@ import {
   listBancaEntradas,
   addBancaEntrada,
   deleteBancaEntrada,
+  listBancaDepositos,
+  addBancaDeposito,
+  deleteBancaDeposito,
   type BancaEntrada,
   type Resultado,
 } from "@/lib/banca.functions";
