@@ -56,15 +56,28 @@ function ConfiguracoesPage() {
     supabase.auth.getUser().then(({ data }) => {
       setCurrentEmail(String(data.user?.email ?? "").trim().toLowerCase());
     });
+  }, []);
 
-    if (list.length) {
-      setDraft((prev) => {
-        const next = { ...prev };
-        for (const c of list) if (!next[c.plano]) next[c.plano] = structuredClone(c);
-        return next;
-      });
-    }
-  }, [list]);
+  // Assinatura estável das chaves de plano para evitar re-execução em loop
+  // (o array `list` é recriado a cada render).
+  const listKey = list.map((c) => c.plano).join(",");
+
+  useEffect(() => {
+    if (!list.length) return;
+    setDraft((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const c of list) {
+        if (!next[c.plano]) {
+          next[c.plano] = structuredClone(c);
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listKey]);
+
 
   const mut = useMutation({
     mutationFn: (cfg: PlanoConfig) =>
