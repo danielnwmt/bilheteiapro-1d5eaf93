@@ -121,18 +121,18 @@ CREATE_RESP=""
 if [ "$AUTH_READY" = "1" ]; then
   CREATE_CODE=000
   for i in $(seq 1 60); do
-    CREATE_RESP=$(auth_curl -sS --max-time 20 -w '\n%{http_code}' -X POST "$AUTH_INTERNAL_URL/admin/users" \
-      -H "apikey: ${SERVICE_ROLE_KEY}" \
-      -H "Authorization: Bearer ${SERVICE_ROLE_KEY}" \
-      -H "Content-Type: application/json" \
-      -d "$CREATE_BODY" 2>/dev/null || true)
-    CREATE_CODE=$(printf '%s' "$CREATE_RESP" | tail -n1)
+    CREATE_RESP="$(auth_req POST /admin/users "$CREATE_BODY")"
+    # extrai o último "HTTP/1.1 <code>" do --server-response
+    CREATE_CODE="$(printf '%s' "$CREATE_RESP" | grep -oE 'HTTP/[0-9.]+ [0-9]{3}' | tail -n1 | grep -oE '[0-9]{3}' || true)"
+    [ -z "$CREATE_CODE" ] && CREATE_CODE=000
     # 200/201 = criado; 422 = já existe (idempotente) -> sai do loop
     case "$CREATE_CODE" in
       200|201|422) break ;;
       *)
         # Algumas versões retornam 400 se o e-mail já existe. Se já existe no banco, seguimos.
         if [ "$CREATE_CODE" = "400" ] && [ -n "$(admin_user_id)" ]; then break; fi
+        # Se o usuário já apareceu no banco, também seguimos.
+        if [ -n "$(admin_user_id)" ]; then break; fi
         echo ">> Auth ainda não criou o admin (HTTP $CREATE_CODE), tentando de novo... ($i/60)"
         sleep 3
         ;;
