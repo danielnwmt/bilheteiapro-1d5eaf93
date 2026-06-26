@@ -56,6 +56,7 @@ if [ -z "$AUTH_CID" ]; then
 fi
 
 AUTH_INTERNAL_URL="${AUTH_API_URL:-http://127.0.0.1:${AUTH_PORT}}"
+AUTH_GATEWAY_URL="http://127.0.0.1:${SUPABASE_PORT}/auth/v1"
 USED_SQL_FALLBACK=0
 
 auth_curl() {
@@ -78,13 +79,16 @@ admin_user_id() {
 # ---------- 1) Garante que o Auth (GoTrue) está respondendo ----------
 echo ">> Aguardando o serviço de autenticação..."
 AUTH_READY=0
-for i in $(seq 1 90); do
+for i in $(seq 1 8); do
   HEALTH_CODE="$(auth_curl -sS -o /dev/null -w '%{http_code}' "$AUTH_INTERNAL_URL/health" 2>/dev/null || printf '000')"
+  if [ "$HEALTH_CODE" != "200" ] && [ "$HEALTH_CODE" != "204" ]; then
+    HEALTH_CODE="$(auth_curl -sS -o /dev/null -w '%{http_code}' "$AUTH_GATEWAY_URL/health" 2>/dev/null || printf '000')"
+  fi
   if [ "$HEALTH_CODE" = "200" ] || [ "$HEALTH_CODE" = "204" ]; then
     AUTH_READY=1
     break
   fi
-  echo ">> Auth ainda indisponível (HTTP ${HEALTH_CODE}), tentando de novo... ($i/90)"
+  echo ">> Auth ainda indisponível (HTTP ${HEALTH_CODE}), tentando de novo... ($i/8)"
   sleep 2
 done
 
