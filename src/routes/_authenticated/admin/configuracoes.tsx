@@ -43,6 +43,8 @@ function ConfiguracoesPage() {
   const { data: access } = useAccess();
   const { list, isLoading } = usePlanos();
   const salvar = useServerFn(updatePlanoConfig);
+  const criar = useServerFn(createPlanoConfig);
+  const remover = useServerFn(deletePlanoConfig);
   const [currentEmail, setCurrentEmail] = useState("");
 
   const isAdmin = (access?.roles ?? []).includes("admin") || currentEmail === ADMIN_EMAIL;
