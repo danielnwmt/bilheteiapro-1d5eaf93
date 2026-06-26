@@ -22,6 +22,10 @@ const CreateSchema = z.object({
   plano: planoKey,
   nome: z.string().min(1).max(120),
   preco: z.string().min(1).max(40),
+  descricao: z.string().max(400).optional(),
+  historicoDias: z.number().int().min(1).max(365).optional(),
+  ligas: z.array(z.string()).max(100).optional(),
+  recursos: RecursosSchema.optional(),
 });
 
 async function assertAdmin(userId: string, claims: unknown) {
