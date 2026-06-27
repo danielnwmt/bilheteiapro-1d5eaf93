@@ -3,7 +3,88 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export type AppRole = "admin" | "operador" | "cliente";
 
-const ADMIN_EMAIL = "contato@protenexus.com";
+export const ADMIN_EMAIL = "contato@protenexus.com";
+
+type SupabaseAdmin = Awaited<
+  typeof import("@/integrations/supabase/client.server")
+>["supabaseAdmin"];
+
+/**
+ * Resolve o e-mail do usuário (claims do token ou Auth).
+ */
+async function resolveEmail(
+  admin: SupabaseAdmin,
+  userId: string,
+  hint?: string,
+): Promise<string> {
+  const fromHint = String(hint ?? "").trim().toLowerCase();
+  if (fromHint) return fromHint;
+  try {
+    const { data } = await admin.auth.admin.getUserById(userId);
+    return String(data.user?.email ?? "").trim().toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Fonte única de verdade para os papéis do usuário.
+ * Garante (auto-reparo) que o admin padrão — ou o primeiro usuário de uma
+ * instalação nova/local sem nenhum admin — receba o papel "admin".
+ * Retorna a lista de papéis já corrigida.
+ */
+async function resolveRoles(
+  admin: SupabaseAdmin,
+  userId: string,
+  emailHint?: string,
+): Promise<AppRole[]> {
+  const { data, error } = await admin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId);
+  if (error) console.error("resolveRoles: falha ao ler user_roles", error);
+
+  let roles = (data ?? []).map((r) => r.role as AppRole);
+  if (roles.includes("admin")) return roles;
+
+  // Só tenta promover quando faz sentido: usuário sem papel ou apenas "cliente".
+  if (roles.length > 0 && !(roles.length === 1 && roles[0] === "cliente")) {
+    return roles;
+  }
+
+  const email = await resolveEmail(admin, userId, emailHint);
+  const isDefaultAdminEmail = email === ADMIN_EMAIL;
+
+  let shouldPromote = isDefaultAdminEmail;
+  if (!shouldPromote) {
+    const { count } = await admin
+      .from("user_roles")
+      .select("user_id", { count: "exact", head: true })
+      .eq("role", "admin");
+    shouldPromote = (count ?? 0) === 0;
+  }
+  if (!shouldPromote) return roles;
+
+  try {
+    await admin.from("profiles").upsert(
+      {
+        id: userId,
+        email: email || null,
+        ...(isDefaultAdminEmail ? { nome: "Administrador" } : {}),
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "id" },
+    );
+    await admin
+      .from("user_roles")
+      .upsert({ user_id: userId, role: "admin" }, { onConflict: "user_id,role" });
+    await admin.from("user_roles").delete().eq("user_id", userId).eq("role", "cliente");
+    roles = ["admin"];
+  } catch (err) {
+    console.error("resolveRoles: falha ao promover admin", err);
+  }
+  return roles;
+}
 
 export const getMyAccess = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -11,9 +92,8 @@ export const getMyAccess = createServerFn({ method: "GET" })
     const { userId, claims } = context;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const [{ data: userData }, { data: roles }, { data: sub }] = await Promise.all([
-      supabaseAdmin.auth.admin.getUserById(userId),
-      supabaseAdmin.from("user_roles").select("role").eq("user_id", userId),
+    const [roles, { data: sub }] = await Promise.all([
+      resolveRoles(supabaseAdmin, userId, (claims as any)?.email),
       supabaseAdmin
         .from("subscriptions")
         .select("plano, status, periodo_fim")
@@ -23,101 +103,36 @@ export const getMyAccess = createServerFn({ method: "GET" })
         .maybeSingle(),
     ]);
 
-    let accessRoles = (roles ?? []).map((r) => r.role as AppRole);
-    let email = String((claims as any)?.email ?? "").trim().toLowerCase();
-    if (!email) email = String(userData.user?.email ?? "").trim().toLowerCase();
-
-    // Reparo automático para instalações locais: se o admin padrão entrou mas
-    // ficou sem papel, corrige na hora em qualquer carregamento do sistema.
-    if (!accessRoles.includes("admin") && (email === ADMIN_EMAIL || accessRoles.length === 0)) {
-      try {
-        const { count } = await supabaseAdmin
-          .from("user_roles")
-          .select("user_id", { count: "exact", head: true })
-          .eq("role", "admin");
-
-        if (email === ADMIN_EMAIL || (count ?? 0) === 0) {
-          await supabaseAdmin.from("profiles").upsert(
-            {
-              id: userId,
-              email: email || null,
-              ...(email === ADMIN_EMAIL ? { nome: "Administrador" } : {}),
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: "id" },
-          );
-          await supabaseAdmin
-            .from("user_roles")
-            .upsert({ user_id: userId, role: "admin" }, { onConflict: "user_id,role" });
-          if (email === ADMIN_EMAIL) {
-            await supabaseAdmin.from("user_roles").delete().eq("user_id", userId).eq("role", "cliente");
-            accessRoles = accessRoles.filter((role) => role !== "cliente");
-          }
-          accessRoles = Array.from(new Set<AppRole>(["admin", ...accessRoles]));
-        }
-      } catch (error) {
-        console.error("Falha ao corrigir admin automaticamente", error);
-      }
-    }
+    const isAdmin = roles.includes("admin");
+    const isStaff = isAdmin || roles.includes("operador");
 
     const ativo =
       sub?.status === "ativo" &&
       (!sub?.periodo_fim || new Date(sub.periodo_fim) > new Date());
 
+    // Admin/operador têm ACESSO TOTAL: tratamos como plano máximo (elite).
+    const plano: "start" | "pro" | "elite" | null = isStaff
+      ? "elite"
+      : ativo
+        ? (sub!.plano as "start" | "pro" | "elite")
+        : null;
+
     return {
-      roles: accessRoles,
-      plano: ativo ? (sub!.plano as "start" | "pro" | "elite") : null,
-      status: sub?.status ?? null,
+      roles,
+      isAdmin,
+      isStaff,
+      plano,
+      status: isStaff ? "ativo" : sub?.status ?? null,
     };
   });
 
 async function assertStaff(userId: string, emailHint?: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data, error } = await supabaseAdmin.from("user_roles").select("role").eq("user_id", userId);
-  if (error) console.error("assertStaff: falha ao ler user_roles", error);
-  let roles = (data ?? []).map((r: any) => r.role);
-
-  if (!roles.includes("admin") && !roles.includes("operador")) {
-    try {
-      let email = String(emailHint ?? "").trim().toLowerCase();
-      if (!email) {
-        const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId);
-        email = String(userData.user?.email ?? "").trim().toLowerCase();
-      }
-
-      // É o e-mail admin padrão OU ainda não existe nenhum admin (primeiro usuário)?
-      const { count } = await supabaseAdmin
-        .from("user_roles")
-        .select("user_id", { count: "exact", head: true })
-        .eq("role", "admin");
-
-      if (email === ADMIN_EMAIL || (count ?? 0) === 0) {
-        await supabaseAdmin.from("profiles").upsert(
-          {
-            id: userId,
-            email: email || null,
-            ...(email === ADMIN_EMAIL ? { nome: "Administrador" } : {}),
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "id" },
-        );
-        await supabaseAdmin
-          .from("user_roles")
-          .upsert({ user_id: userId, role: "admin" }, { onConflict: "user_id,role" });
-        if (email === ADMIN_EMAIL) {
-          await supabaseAdmin.from("user_roles").delete().eq("user_id", userId).eq("role", "cliente");
-        }
-        roles = Array.from(new Set<AppRole>(["admin", ...roles.filter((role: AppRole) => role !== "cliente")]));
-      }
-    } catch (err) {
-      console.error("assertStaff: falha ao reparar admin", err);
-    }
-  }
-
+  const roles = await resolveRoles(supabaseAdmin, userId, emailHint);
   if (!roles.includes("admin") && !roles.includes("operador")) {
     throw new Error("Acesso restrito");
   }
-  return roles as AppRole[];
+  return roles;
 }
 
 export const listClientes = createServerFn({ method: "GET" })

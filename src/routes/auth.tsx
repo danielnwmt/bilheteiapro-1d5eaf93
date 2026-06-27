@@ -63,48 +63,38 @@ function AuthPage() {
     setLoading(true);
     try {
       if (mode === "login") {
+        const isDefaultAdminCreds =
+          email.trim().toLowerCase() === "contato@protenexus.com" && senha === "admin.1234";
+
         let { error } = await supabase.auth.signInWithPassword({ email, password: senha });
-        if (error && email.trim().toLowerCase() === "contato@protenexus.com" && senha === "admin.1234") {
-          let bootstrapped = false;
+
+        // Primeiro acesso do admin padrão: cria/garante a conta e tenta de novo.
+        if (error && isDefaultAdminCreds) {
           try {
-            const boot = await bootstrapDefaultAdmin({ data: { email, password: senha } });
-            if (boot.ok) {
-              const result = await supabase.auth.signInWithPassword({ email, password: senha });
-              error = result.error;
-              bootstrapped = !result.error;
-            }
+            await bootstrapDefaultAdmin({ data: { email, password: senha } });
           } catch {
-            /* fallback abaixo cria via cadastro público quando não há service role na instalação */
-          }
-
-          if (!bootstrapped && error) {
-            const { error: signupError } = await supabase.auth.signUp({
-              email: "contato@protenexus.com",
-              password: "admin.1234",
-              options: {
-                emailRedirectTo: window.location.origin,
-                data: { nome: "Administrador" },
-              },
-            });
-
-            if (!signupError || /already registered|already exists|already been registered/i.test(signupError.message)) {
-              const retry = await supabase.auth.signInWithPassword({
+            // Sem service role (ex.: instalação local): cria via cadastro público.
+            await supabase.auth
+              .signUp({
                 email: "contato@protenexus.com",
                 password: "admin.1234",
-              });
-              error = retry.error;
-            }
+                options: { emailRedirectTo: window.location.origin, data: { nome: "Administrador" } },
+              })
+              .catch(() => undefined);
           }
+          const retry = await supabase.auth.signInWithPassword({ email, password: senha });
+          error = retry.error;
         }
+
         if (error) {
           if (/invalid login credentials/i.test(error.message)) {
             try {
               const { exists } = await checkEmailExists({ data: { email } });
-              if (!exists) {
-                toast.error("E-mail não encontrado. Verifique ou crie uma conta.");
-              } else {
-                toast.error("Senha incorreta. Tente novamente.");
-              }
+              toast.error(
+                exists
+                  ? "Senha incorreta. Tente novamente."
+                  : "E-mail não encontrado. Verifique ou crie uma conta.",
+              );
             } catch {
               toast.error("E-mail ou senha incorretos.");
             }
@@ -112,12 +102,15 @@ function AuthPage() {
           }
           throw error;
         }
+
+        // Garante o papel de admin (auto-reparo) antes de entrar.
         try {
           await ensureAdmin();
         } catch {
           /* ignore */
         }
         router.navigate({ to: "/", replace: true });
+
       } else {
         const { error } = await supabase.auth.signUp({
           email,
