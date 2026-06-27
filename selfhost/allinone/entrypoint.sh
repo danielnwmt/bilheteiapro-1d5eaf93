@@ -19,8 +19,24 @@ JWT_SECRET="${JWT_SECRET:-bilheteia-localweb-default-jwt-secret-change-me-2026}"
 POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-local-postgres-password}"
 ADMIN_EMAIL="${ADMIN_EMAIL:-contato@protenexus.com}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-admin.1234}"
-ANON_KEY="${ANON_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzgyNDQwMDAwLCJleHAiOjIwOTc4MDAwMDB9.mX6rq28Z0cpvC22UaLwB1AZHIrjrurs5W-faJBMopsg}"
-SERVICE_ROLE_KEY="${SERVICE_ROLE_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3ODI0NDAwMDAsImV4cCI6MjA5NzgwMDAwMH0.NmDPQQ9qo1Uct2qZepO-EcrMcZNG-V3oj-PglOmMSas}"
+DEFAULT_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzgyNDQwMDAwLCJleHAiOjIwOTc4MDAwMDB9.mX6rq28Z0cpvC22UaLwB1AZHIrjrurs5W-faJBMopsg"
+
+make_jwt() {
+  local role="$1"
+  JWT_ROLE="$role" JWT_SECRET_VALUE="$JWT_SECRET" node - <<'NODE'
+const crypto = require('crypto');
+const enc = (value) => Buffer.from(JSON.stringify(value)).toString('base64url');
+const header = enc({ alg: 'HS256', typ: 'JWT' });
+const payload = enc({ role: process.env.JWT_ROLE, iss: 'supabase', iat: 1782440000, exp: 2097800000 });
+const sig = crypto.createHmac('sha256', process.env.JWT_SECRET_VALUE).update(`${header}.${payload}`).digest('base64url');
+process.stdout.write(`${header}.${payload}.${sig}`);
+NODE
+}
+
+# As chaves locais precisam ser assinadas com o JWT_SECRET atual. Se ficarem
+# estáticas, o login funciona mas as funções de admin não conseguem listar usuários.
+ANON_KEY="${ANON_KEY:-$(make_jwt anon)}"
+SERVICE_ROLE_KEY="${SERVICE_ROLE_KEY:-$(make_jwt service_role)}"
 
 # --- URL pública (mesma origem do app) -----------------------------
 PUBLIC_URL="${SUPABASE_PUBLIC_URL:-}"
@@ -110,7 +126,7 @@ postgrest &
 cd "$APP_DIR/runtime"
 echo ">> Ajustando URL pública no bundle..."
 find . -type f \( -name "*.js" -o -name "*.mjs" -o -name "*.html" -o -name "*.json" \) \
-  -exec sed -i "s#http://localhost:8000#$PUBLIC_URL#g;s#http://127.0.0.1:8000#$PUBLIC_URL#g" {} + 2>/dev/null || true
+  -exec sed -i "s#http://localhost:8000#$PUBLIC_URL#g;s#http://127.0.0.1:8000#$PUBLIC_URL#g;s#$DEFAULT_ANON_KEY#$ANON_KEY#g" {} + 2>/dev/null || true
 
 export SUPABASE_URL="http://127.0.0.1:${LISTEN_PORT}"
 export SUPABASE_PUBLISHABLE_KEY="$ANON_KEY"
