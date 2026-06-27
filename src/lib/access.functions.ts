@@ -277,6 +277,44 @@ export const getMyAccess = createServerFn({ method: "GET" })
     };
   });
 
+export const getMyProfile = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { userId, claims } = context;
+    const emailClaim = getAuthEmail(claims);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    let nome: string | null = null;
+    let email: string | null = emailClaim || null;
+    try {
+      const { data } = await supabaseAdmin
+        .from("profiles")
+        .select("nome, email")
+        .eq("id", userId)
+        .maybeSingle();
+      nome = (data as any)?.nome ?? null;
+      email = email || (data as any)?.email || null;
+    } catch (err) {
+      console.error("getMyProfile: falha ao ler profile", err);
+    }
+    if (!email) email = await resolveEmail(supabaseAdmin, userId);
+    return { nome, email };
+  });
+
+export const updateMyName = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { nome: string }) => d)
+  .handler(async ({ data, context }) => {
+    const { userId } = context;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.from("profiles").upsert(
+      { id: userId, nome: data.nome.trim() || null, updated_at: new Date().toISOString() },
+      { onConflict: "id" },
+    );
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 async function assertStaff(userId: string, emailHint?: string) {
   const email = normalizeEmail(emailHint);
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
