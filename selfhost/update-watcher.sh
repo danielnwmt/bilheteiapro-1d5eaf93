@@ -15,11 +15,51 @@ TRIGGER_DIR="${TRIGGER_DIR:-$APP_DIR/deploy-trigger}"
 TRIGGER_FILE="$TRIGGER_DIR/request"
 HEARTBEAT_FILE="$TRIGGER_DIR/watcher-alive"
 LOG_FILE="$TRIGGER_DIR/last-update.log"
+SSL_REQUEST_FILE="$TRIGGER_DIR/ssl-request"
+SSL_STATUS_FILE="$TRIGGER_DIR/ssl-status"
+SSL_LOG_FILE="$TRIGGER_DIR/ssl.log"
 
 mkdir -p "$TRIGGER_DIR"
 chmod 777 "$TRIGGER_DIR" 2>/dev/null || true
 LAST=""
 [ -f "$TRIGGER_FILE" ] && LAST="$(cat "$TRIGGER_FILE" 2>/dev/null || true)"
+LAST_SSL=""
+[ -f "$SSL_REQUEST_FILE" ] && LAST_SSL="$(cat "$SSL_REQUEST_FILE" 2>/dev/null || true)"
+
+# Instala/renova o certificado SSL via certbot a partir do pedido do painel.
+install_ssl() {
+  local payload="$1"
+  local dominio email
+  dominio="$(echo "$payload" | grep -oE '"dominio":"[^"]*"' | head -n1 | cut -d'"' -f4)"
+  email="$(echo "$payload" | grep -oE '"email":"[^"]*"' | head -n1 | cut -d'"' -f4)"
+  if [ -z "$dominio" ] || [ -z "$email" ]; then
+    echo "falha: dominio/email ausentes $(date)" > "$SSL_STATUS_FILE"
+    return 1
+  fi
+
+  echo "instalando SSL para $dominio $(date)" > "$SSL_STATUS_FILE"
+  {
+    echo ">> [$(date)] Instalando SSL para $dominio ($email)"
+    if ! command -v certbot >/dev/null 2>&1; then
+      echo ">> Instalando certbot..."
+      (apt-get update -y && apt-get install -y certbot python3-certbot-nginx) || \
+        (command -v snap >/dev/null 2>&1 && snap install --classic certbot) || true
+    fi
+
+    if command -v nginx >/dev/null 2>&1; then
+      certbot --nginx --non-interactive --agree-tos -m "$email" -d "$dominio" --redirect
+    else
+      # Sem nginx no host: emite em modo standalone (porta 80 precisa estar livre).
+      certbot certonly --standalone --non-interactive --agree-tos -m "$email" -d "$dominio"
+    fi
+  } >> "$SSL_LOG_FILE" 2>&1
+
+  if [ $? -eq 0 ]; then
+    echo "ok: SSL instalado para $dominio $(date)" > "$SSL_STATUS_FILE"
+  else
+    echo "falha ao instalar SSL para $dominio $(date) — veja $SSL_LOG_FILE" > "$SSL_STATUS_FILE"
+  fi
+}
 
 echo ">> Watcher de atualização ativo. Monitorando $TRIGGER_FILE"
 # Sinaliza imediatamente que o watcher está vivo (o painel checa este arquivo).
@@ -45,5 +85,16 @@ while true; do
       fi
     fi
   fi
+
+  # Pedido de instalação de SSL vindo do painel.
+  if [ -f "$SSL_REQUEST_FILE" ]; then
+    CUR_SSL="$(cat "$SSL_REQUEST_FILE" 2>/dev/null || true)"
+    if [ -n "$CUR_SSL" ] && [ "$CUR_SSL" != "$LAST_SSL" ]; then
+      LAST_SSL="$CUR_SSL"
+      echo ">> [$(date)] SSL solicitado pelo painel."
+      install_ssl "$CUR_SSL"
+    fi
+  fi
+
   sleep 5
 done
