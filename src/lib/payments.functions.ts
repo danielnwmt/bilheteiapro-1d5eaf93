@@ -74,10 +74,11 @@ export const createInfinitePayCheckout = createServerFn({ method: "POST" })
 // ============ ASAAS (cobrança — Pix/Boleto/Cartão) ============
 export const createAsaasCheckout = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { plano: Plano; ciclo?: Ciclo; returnUrl: string }) => {
+  .inputValidator((data: { plano: Plano; ciclo?: Ciclo; returnUrl: string; metodo?: "pix" | "cartao" }) => {
     if (!data.plano) throw new Error("Plano inválido");
     const ciclo: Ciclo = CICLOS.includes(data.ciclo as Ciclo) ? (data.ciclo as Ciclo) : "mensal";
-    return { plano: data.plano, ciclo, returnUrl: data.returnUrl };
+    const metodo: "pix" | "cartao" = data.metodo === "cartao" ? "cartao" : "pix";
+    return { plano: data.plano, ciclo, returnUrl: data.returnUrl, metodo };
   })
   .handler(async ({ data, context }): Promise<CheckoutResult> => {
     try {
@@ -100,6 +101,7 @@ export const createAsaasCheckout = createServerFn({ method: "POST" })
         descricao: `BilheteIA PRO — ${cfg.nome} (${CICLO_LABEL[data.ciclo]})`,
         valorReais: precoCentavos / 100,
         externalReference,
+        metodo: data.metodo,
         customer: {
           name: profile?.nome ?? user?.user_metadata?.nome,
           email: user?.email ?? undefined,
@@ -108,7 +110,7 @@ export const createAsaasCheckout = createServerFn({ method: "POST" })
       });
       return { url };
     } catch (error) {
-      return { error: error instanceof Error ? error.message : "Falha no Asaas" };
+      return { error: error instanceof Error ? error.message : "Falha no pagamento" };
     }
   });
 
