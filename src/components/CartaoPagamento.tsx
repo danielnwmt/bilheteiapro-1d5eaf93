@@ -127,8 +127,13 @@ export function CartaoPagamento({
           {/* frente */}
           <div className="absolute inset-0 flex flex-col justify-between rounded-2xl bg-gradient-to-br from-primary to-primary/70 p-6 text-primary-foreground shadow-xl [backface-visibility:hidden]">
             <div className="flex items-start justify-between">
-              <div className="h-9 w-12 rounded-md bg-primary-foreground/30" />
-              <Wifi className="h-6 w-6 rotate-90 opacity-80" />
+              <div className="flex items-center gap-2">
+                <div className="h-9 w-12 rounded-md bg-primary-foreground/30" />
+                <Wifi className="h-6 w-6 rotate-90 opacity-80" />
+              </div>
+              {bandeira && (
+                <span className="text-xs font-bold tracking-wide">{bandeira}</span>
+              )}
             </div>
             <div className="font-mono text-xl tracking-widest">
               {numero || "•••• •••• •••• ••••"}
