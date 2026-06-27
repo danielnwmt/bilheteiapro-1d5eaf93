@@ -1,7 +1,6 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -162,16 +161,23 @@ function AuthPage() {
     }
   }
 
-  async function onGoogle() {
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
-    });
-    if (result.error) {
-      toast.error("Não foi possível entrar com Google.");
+  async function onForgotPassword() {
+    if (!email) {
+      toast.error("Digite seu e-mail para redefinir a senha.");
       return;
     }
-    if (result.redirected) return;
-    router.navigate({ to: "/", replace: true });
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      toast.success("Enviamos um link de redefinição para seu e-mail.");
+    } catch {
+      toast.error("Não foi possível enviar o e-mail de redefinição.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -265,21 +271,17 @@ function AuthPage() {
             </Button>
           </form>
 
-          <div className="my-5 flex items-center gap-3">
-            <span className="h-px flex-1 bg-border" />
-            <span className="text-xs text-muted-foreground">ou</span>
-            <span className="h-px flex-1 bg-border" />
-          </div>
-
-          <Button
-            type="button"
-            variant="outline"
-            size="lg"
-            className="w-full border-primary/50 text-primary hover:bg-primary/10 hover:text-primary"
-            onClick={onGoogle}
-          >
-            Continuar com Google
-          </Button>
+          {mode === "login" && (
+            <p className="mt-4 text-center text-sm">
+              <button
+                type="button"
+                onClick={onForgotPassword}
+                className="font-medium text-primary hover:underline"
+              >
+                Esqueceu a senha?
+              </button>
+            </p>
+          )}
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
             {mode === "login" ? "Não tem conta?" : "Já tem conta?"}{" "}
