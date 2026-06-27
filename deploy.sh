@@ -83,8 +83,20 @@ if [ "${BILHETEIA_CLOUD:-0}" != "1" ] && [ -f "$APP_DIR/docker-compose.yml" ]; t
     (cd "$APP_DIR/selfhost" && docker compose down 2>/dev/null || true)
   fi
 
+  echo ">> Parando containers antigos para evitar conflito de remoção..."
+  docker compose down --remove-orphans 2>/dev/null || true
+  # Remove restos travados em "removal in progress" antes de recriar.
+  for c in bia-app lovable-app; do
+    docker rm -f "$c" 2>/dev/null || true
+  done
+  # Aguarda o Docker liberar o nome do container, se ainda estiver removendo.
+  for _ in $(seq 1 15); do
+    docker ps -a --format '{{.Names}}' | grep -qx "bia-app" || break
+    sleep 1
+  done
+
   echo ">> Buildando e subindo o container..."
-  docker compose up -d --build
+  docker compose up -d --build --force-recreate
 
   # Instala/ativa o watcher de atualização no host (para o botão "Atualizar sistema").
   install_updater() {
