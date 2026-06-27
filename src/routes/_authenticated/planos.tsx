@@ -231,7 +231,7 @@ function PlanosPage() {
                     className="mt-6 w-full font-semibold"
                     variant={p === "pro" ? "default" : "outline"}
                     disabled={atual}
-                    onClick={() => setCheckout(p)}
+                    onClick={() => { setTelaCartao(false); setCheckout(p); }}
                   >
                     {atual ? "Plano atual" : "Assinar"}
                   </Button>
