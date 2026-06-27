@@ -393,7 +393,7 @@ export const getMyAccess = createServerFn({ method: "GET" })
     if (isAdmin && !roles.includes("admin")) roles = [...roles, "admin"];
 
     const ativo =
-      sub?.status === "ativo" &&
+      (sub?.status === "ativo" || sub?.status === "cortesia") &&
       (!sub?.periodo_fim || new Date(sub.periodo_fim) > new Date());
 
     const plano: "start" | "pro" | "elite" | null = isStaff
