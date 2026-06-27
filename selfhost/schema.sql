@@ -188,6 +188,9 @@ CREATE TABLE public.profiles (
   id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   nome text,
   email text,
+  cpf text,
+  data_nascimento date,
+  telefone text,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -208,17 +211,36 @@ CREATE POLICY "Staff edita perfis" ON public.profiles
 CREATE TRIGGER profiles_updated_at BEFORE UPDATE ON public.profiles
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
--- Auto criar perfil + papel cliente no signup
+-- Auto criar perfil + papel no signup.
+-- Regra única: o admin padrão sempre é admin; demais usuários viram clientes,
+-- exceto o primeiro usuário de uma instalação nova, que vira admin de segurança.
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
-AS $$
+SET search_path TO 'public'
+AS $function$
 BEGIN
-  INSERT INTO public.profiles (id, nome, email)
-  VALUES (NEW.id, COALESCE(NEW.raw_user_meta_data->>'nome', NEW.raw_user_meta_data->>'full_name'), NEW.email)
-  ON CONFLICT (id) DO NOTHING;
+  INSERT INTO public.profiles (id, nome, email, cpf, data_nascimento, telefone)
+  VALUES (
+    NEW.id,
+    COALESCE(
+      NEW.raw_user_meta_data->>'nome',
+      NEW.raw_user_meta_data->>'full_name',
+      CASE WHEN lower(NEW.email) = 'contato@protenexus.com' THEN 'Administrador' END
+    ),
+    NEW.email,
+    NEW.raw_user_meta_data->>'cpf',
+    NULLIF(NEW.raw_user_meta_data->>'data_nascimento','')::date,
+    NEW.raw_user_meta_data->>'telefone'
+  )
+  ON CONFLICT (id) DO UPDATE SET
+    email = EXCLUDED.email,
+    nome = COALESCE(public.profiles.nome, EXCLUDED.nome),
+    cpf = COALESCE(public.profiles.cpf, EXCLUDED.cpf),
+    data_nascimento = COALESCE(public.profiles.data_nascimento, EXCLUDED.data_nascimento),
+    telefone = COALESCE(public.profiles.telefone, EXCLUDED.telefone),
+    updated_at = now();
 
   IF lower(NEW.email) = 'contato@protenexus.com'
      OR NOT EXISTS (SELECT 1 FROM public.user_roles WHERE role = 'admin'::public.app_role)
@@ -237,8 +259,9 @@ BEGIN
 
   RETURN NEW;
 END;
-$$;
+$function$;
 
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
@@ -468,30 +491,7 @@ ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS data_nascimento DATE,
   ADD COLUMN IF NOT EXISTS telefone TEXT;
 
-CREATE OR REPLACE FUNCTION public.handle_new_user()
- RETURNS trigger
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$
-BEGIN
-  INSERT INTO public.profiles (id, nome, email, cpf, data_nascimento)
-  VALUES (
-    NEW.id,
-    COALESCE(NEW.raw_user_meta_data->>'nome', NEW.raw_user_meta_data->>'full_name'),
-    NEW.email,
-    NEW.raw_user_meta_data->>'cpf',
-    NULLIF(NEW.raw_user_meta_data->>'data_nascimento','')::date
-  )
-  ON CONFLICT (id) DO NOTHING;
-  INSERT INTO public.user_roles (user_id, role)
-  VALUES (NEW.id, 'cliente')
-  ON CONFLICT (user_id, role) DO NOTHING;
-  RETURN NEW;
-END;
-$function$;
-
-CREATE TABLE public.banca_entradas (
+CREATE TABLE IF NOT EXISTS public.banca_entradas (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES auth.users ON DELETE CASCADE,
   data DATE NOT NULL DEFAULT current_date,
@@ -509,18 +509,20 @@ GRANT ALL ON public.banca_entradas TO service_role;
 
 ALTER TABLE public.banca_entradas ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users manage own banca entries" ON public.banca_entradas;
 CREATE POLICY "Users manage own banca entries"
 ON public.banca_entradas FOR ALL
 USING (auth.uid() = user_id)
 WITH CHECK (auth.uid() = user_id);
 
+DROP TRIGGER IF EXISTS update_banca_entradas_updated_at ON public.banca_entradas;
 CREATE TRIGGER update_banca_entradas_updated_at
 BEFORE UPDATE ON public.banca_entradas
 FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
-CREATE INDEX idx_banca_entradas_user ON public.banca_entradas (user_id, data DESC);
+CREATE INDEX IF NOT EXISTS idx_banca_entradas_user ON public.banca_entradas (user_id, data DESC);
 
-CREATE TABLE public.banca_depositos (
+CREATE TABLE IF NOT EXISTS public.banca_depositos (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES auth.users ON DELETE CASCADE,
   data DATE NOT NULL DEFAULT current_date,
@@ -535,49 +537,18 @@ GRANT ALL ON public.banca_depositos TO service_role;
 
 ALTER TABLE public.banca_depositos ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users manage own banca deposits" ON public.banca_depositos;
 CREATE POLICY "Users manage own banca deposits"
 ON public.banca_depositos FOR ALL
 USING (auth.uid() = user_id)
 WITH CHECK (auth.uid() = user_id);
 
+DROP TRIGGER IF EXISTS update_banca_depositos_updated_at ON public.banca_depositos;
 CREATE TRIGGER update_banca_depositos_updated_at
 BEFORE UPDATE ON public.banca_depositos
 FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
-CREATE INDEX idx_banca_depositos_user ON public.banca_depositos (user_id, data DESC);
-
-CREATE OR REPLACE FUNCTION public.handle_new_user()
- RETURNS trigger
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$
-BEGIN
-  INSERT INTO public.profiles (id, nome, email, cpf, data_nascimento)
-  VALUES (
-    NEW.id,
-    COALESCE(NEW.raw_user_meta_data->>'nome', NEW.raw_user_meta_data->>'full_name'),
-    NEW.email,
-    NEW.raw_user_meta_data->>'cpf',
-    NULLIF(NEW.raw_user_meta_data->>'data_nascimento','')::date
-  )
-  ON CONFLICT (id) DO NOTHING;
-
-  INSERT INTO public.user_roles (user_id, role)
-  VALUES (NEW.id, 'cliente'::public.app_role)
-  ON CONFLICT (user_id, role) DO NOTHING;
-
-  IF lower(NEW.email) = 'contato@protenexus.com'
-     OR NOT EXISTS (SELECT 1 FROM public.user_roles WHERE role = 'admin'::public.app_role)
-  THEN
-    INSERT INTO public.user_roles (user_id, role)
-    VALUES (NEW.id, 'admin'::public.app_role)
-    ON CONFLICT (user_id, role) DO NOTHING;
-  END IF;
-
-  RETURN NEW;
-END;
-$function$;
+CREATE INDEX IF NOT EXISTS idx_banca_depositos_user ON public.banca_depositos (user_id, data DESC);
 
 INSERT INTO public.user_roles (user_id, role)
 SELECT id, 'admin'::public.app_role
@@ -585,51 +556,37 @@ FROM auth.users
 WHERE lower(email) = 'contato@protenexus.com'
 ON CONFLICT (user_id, role) DO NOTHING;
 
-CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS trigger
-LANGUAGE plpgsql
+DELETE FROM public.user_roles r
+USING auth.users u
+WHERE r.user_id = u.id
+  AND lower(u.email) = 'contato@protenexus.com'
+  AND r.role = 'cliente'::public.app_role;
+
+UPDATE public.profiles p
+SET nome = 'Administrador', email = 'contato@protenexus.com', updated_at = now()
+FROM auth.users u
+WHERE p.id = u.id AND lower(u.email) = 'contato@protenexus.com';
+
+-- Fallback seguro: permite ao servidor listar auth.users via PostgREST/RPC com
+-- service_role quando a API Admin do GoTrue não responde na instalação local.
+CREATE OR REPLACE FUNCTION public.admin_list_auth_users()
+RETURNS TABLE (
+  id uuid,
+  email text,
+  raw_user_meta_data jsonb,
+  created_at timestamptz
+)
+LANGUAGE sql
 SECURITY DEFINER
-SET search_path TO 'public'
-AS $function$
-BEGIN
-  INSERT INTO public.profiles (id, nome, email, cpf, data_nascimento, telefone)
-  VALUES (
-    NEW.id,
-    COALESCE(NEW.raw_user_meta_data->>'nome', NEW.raw_user_meta_data->>'full_name', 'Administrador'),
-    NEW.email,
-    NEW.raw_user_meta_data->>'cpf',
-    NULLIF(NEW.raw_user_meta_data->>'data_nascimento','')::date,
-    NEW.raw_user_meta_data->>'telefone'
-  )
-  ON CONFLICT (id) DO UPDATE SET
-    email = EXCLUDED.email,
-    nome = COALESCE(public.profiles.nome, EXCLUDED.nome),
-    telefone = COALESCE(public.profiles.telefone, EXCLUDED.telefone),
-    updated_at = now();
+SET search_path = auth, public
+AS $$
+  SELECT u.id, u.email::text, u.raw_user_meta_data, u.created_at
+  FROM auth.users u
+  ORDER BY u.created_at DESC;
+$$;
 
-  IF lower(NEW.email) = 'contato@protenexus.com'
-     OR NOT EXISTS (SELECT 1 FROM public.user_roles WHERE role = 'admin'::public.app_role)
-  THEN
-    INSERT INTO public.user_roles (user_id, role)
-    VALUES (NEW.id, 'admin'::public.app_role)
-    ON CONFLICT (user_id, role) DO NOTHING;
-
-    DELETE FROM public.user_roles
-    WHERE user_id = NEW.id AND role = 'cliente'::public.app_role;
-  ELSE
-    INSERT INTO public.user_roles (user_id, role)
-    VALUES (NEW.id, 'cliente'::public.app_role)
-    ON CONFLICT (user_id, role) DO NOTHING;
-  END IF;
-
-  RETURN NEW;
-END;
-$function$;
-
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created
-AFTER INSERT ON auth.users
-FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+REVOKE ALL ON FUNCTION public.admin_list_auth_users() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_list_auth_users() TO service_role;
 
 -- Self-host robusto: em alguns Postgres locais não é permitido criar/alterar
 -- service_role com BYPASSRLS. Então liberamos o service_role por políticas RLS
