@@ -20,7 +20,7 @@ function PerfilPage() {
   const fetchProfile = useServerFn(getMyProfile);
   const saveName = useServerFn(updateMyName);
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, refetch } = useQuery({
     queryKey: ["my-profile"],
     queryFn: () => fetchProfile(),
     staleTime: 30_000,
