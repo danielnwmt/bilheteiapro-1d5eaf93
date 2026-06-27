@@ -360,13 +360,14 @@ function UsuariosPage() {
                             onChange={(e) =>
                               setEdit((s) => ({
                                 ...s,
-                                [c.id]: { ...cur, status: e.target.value as "ativo" | "inativo" },
+                                [c.id]: { ...cur, status: e.target.value as "ativo" | "inativo" | "cortesia" },
                               }))
                             }
                             className="rounded-md border border-border bg-input/40 px-2 py-1 text-sm"
                           >
                             <option value="ativo">ativo</option>
                             <option value="inativo">inativo</option>
+                            <option value="cortesia">cortesia</option>
                           </select>
                         </>
                       ) : (
