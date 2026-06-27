@@ -212,10 +212,13 @@ async function readLocalDbSnapshot(): Promise<{
   subs: any[];
   authUsers: any[];
 } | null> {
-  const isLocal =
-    process.env.SUPABASE_PROJECT_ID === "local" ||
-    process.env.SUPABASE_URL?.includes("127.0.0.1") ||
-    process.env.SUPABASE_URL?.includes("localhost");
+  // Self-host = qualquer ambiente que NÃO seja o Lovable Cloud (supabase.co).
+  // Inclui acesso por IP/domínio próprio (ex.: http://187.x:3000), onde a
+  // SERVICE_ROLE_KEY do .env pode não bater com o JWT_SECRET local e as
+  // chamadas REST tomam 401. Nesses casos lemos direto do Postgres via psql.
+  const supaUrl = process.env.SUPABASE_URL ?? "";
+  const isCloud = supaUrl.includes("supabase.co") || supaUrl.includes("supabase.in");
+  const isLocal = process.env.SUPABASE_PROJECT_ID === "local" || !isCloud;
   if (!isLocal || typeof window !== "undefined") return null;
 
   try {
