@@ -920,9 +920,10 @@ export const getClientStats = createServerFn({ method: "GET" })
       ]),
     ]);
 
-    let profiles = mergeById(pa, pr, (x) => x.id);
-    let roles = mergeRoleRows(ra, rr);
-    const subs = mergeById(sa, sr, (x) => x.user_id);
+    const localSnapshot = await readLocalDbSnapshot();
+    let profiles = mergeById(mergeById(pa, pr, (x) => x.id), localSnapshot?.profiles ?? [], (x) => x.id);
+    let roles = mergeRoleRows(mergeRoleRows(ra, rr), localSnapshot?.roles ?? []);
+    const subs = mergeById(mergeById(sa, sr, (x) => x.user_id), localSnapshot?.subs ?? [], (x) => x.user_id);
     const planoCfg = mergeById(ca, cr, (x) => x.plano);
 
     const profileMap = new Map<string, any>();
@@ -941,7 +942,7 @@ export const getClientStats = createServerFn({ method: "GET" })
     for (const s of subs) ensureProfileForStats(s.user_id, { created_at: s.created_at });
 
     try {
-      const authUsers = await collectAuthUsers(base);
+      const authUsers = mergeById(await collectAuthUsers(base), localSnapshot?.authUsers ?? [], (x) => x.id);
       const roleKey = (id: string, role: string) => `${id}|${role}`;
       const knownRoleRows = new Set(roles.map((r) => roleKey(r.user_id, r.role)));
       const hasAnyRole = new Set(roles.map((r) => r.user_id).filter(Boolean));
