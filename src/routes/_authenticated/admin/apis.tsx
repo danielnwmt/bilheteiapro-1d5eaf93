@@ -278,6 +278,39 @@ function ApisPage() {
                   );
                 })}
               </div>
+
+              {/* URL do webhook para colar no painel do Asaas */}
+              <Card className="mt-4 border-primary/30 bg-card p-4">
+                <Label className="text-sm font-semibold">
+                  URL de webhook (confirmação de pagamento)
+                </Label>
+                <p className="mb-2 text-xs text-muted-foreground">
+                  Cole esta URL em Asaas → Integrações → Webhooks para liberar o plano
+                  automaticamente após o pagamento.
+                </p>
+                <div className="flex gap-2">
+                  <Input
+                    type="text"
+                    readOnly
+                    value={
+                      typeof window !== "undefined"
+                        ? `${window.location.origin}/api/public/payments/asaas`
+                        : "/api/public/payments/asaas"
+                    }
+                    className="bg-input/40"
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      const url = `${window.location.origin}/api/public/payments/asaas`;
+                      navigator.clipboard?.writeText(url);
+                      toast.success("URL copiada");
+                    }}
+                  >
+                    Copiar
+                  </Button>
+                </div>
+              </Card>
             </div>
           </div>
         )}
