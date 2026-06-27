@@ -167,9 +167,29 @@ function AdminDashboard() {
               />
             </div>
 
+            <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <StatCard
+                icon={ShoppingCart}
+                label="Vendas do dia"
+                value={stats?.vendasDia ?? 0}
+                accent
+              />
+              <StatCard
+                icon={DollarSign}
+                label="Faturamento do dia"
+                value={`R$ ${(stats?.faturamentoDia ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+              />
+              <StatCard
+                icon={Wallet}
+                label="Recebidos"
+                value={`R$ ${(stats?.recebidos ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+              />
+            </div>
+
             <div className="mb-6">
               <AccentPicker />
             </div>
+
 
 
 
