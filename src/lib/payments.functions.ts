@@ -199,3 +199,23 @@ export const pagarComCartao = createServerFn({ method: "POST" })
   });
 
 
+
+// ============ CANCELAR ASSINATURA ============
+type CancelarResult = { ok: true } | { ok: false; error: string };
+
+export const cancelarAssinatura = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<CancelarResult> => {
+    try {
+      const { userId } = context;
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { error } = await supabaseAdmin
+        .from("subscriptions")
+        .update({ status: "cancelado", updated_at: new Date().toISOString() })
+        .eq("user_id", userId);
+      if (error) throw error;
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : "Falha ao cancelar" };
+    }
+  });

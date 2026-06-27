@@ -1,10 +1,22 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, X, Loader2, ArrowLeft } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Check, X, Loader2, ArrowLeft, ArrowUp, ArrowDown } from "lucide-react";
 import { toast } from "sonner";
 import {
   TODAS_LIGAS,
@@ -19,7 +31,7 @@ import {
   type Plano,
 } from "@/lib/planos";
 import { usePlanos } from "@/hooks/usePlanos";
-import { createAsaasCheckout } from "@/lib/payments.functions";
+import { createAsaasCheckout, cancelarAssinatura } from "@/lib/payments.functions";
 import { useAccess } from "@/hooks/useAccess";
 import { CartaoPagamento } from "@/components/CartaoPagamento";
 
@@ -53,9 +65,32 @@ function PlanosPage() {
   const [telaCartao, setTelaCartao] = useState(false);
 
   const asaasCheckout = useServerFn(createAsaasCheckout);
+  const cancelar = useServerFn(cancelarAssinatura);
+  const queryClient = useQueryClient();
+  const [cancelando, setCancelando] = useState(false);
 
   const planoAtual = access?.plano ?? null;
   const checkoutCfg = checkout ? byPlano[checkout] : null;
+  const isStaff = !!access?.isStaff;
+  const nivelAtual = planoAtual ? byPlano[planoAtual]?.nivel ?? null : null;
+
+  async function cancelarPlano() {
+    setCancelando(true);
+    try {
+      const res = await cancelar();
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      await queryClient.invalidateQueries({ queryKey: ["my-access"] });
+      toast.success("Assinatura cancelada.");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Não foi possível cancelar");
+    } finally {
+      setCancelando(false);
+    }
+  }
+
 
   async function pagar(metodo: "pix" | "cartao") {
     if (!checkout) return;
@@ -202,6 +237,15 @@ function PlanosPage() {
             {list.map((info) => {
               const p = info.plano;
               const atual = planoAtual === p;
+              const isUpgrade = nivelAtual != null && info.nivel > nivelAtual;
+              const isDowngrade = nivelAtual != null && info.nivel < nivelAtual;
+              const label = atual
+                ? "Plano atual"
+                : isUpgrade
+                  ? "Fazer upgrade"
+                  : isDowngrade
+                    ? "Fazer downgrade"
+                    : "Assinar";
               return (
                 <Card
                   key={p}
@@ -230,17 +274,52 @@ function PlanosPage() {
                   )}
                   <Button
                     className="mt-6 w-full font-semibold"
-                    variant={p === "pro" ? "default" : "outline"}
-                    disabled={atual}
+                    variant={atual ? "outline" : p === "pro" ? "default" : "outline"}
+                    disabled={atual || isStaff}
                     onClick={() => { setTelaCartao(false); setCheckout(p); }}
                   >
-                    {atual ? "Plano atual" : "Assinar"}
+                    {isUpgrade && <ArrowUp className="mr-2 h-4 w-4" />}
+                    {isDowngrade && <ArrowDown className="mr-2 h-4 w-4" />}
+                    {label}
                   </Button>
                 </Card>
               );
             })}
           </div>
         )}
+
+        {!isStaff && planoAtual && !checkout && (
+          <Card className="mt-6 border-border/60 bg-card p-6">
+            <h2 className="text-lg font-bold">Cancelar assinatura</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Você continua com acesso ao plano até o fim do período já pago.
+            </p>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" className="mt-4 font-semibold" disabled={cancelando}>
+                  {cancelando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Cancelar assinatura
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Tem certeza que deseja cancelar?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Ao cancelar, você perde o acesso aos recursos do plano ao fim do
+                    período atual e precisará assinar novamente para voltar a usar.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Manter assinatura</AlertDialogCancel>
+                  <AlertDialogAction onClick={cancelarPlano}>
+                    Sim, cancelar
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </Card>
+        )}
+
 
         <Card className="mt-10 overflow-hidden border-border/60 bg-card">
           <div className="border-b border-border/60 p-5">
