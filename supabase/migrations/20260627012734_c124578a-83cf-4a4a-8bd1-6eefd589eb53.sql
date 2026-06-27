@@ -1,0 +1,1 @@
+GRANT SELECT ON public.partidas TO authenticated, anon;

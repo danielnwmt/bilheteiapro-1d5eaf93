@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Sparkles, Target, TrendingUp, Trophy, Building2, ExternalLink, ListChecks, LogOut, Lock, Crown, Users, Wallet } from "lucide-react";
+import { Loader2, Sparkles, Target, TrendingUp, Trophy, Building2, ExternalLink, ListChecks, LogOut, Lock, Crown, Users, Wallet, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
 import logo from "@/assets/bilheteia-logo.png";
 import { useAccess } from "@/hooks/useAccess";
@@ -52,6 +52,15 @@ type Ticket = {
   oddTotal: number;
   risco: "baixo" | "medio" | "alto";
   observacoes: string;
+};
+
+type JogoDia = {
+  id: string;
+  liga: string | null;
+  time_casa: string;
+  time_fora: string;
+  inicio: string;
+  status: string;
 };
 
 const CASAS = [
@@ -140,6 +149,8 @@ function Index() {
   const [loading, setLoading] = useState(false);
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [currentEmail, setCurrentEmail] = useState("");
+  const [jogos, setJogos] = useState<JogoDia[]>([]);
+  const [loadingJogos, setLoadingJogos] = useState(false);
 
   const { byPlano } = usePlanos();
   const roles = access?.roles ?? [];
@@ -166,9 +177,58 @@ function Index() {
     }
   }, [refetchAccess]);
 
+  // Carrega os jogos do período direto do banco.
+  useEffect(() => {
+    let ativo = true;
+    async function carregar() {
+      setLoadingJogos(true);
+      try {
+        let q = supabase
+          .from("partidas")
+          .select("id, liga, time_casa, time_fora, inicio, status")
+          .order("inicio", { ascending: true });
+
+        if (periodo === "aovivo") {
+          q = q.eq("status", "ao_vivo");
+        } else {
+          const spDate = (offset: number) => {
+            const d = new Date();
+            d.setUTCDate(d.getUTCDate() + offset);
+            return new Intl.DateTimeFormat("en-CA", {
+              timeZone: "America/Sao_Paulo",
+              year: "numeric",
+              month: "2-digit",
+              day: "2-digit",
+            }).format(d);
+          };
+          const endOffset = periodo === "semana" ? 7 : periodo === "amanha" ? 1 : 0;
+          const startDate = periodo === "amanha" ? spDate(1) : spDate(0);
+          q = q
+            .gte("inicio", `${startDate}T00:00:00-03:00`)
+            .lte("inicio", `${spDate(endOffset)}T23:59:59-03:00`)
+            .neq("status", "encerrado");
+        }
+
+        const { data, error } = await q.limit(200);
+        if (error) throw error;
+        if (ativo) setJogos((data ?? []) as JogoDia[]);
+      } catch (err) {
+        console.error(err);
+        if (ativo) setJogos([]);
+      } finally {
+        if (ativo) setLoadingJogos(false);
+      }
+    }
+    carregar();
+    return () => {
+      ativo = false;
+    };
+  }, [periodo]);
+
   function podeUsarLiga(c: string) {
     return isStaff || ligaLiberada(planoCfg, c);
   }
+
 
 
   async function handleSignOut() {
@@ -206,6 +266,9 @@ function Index() {
   } as const;
 
   const casaAtual = CASAS.find((c) => c.id === casa)!;
+  const jogosFiltrados = jogos.filter(
+    (j) => campSel.length === 0 || (j.liga ? campSel.includes(j.liga) : false),
+  );
   const premioPotencial = ticket ? (parseFloat(valorAposta) || 0) * ticket.oddTotal : 0;
   const riscoPct =
     ticket && ticket.picks.length
@@ -432,6 +495,62 @@ function Index() {
 
           </form>
         </Card>
+
+        <Card className="mt-8 border-border/60 bg-card p-6 md:p-8">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h2 className="flex items-center gap-2 text-lg font-bold">
+              <CalendarDays className="h-5 w-5 text-primary" />
+              {periodo === "aovivo"
+                ? "Jogos ao vivo"
+                : periodo === "amanha"
+                ? "Jogos de amanhã"
+                : periodo === "semana"
+                ? "Jogos da semana"
+                : "Jogos do dia"}
+            </h2>
+            {!loadingJogos && (
+              <Badge variant="secondary">{jogosFiltrados.length} jogos</Badge>
+            )}
+          </div>
+
+          {loadingJogos ? (
+            <div className="flex items-center justify-center py-10 text-muted-foreground">
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando jogos...
+            </div>
+          ) : jogosFiltrados.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              Nenhum jogo encontrado para este período. Os jogos são atualizados automaticamente.
+            </p>
+          ) : (
+            <div className="divide-y divide-border/60">
+              {jogosFiltrados.map((j) => (
+                <div key={j.id} className="flex items-center gap-3 py-3">
+                  <div className="w-16 shrink-0 text-sm font-semibold text-primary">
+                    {j.status === "ao_vivo" ? (
+                      <span className="flex items-center gap-1">🔴 AO VIVO</span>
+                    ) : (
+                      new Date(j.inicio).toLocaleTimeString("pt-BR", {
+                        timeZone: "America/Sao_Paulo",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">
+                      {j.time_casa} <span className="text-muted-foreground">x</span> {j.time_fora}
+                    </p>
+                    {j.liga && (
+                      <p className="truncate text-xs text-muted-foreground">{j.liga}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
+
 
         {ticket && (
           <Card className="mt-8 overflow-hidden border-primary/30 bg-card">
