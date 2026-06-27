@@ -337,7 +337,7 @@ function StatCard({
 }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
-  value: number;
+  value: number | string;
   accent?: boolean;
 }) {
   return (
