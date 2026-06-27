@@ -1,20 +1,79 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { getRequestHeader } from "@tanstack/react-start/server";
 
 const ADMIN_EMAIL = "contato@protenexus.com";
 
+function normalizeEmail(value: unknown) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+async function getAuthenticatedRequester() {
+  const authHeader = getRequestHeader("authorization") ?? getRequestHeader("Authorization") ?? "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+  if (!token) throw new Error("Sessão expirada. Entre novamente e tente atualizar.");
+
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_PUBLISHABLE_KEY;
+  if (!url || !key) throw new Error("Configuração do servidor incompleta.");
+
+  const res = await fetch(`${url.replace(/\/$/, "")}/auth/v1/user`, {
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) throw new Error("Sessão inválida. Entre novamente e tente atualizar.");
+  const user = await res.json();
+  return {
+    id: String(user?.id ?? ""),
+    email: normalizeEmail(user?.email),
+  };
+}
+
+async function userHasAdminRole(userId: string) {
+  const url = process.env.SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceKey || !userId || serviceKey.split(".").length !== 3) return false;
+
+  try {
+    const endpoint = new URL("/rest/v1/user_roles", url);
+    endpoint.searchParams.set("select", "role");
+    endpoint.searchParams.set("user_id", `eq.${userId}`);
+    endpoint.searchParams.set("role", "eq.admin");
+
+    const res = await fetch(endpoint, {
+      headers: {
+        apikey: serviceKey,
+        Authorization: `Bearer ${serviceKey}`,
+      },
+    });
+    if (!res.ok) return false;
+    const rows = await res.json();
+    return Array.isArray(rows) && rows.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+async function startDeployDirectly() {
+  const { spawn } = await import("child_process");
+  const cmd =
+    'DIR="${APP_DIR:-}"; ' +
+    'if [ -z "$DIR" ] || [ ! -f "$DIR/deploy.sh" ]; then ' +
+    'DIR="$(for d in "$HOME/app" /root/app /home/*/app /opt/lovable/app /opt/app /app; do [ -f "$d/deploy.sh" ] && echo "$d" && break; done)"; ' +
+    'fi; ' +
+    'if [ -z "$DIR" ]; then echo "deploy.sh nao encontrado" > /tmp/deploy.log; exit 1; fi; ' +
+    'cd "$DIR" && bash deploy.sh > deploy.log 2>&1';
+  const child = spawn("bash", ["-lc", cmd], { detached: true, stdio: "ignore" });
+  child.unref();
+}
+
 export const deploySystem = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { userId } = context;
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const [{ data }, { data: userData }] = await Promise.all([
-      supabaseAdmin.from("user_roles").select("role").eq("user_id", userId),
-      supabaseAdmin.auth.admin.getUserById(userId),
-    ]);
-    const roles = (data ?? []).map((r: any) => r.role);
-    const email = String(userData.user?.email ?? (context.claims as any)?.email ?? "").trim().toLowerCase();
-    if (!roles.includes("admin") && email !== ADMIN_EMAIL) throw new Error("Apenas admin pode atualizar o sistema");
+  .handler(async () => {
+    const user = await getAuthenticatedRequester();
+    const isAdmin = user.email === ADMIN_EMAIL || (await userHasAdminRole(user.id));
+    if (!isAdmin) throw new Error("Apenas admin pode atualizar o sistema");
 
     // O app roda dentro de um container (tudo-em-um). Ele NÃO consegue rodar
     // "docker compose"/"git" por dentro. Em vez disso, grava um arquivo-gatilho
@@ -45,29 +104,17 @@ export const deploySystem = createServerFn({ method: "POST" })
 
       const alive = await watcherIsAlive();
       if (!alive) {
-        // O gatilho foi gravado, mas nada vai rodá-lo: o watcher não está ativo no host.
-        throw new Error(
-          "O pedido foi registrado, mas o atualizador automático não está rodando na VPS. " +
-            "Conecte no servidor e rode UMA vez: cd ~/app && bash deploy.sh (isso instala e liga o atualizador). " +
-            "Depois o botão passa a funcionar sozinho.",
-        );
+        // Sem watcher: roda o deploy.sh direto na VPS (instalações Node fora do container).
+        await startDeployDirectly();
+        return { ok: true, mode: "spawn" as const, watcher: false };
       }
 
       return { ok: true, mode: "trigger" as const, watcher: true };
     } catch (err: any) {
-      // Se já é a mensagem amigável acima, repassa.
-      if (err?.message?.includes("atualizador automático")) throw err;
-
       // Fallback para instalações fora de container (Node direto na VPS):
       // tenta achar e rodar deploy.sh diretamente.
       try {
-        const { spawn } = await import("child_process");
-        const cmd =
-          'DIR="$(find /opt/lovable/app /root/app /home/*/app -maxdepth 1 -name deploy.sh 2>/dev/null | head -n1 | xargs -r dirname)"; ' +
-          'if [ -z "$DIR" ]; then echo "deploy.sh nao encontrado" > /tmp/deploy.log; exit 1; fi; ' +
-          'cd "$DIR" && bash deploy.sh > deploy.log 2>&1';
-        const child = spawn("bash", ["-lc", cmd], { detached: true, stdio: "ignore" });
-        child.unref();
+        await startDeployDirectly();
         return { ok: true, mode: "spawn" as const, watcher: false };
       } catch {
         throw new Error(
