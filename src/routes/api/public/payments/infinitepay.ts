@@ -39,7 +39,7 @@ export const Route = createFileRoute("/api/public/payments/infinitepay")({
               user_id: userId,
               plano: (plano as "start" | "pro" | "elite") ?? "start",
               status: "ativo",
-              stripe_subscription_id: `ip_${slug ?? transactionNsu ?? Date.now()}`,
+              external_subscription_id: `ip_${slug ?? transactionNsu ?? Date.now()}`,
               periodo_fim: periodoFim.toISOString(),
               updated_at: new Date().toISOString(),
             },
