@@ -18,10 +18,15 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin.1234}
       JWT_SECRET: ${JWT_SECRET:-bilheteia-localweb-default-jwt-secret-change-me-2026}
       PORT: ${APP_PORT:-3000}
+      # Arquivo-gatilho do botão "Atualizar sistema" (compartilhado com o host).
+      DEPLOY_TRIGGER_FILE: /opt/app/deploy-trigger/request
     ports:
       - "${APP_PORT:-3000}:${APP_PORT:-3000}"
     volumes:
       - bia-db-data:/var/lib/postgresql/data
+      # Pasta compartilhada com o host: o app grava o gatilho aqui e o
+      # watcher (update-watcher.sh) no host roda o deploy.sh.
+      - ./deploy-trigger:/opt/app/deploy-trigger
 
 volumes:
   bia-db-data:

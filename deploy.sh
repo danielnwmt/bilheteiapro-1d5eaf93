@@ -85,6 +85,40 @@ if [ "${BILHETEIA_CLOUD:-0}" != "1" ] && [ -f "$APP_DIR/docker-compose.yml" ]; t
 
   echo ">> Buildando e subindo o container..."
   docker compose up -d --build
+
+  # Instala/ativa o watcher de atualização no host (para o botão "Atualizar sistema").
+  install_updater() {
+    mkdir -p "$APP_DIR/deploy-trigger"
+    if command -v systemctl >/dev/null 2>&1; then
+      cat > /etc/systemd/system/bilheteia-updater.service <<EOF
+[Unit]
+Description=BilheteIA - watcher de atualizacao
+After=docker.service
+Wants=docker.service
+
+[Service]
+Type=simple
+Environment=APP_DIR=$APP_DIR
+ExecStart=/usr/bin/env bash $APP_DIR/selfhost/update-watcher.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+      systemctl daemon-reload 2>/dev/null || true
+      systemctl enable --now bilheteia-updater.service 2>/dev/null || true
+      echo ">> Watcher de atualização ativado (systemd)."
+    else
+      # Sem systemd: roda em segundo plano com nohup.
+      if ! pgrep -f "update-watcher.sh" >/dev/null 2>&1; then
+        APP_DIR="$APP_DIR" nohup bash "$APP_DIR/selfhost/update-watcher.sh" >/dev/null 2>&1 &
+        echo ">> Watcher de atualização ativado (nohup)."
+      fi
+    fi
+  }
+  install_updater || echo ">> Aviso: não foi possível ativar o watcher de atualização automaticamente."
+
   echo ">> Pronto! App rodando na porta $PORT."
   exit 0
 fi
