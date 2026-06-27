@@ -271,21 +271,17 @@ function AuthPage() {
             </Button>
           </form>
 
-          <div className="my-5 flex items-center gap-3">
-            <span className="h-px flex-1 bg-border" />
-            <span className="text-xs text-muted-foreground">ou</span>
-            <span className="h-px flex-1 bg-border" />
-          </div>
-
-          <Button
-            type="button"
-            variant="outline"
-            size="lg"
-            className="w-full border-primary/50 text-primary hover:bg-primary/10 hover:text-primary"
-            onClick={onGoogle}
-          >
-            Continuar com Google
-          </Button>
+          {mode === "login" && (
+            <p className="mt-4 text-center text-sm">
+              <button
+                type="button"
+                onClick={onForgotPassword}
+                className="font-medium text-primary hover:underline"
+              >
+                Esqueceu a senha?
+              </button>
+            </p>
+          )}
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
             {mode === "login" ? "Não tem conta?" : "Já tem conta?"}{" "}
