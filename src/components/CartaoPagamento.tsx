@@ -3,10 +3,17 @@ import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Loader2, Wifi, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { pagarComCartao } from "@/lib/payments.functions";
-import type { Ciclo, Plano } from "@/lib/planos";
+import { formatarReais, type Ciclo, type Plano } from "@/lib/planos";
 
 function detectarBandeira(num: string): string {
   const d = num.replace(/\D/g, "");
@@ -23,15 +30,29 @@ function formatNumero(v: string) {
   return d.replace(/(\d{4})(?=\d)/g, "$1 ").trim();
 }
 
+function formatValidade(v: string) {
+  const d = v.replace(/\D/g, "").slice(0, 4);
+  if (d.length <= 2) return d;
+  return `${d.slice(0, 2)}/${d.slice(2)}`;
+}
+
+function maxParcelasDoCiclo(ciclo: Ciclo): number {
+  if (ciclo === "anual") return 12;
+  if (ciclo === "semestral") return 6;
+  return 1;
+}
+
 export function CartaoPagamento({
   plano,
   ciclo,
+  precoCentavos,
   precoLabel,
   onSucesso,
   onCancelar,
 }: {
   plano: Plano;
   ciclo: Ciclo;
+  precoCentavos: number;
   precoLabel: string;
   onSucesso: () => void;
   onCancelar: () => void;
@@ -39,33 +60,36 @@ export function CartaoPagamento({
   const pagar = useServerFn(pagarComCartao);
   const [numero, setNumero] = useState("");
   const [nome, setNome] = useState("");
-  const [mes, setMes] = useState("");
-  const [ano, setAno] = useState("");
+  const [validade, setValidade] = useState("");
   const [cvv, setCvv] = useState("");
-  const [cep, setCep] = useState("");
-  const [enderecoNumero, setEnderecoNumero] = useState("");
+  const [parcelas, setParcelas] = useState(1);
   const [verso, setVerso] = useState(false);
   const [loading, setLoading] = useState(false);
   const [ok, setOk] = useState(false);
 
   const bandeira = useMemo(() => detectarBandeira(numero), [numero]);
+  const maxParcelas = maxParcelasDoCiclo(ciclo);
+  const [mes, ano] = validade.split("/");
 
   async function onPagar() {
+    if (!validade || validade.length < 5) {
+      toast.error("Informe a validade (MM/AA)");
+      return;
+    }
     setLoading(true);
     try {
       const res = await pagar({
         data: {
           plano,
           ciclo,
+          parcelas,
           cartao: {
             holderName: nome.trim(),
             number: numero.replace(/\s/g, ""),
-            expiryMonth: mes.padStart(2, "0"),
-            expiryYear: ano.length === 2 ? `20${ano}` : ano,
+            expiryMonth: (mes ?? "").padStart(2, "0"),
+            expiryYear: ano?.length === 2 ? `20${ano}` : ano ?? "",
             ccv: cvv,
           },
-          cep,
-          numeroEndereco: enderecoNumero,
         },
       });
       if (!res.ok) {
@@ -118,9 +142,7 @@ export function CartaoPagamento({
               </div>
               <div className="text-right">
                 <p className="text-[10px] uppercase opacity-70">Validade</p>
-                <p className="text-sm font-medium">
-                  {mes || "MM"}/{ano || "AA"}
-                </p>
+                <p className="text-sm font-medium">{validade || "MM/AA"}</p>
               </div>
             </div>
             {bandeira && (
@@ -167,25 +189,15 @@ export function CartaoPagamento({
               onChange={(e) => setNome(e.target.value.toUpperCase())}
             />
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="mb-1.5 block text-xs">Mês</Label>
+              <Label className="mb-1.5 block text-xs">Validade (MM/AA)</Label>
               <Input
                 inputMode="numeric"
-                placeholder="MM"
-                maxLength={2}
-                value={mes}
-                onChange={(e) => setMes(e.target.value.replace(/\D/g, "").slice(0, 2))}
-              />
-            </div>
-            <div>
-              <Label className="mb-1.5 block text-xs">Ano</Label>
-              <Input
-                inputMode="numeric"
-                placeholder="AA"
-                maxLength={4}
-                value={ano}
-                onChange={(e) => setAno(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                placeholder="MM/AA"
+                maxLength={5}
+                value={validade}
+                onChange={(e) => setValidade(formatValidade(e.target.value))}
               />
             </div>
             <div>
@@ -201,25 +213,28 @@ export function CartaoPagamento({
               />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+
+          {maxParcelas > 1 && (
             <div>
-              <Label className="mb-1.5 block text-xs">CEP</Label>
-              <Input
-                inputMode="numeric"
-                placeholder="00000-000"
-                value={cep}
-                onChange={(e) => setCep(e.target.value.replace(/\D/g, "").slice(0, 8))}
-              />
+              <Label className="mb-1.5 block text-xs">Parcelamento</Label>
+              <Select
+                value={String(parcelas)}
+                onValueChange={(v) => setParcelas(Number(v))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: maxParcelas }, (_, i) => i + 1).map((n) => (
+                    <SelectItem key={n} value={String(n)}>
+                      {n}x de {formatarReais(Math.round(precoCentavos / n))}
+                      {n === 1 ? " (à vista)" : " sem juros"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <div>
-              <Label className="mb-1.5 block text-xs">Nº endereço</Label>
-              <Input
-                placeholder="123"
-                value={enderecoNumero}
-                onChange={(e) => setEnderecoNumero(e.target.value)}
-              />
-            </div>
-          </div>
+          )}
         </div>
 
         <div className="mt-6 flex gap-3">

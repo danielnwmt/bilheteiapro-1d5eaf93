@@ -119,6 +119,7 @@ type CartaoParams = {
   valorReais: number;
   externalReference: string;
   remoteIp?: string;
+  parcelas?: number;
   cartao: {
     holderName: string;
     number: string;
@@ -130,8 +131,8 @@ type CartaoParams = {
     name: string;
     email: string;
     cpfCnpj: string;
-    postalCode: string;
-    addressNumber: string;
+    postalCode?: string;
+    addressNumber?: string;
     phone: string;
   };
 };
@@ -146,13 +147,17 @@ export async function cobrarCartao(
     cpfCnpj: params.holder.cpfCnpj,
   });
   const due = new Date().toISOString().slice(0, 10);
+  const total = Number(params.valorReais.toFixed(2));
+  const parcelas = Math.max(1, Math.round(params.parcelas ?? 1));
 
   const payment = await asaasFetch("/payments", {
     method: "POST",
     body: JSON.stringify({
       customer: customerId,
       billingType: "CREDIT_CARD",
-      value: Number(params.valorReais.toFixed(2)),
+      ...(parcelas > 1
+        ? { installmentCount: parcelas, totalValue: total }
+        : { value: total }),
       dueDate: due,
       description: params.descricao,
       externalReference: params.externalReference,
@@ -168,8 +173,8 @@ export async function cobrarCartao(
         name: params.holder.name,
         email: params.holder.email,
         cpfCnpj: params.holder.cpfCnpj.replace(/\D/g, ""),
-        postalCode: params.holder.postalCode.replace(/\D/g, ""),
-        addressNumber: params.holder.addressNumber,
+        postalCode: (params.holder.postalCode ?? "01310000").replace(/\D/g, ""),
+        addressNumber: params.holder.addressNumber ?? "0",
         phone: params.holder.phone.replace(/\D/g, ""),
       },
     }),
