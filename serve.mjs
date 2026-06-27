@@ -1,5 +1,15 @@
 // Node adapter to run the Cloudflare-module SSR build (dist/server/index.mjs)
 // on a plain Node server, serving static assets from dist/client.
+
+// Node.js < 22 has no native global WebSocket. @supabase/supabase-js resolves a
+// WebSocket implementation eagerly when ANY client is created and throws on
+// Node < 22 ("Node.js 20 detected without native WebSocket support"), which
+// breaks every server function. Provide a global WebSocket before loading the app.
+if (typeof globalThis.WebSocket === 'undefined') {
+  const { WebSocket } = await import('ws');
+  globalThis.WebSocket = WebSocket;
+}
+
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
