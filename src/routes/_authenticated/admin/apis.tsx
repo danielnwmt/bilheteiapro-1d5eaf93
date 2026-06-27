@@ -36,6 +36,18 @@ const CHAVES_PAGAMENTO = [
     chave: "INFINITEPAY_HANDLE",
     descricao: "Sua InfiniteTag da InfinitePay (handle, sem o $). Ex: minhaloja",
   },
+  {
+    chave: "ASAAS_API_KEY",
+    descricao: "Chave de API da sua conta Asaas (Configurações → Integrações → API).",
+  },
+  {
+    chave: "ASAAS_ENV",
+    descricao: "Ambiente do Asaas: producao (padrão) ou sandbox.",
+  },
+  {
+    chave: "ASAAS_WEBHOOK_TOKEN",
+    descricao: "(Opcional) Token para validar o webhook (cabeçalho asaas-access-token).",
+  },
 ];
 
 type ConfigRow = { chave: string; valor: string | null; descricao: string | null };
