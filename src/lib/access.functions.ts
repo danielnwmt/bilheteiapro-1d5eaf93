@@ -161,34 +161,43 @@ export const listClientes = createServerFn({ method: "GET" })
     const byId = new Map<string, any>();
     for (const p of profiles ?? []) byId.set(p.id, p);
 
-    // Robustez (inclui instalações locais): qualquer usuário que tenha papel
-    // mas esteja sem linha em profiles ainda assim deve aparecer na lista.
-    // Buscamos os dados básicos direto do Auth para preencher nome/e-mail.
-    const missingIds = Array.from(roleMap.keys()).filter((id) => !byId.has(id));
-    if (missingIds.length > 0) {
-      try {
+    // Robustez (inclui instalações locais): a fonte de verdade de "quem existe"
+    // é o Auth. Em servidores locais, profiles/user_roles podem não ter linha
+    // para todo mundo (trigger falhou, criação manual, etc.). Então listamos
+    // TODOS os usuários do Auth e completamos com o que existir em profiles.
+    try {
+      const authUsers: any[] = [];
+      for (let page = 1; page <= 20; page++) {
         const { data: authList } = await supabaseAdmin.auth.admin.listUsers({
-          page: 1,
+          page,
           perPage: 1000,
         });
-        const authById = new Map(
-          (authList?.users ?? []).map((u: any) => [u.id, u]),
-        );
-        for (const id of missingIds) {
-          const u: any = authById.get(id);
-          byId.set(id, {
-            id,
-            nome: u?.user_metadata?.nome ?? u?.user_metadata?.full_name ?? null,
-            email: u?.email ?? null,
-            cpf: u?.user_metadata?.cpf ?? null,
-            data_nascimento: u?.user_metadata?.data_nascimento ?? null,
-            created_at: u?.created_at ?? new Date().toISOString(),
-          });
-        }
-      } catch (error) {
-        console.error("Falha ao buscar usuários sem perfil no Auth", error);
+        const users = authList?.users ?? [];
+        authUsers.push(...users);
+        if (users.length < 1000) break;
       }
+      for (const u of authUsers) {
+        const existing = byId.get(u.id);
+        if (existing) {
+          // Completa campos faltantes do perfil com dados do Auth.
+          existing.email = existing.email ?? u.email ?? null;
+          existing.nome =
+            existing.nome ?? u.user_metadata?.nome ?? u.user_metadata?.full_name ?? null;
+          continue;
+        }
+        byId.set(u.id, {
+          id: u.id,
+          nome: u.user_metadata?.nome ?? u.user_metadata?.full_name ?? null,
+          email: u.email ?? null,
+          cpf: u.user_metadata?.cpf ?? null,
+          data_nascimento: u.user_metadata?.data_nascimento ?? null,
+          created_at: u.created_at ?? new Date().toISOString(),
+        });
+      }
+    } catch (error) {
+      console.error("Falha ao listar usuários no Auth", error);
     }
+
 
     return Array.from(byId.values()).map((p) => ({
       id: p.id,
