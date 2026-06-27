@@ -140,6 +140,8 @@ function Index() {
   const [loading, setLoading] = useState(false);
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [currentEmail, setCurrentEmail] = useState("");
+  const [jogos, setJogos] = useState<JogoDia[]>([]);
+  const [loadingJogos, setLoadingJogos] = useState(false);
 
   const { byPlano } = usePlanos();
   const roles = access?.roles ?? [];
