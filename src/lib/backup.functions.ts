@@ -7,11 +7,20 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 // papéis + assinaturas), planos (plano_config), chaves de API (system_config)
 // e histórico de pagamento (subscriptions). Envia ao Google Drive e restaura.
 //
+// Drive: suporta OAuth próprio (self-host, 100% local) guardando o refresh
+// token em system_config. Se não houver, cai no conector da Lovable.
+//
 // Usa REST direto (PostgREST/GoTrue) para evitar @supabase/supabase-js, que
 // quebra no Node 20 em self-host.
 // ============================================================================
 
 const ADMIN_EMAIL = "contato@protenexus.com";
+
+// Chaves usadas em system_config para o OAuth do Google Drive.
+const CFG_CLIENT_ID = "gdrive_client_id";
+const CFG_CLIENT_SECRET = "gdrive_client_secret";
+const CFG_REFRESH_TOKEN = "gdrive_refresh_token";
+const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
 
 // Tabelas incluídas no backup e a coluna de conflito usada na restauração.
 const BACKUP_TABLES: { table: string; onConflict: string }[] = [
@@ -85,12 +94,220 @@ async function restUpsert(
   }
 }
 
+// ---- Helpers de system_config (config do Drive) ----------------------------
+async function cfgGet(base: { url: string; key: string }, chave: string): Promise<string | null> {
+  const endpoint = new URL(`${base.url}/rest/v1/system_config`);
+  endpoint.searchParams.set("select", "valor");
+  endpoint.searchParams.set("chave", `eq.${chave}`);
+  const res = await fetch(endpoint, { headers: authHeaders(base.key) });
+  if (!res.ok) return null;
+  const rows = (await res.json()) as { valor: string | null }[];
+  return rows[0]?.valor ?? null;
+}
+
+async function cfgSet(base: { url: string; key: string }, chave: string, valor: string) {
+  const endpoint = new URL(`${base.url}/rest/v1/system_config`);
+  endpoint.searchParams.set("on_conflict", "chave");
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      ...authHeaders(base.key),
+      "Content-Type": "application/json",
+      Prefer: "resolution=merge-duplicates,return=minimal",
+    },
+    body: JSON.stringify([{ chave, valor, updated_at: new Date().toISOString() }]),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Falha ao salvar configuração: ${text || res.status}`);
+  }
+}
+
+async function cfgDelete(base: { url: string; key: string }, chave: string) {
+  const endpoint = new URL(`${base.url}/rest/v1/system_config`);
+  endpoint.searchParams.set("chave", `eq.${chave}`);
+  await fetch(endpoint, { method: "DELETE", headers: authHeaders(base.key) });
+}
+
+// Troca o refresh token por um access token válido.
+async function getDriveAccessToken(base: { url: string; key: string }): Promise<string | null> {
+  const clientId = await cfgGet(base, CFG_CLIENT_ID);
+  const clientSecret = await cfgGet(base, CFG_CLIENT_SECRET);
+  const refreshToken = await cfgGet(base, CFG_REFRESH_TOKEN);
+  if (!clientId || !clientSecret || !refreshToken) return null;
+
+  const res = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
+      grant_type: "refresh_token",
+    }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Falha na autenticação com o Google Drive: ${text || res.status}`);
+  }
+  const out = (await res.json()) as { access_token?: string };
+  return out.access_token ?? null;
+}
+
+// Upload multipart genérico para o Drive (com access token próprio).
+async function uploadToDriveOAuth(accessToken: string, filename: string, content: string) {
+  const boundary = "----bilheteia" + Math.random().toString(16).slice(2);
+  const metadata = { name: filename, mimeType: "application/json" };
+  const body =
+    `--${boundary}\r\n` +
+    `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
+    `${JSON.stringify(metadata)}\r\n` +
+    `--${boundary}\r\n` +
+    `Content-Type: application/json\r\n\r\n` +
+    `${content}\r\n` +
+    `--${boundary}--`;
+
+  const res = await fetch(
+    "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": `multipart/related; boundary=${boundary}`,
+      },
+      body,
+    },
+  );
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Falha ao enviar para o Drive: ${text || res.status}`);
+  }
+  return (await res.json()) as { id?: string; name?: string };
+}
+
 export type BackupFile = {
   versao: number;
   geradoEm: string;
   origem: string;
   dados: Record<string, any[]>;
 };
+
+async function montarBackup(base: { url: string; key: string }): Promise<BackupFile> {
+  const dados: Record<string, any[]> = {};
+  for (const { table } of BACKUP_TABLES) {
+    dados[table] = await restSelectAll(base, table);
+  }
+  return { versao: 1, geradoEm: new Date().toISOString(), origem: "BilheteIA", dados };
+}
+
+// ---- Status / configuração do Google Drive ---------------------------------
+export const getDriveStatus = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { userId, claims } = context;
+    const base = restBase();
+    await assertAdmin(base, userId, getAuthEmail(claims));
+
+    const clientId = await cfgGet(base, CFG_CLIENT_ID);
+    const clientSecret = await cfgGet(base, CFG_CLIENT_SECRET);
+    const refreshToken = await cfgGet(base, CFG_REFRESH_TOKEN);
+    const lovableReady = Boolean(process.env.LOVABLE_API_KEY && process.env.GOOGLE_DRIVE_API_KEY);
+
+    return {
+      hasCredentials: Boolean(clientId && clientSecret),
+      connected: Boolean(clientId && clientSecret && refreshToken),
+      lovableReady,
+    };
+  });
+
+// Salva Client ID + Secret do Google.
+export const saveDriveCredentials = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { clientId: string; clientSecret: string }) => d)
+  .handler(async ({ data, context }) => {
+    const { userId, claims } = context;
+    const base = restBase();
+    await assertAdmin(base, userId, getAuthEmail(claims));
+
+    const clientId = data.clientId?.trim();
+    const clientSecret = data.clientSecret?.trim();
+    if (!clientId || !clientSecret) throw new Error("Informe o Client ID e o Client Secret.");
+
+    await cfgSet(base, CFG_CLIENT_ID, clientId);
+    await cfgSet(base, CFG_CLIENT_SECRET, clientSecret);
+    return { ok: true };
+  });
+
+// Monta a URL de consentimento do Google.
+export const getDriveAuthUrl = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { redirectUri: string }) => d)
+  .handler(async ({ data, context }) => {
+    const { userId, claims } = context;
+    const base = restBase();
+    await assertAdmin(base, userId, getAuthEmail(claims));
+
+    const clientId = await cfgGet(base, CFG_CLIENT_ID);
+    if (!clientId) throw new Error("Salve o Client ID e o Client Secret primeiro.");
+
+    const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+    url.searchParams.set("client_id", clientId);
+    url.searchParams.set("redirect_uri", data.redirectUri);
+    url.searchParams.set("response_type", "code");
+    url.searchParams.set("scope", DRIVE_SCOPE);
+    url.searchParams.set("access_type", "offline");
+    url.searchParams.set("prompt", "consent");
+    return { url: url.toString() };
+  });
+
+// Troca o código de autorização pelo refresh token e guarda.
+export const exchangeDriveCode = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { code: string; redirectUri: string }) => d)
+  .handler(async ({ data, context }) => {
+    const { userId, claims } = context;
+    const base = restBase();
+    await assertAdmin(base, userId, getAuthEmail(claims));
+
+    const clientId = await cfgGet(base, CFG_CLIENT_ID);
+    const clientSecret = await cfgGet(base, CFG_CLIENT_SECRET);
+    if (!clientId || !clientSecret) throw new Error("Credenciais do Google não configuradas.");
+
+    const res = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        code: data.code,
+        redirect_uri: data.redirectUri,
+        grant_type: "authorization_code",
+      }),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`Falha ao conectar o Drive: ${text || res.status}`);
+    }
+    const out = (await res.json()) as { refresh_token?: string };
+    if (!out.refresh_token) {
+      throw new Error(
+        "O Google não retornou um refresh token. Remova o acesso do app na sua conta Google e conecte novamente.",
+      );
+    }
+    await cfgSet(base, CFG_REFRESH_TOKEN, out.refresh_token);
+    return { ok: true };
+  });
+
+// Desconecta o Drive (remove o refresh token).
+export const disconnectDrive = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { userId, claims } = context;
+    const base = restBase();
+    await assertAdmin(base, userId, getAuthEmail(claims));
+    await cfgDelete(base, CFG_REFRESH_TOKEN);
+    return { ok: true };
+  });
 
 // ---- Gerar backup (retorna o JSON para download) ---------------------------
 export const createBackup = createServerFn({ method: "POST" })
@@ -99,19 +316,7 @@ export const createBackup = createServerFn({ method: "POST" })
     const { userId, claims } = context;
     const base = restBase();
     await assertAdmin(base, userId, getAuthEmail(claims));
-
-    const dados: Record<string, any[]> = {};
-    for (const { table } of BACKUP_TABLES) {
-      dados[table] = await restSelectAll(base, table);
-    }
-
-    const backup: BackupFile = {
-      versao: 1,
-      geradoEm: new Date().toISOString(),
-      origem: "BilheteIA",
-      dados,
-    };
-    return backup;
+    return montarBackup(base);
   });
 
 // ---- Restaurar backup ------------------------------------------------------
@@ -145,28 +350,26 @@ export const backupToDrive = createServerFn({ method: "POST" })
     const base = restBase();
     await assertAdmin(base, userId, getAuthEmail(claims));
 
+    const backup = await montarBackup(base);
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const filename = `bilheteia-backup-${stamp}.json`;
+    const content = JSON.stringify(backup, null, 2);
+
+    // 1) OAuth próprio (self-host / 100% local)
+    const accessToken = await getDriveAccessToken(base);
+    if (accessToken) {
+      const out = await uploadToDriveOAuth(accessToken, filename, content);
+      return { ok: true, fileId: out.id, filename: out.name ?? filename, via: "oauth" };
+    }
+
+    // 2) Conector da Lovable (fallback)
     const lovableKey = process.env.LOVABLE_API_KEY;
     const driveKey = process.env.GOOGLE_DRIVE_API_KEY;
     if (!lovableKey || !driveKey) {
       throw new Error(
-        "Google Drive não está conectado neste servidor. Use 'Baixar backup' ou conecte o Drive.",
+        "Google Drive não está conectado. Conecte sua conta Google ou use 'Baixar backup'.",
       );
     }
-
-    const dados: Record<string, any[]> = {};
-    for (const { table } of BACKUP_TABLES) {
-      dados[table] = await restSelectAll(base, table);
-    }
-    const backup: BackupFile = {
-      versao: 1,
-      geradoEm: new Date().toISOString(),
-      origem: "BilheteIA",
-      dados,
-    };
-
-    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const filename = `bilheteia-backup-${stamp}.json`;
-    const content = JSON.stringify(backup, null, 2);
 
     const boundary = "----bilheteia" + Math.random().toString(16).slice(2);
     const metadata = { name: filename, mimeType: "application/json" };
@@ -197,5 +400,5 @@ export const backupToDrive = createServerFn({ method: "POST" })
       throw new Error(`Falha ao enviar para o Drive: ${text || res.status}`);
     }
     const out = (await res.json()) as { id?: string; name?: string };
-    return { ok: true, fileId: out.id, filename: out.name ?? filename };
+    return { ok: true, fileId: out.id, filename: out.name ?? filename, via: "lovable" };
   });

@@ -1,10 +1,22 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useMutation } from "@tanstack/react-query";
-import { useRef, useState } from "react";
-import { createBackup, restoreBackup, backupToDrive, type BackupFile } from "@/lib/backup.functions";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
+import {
+  createBackup,
+  restoreBackup,
+  backupToDrive,
+  getDriveStatus,
+  saveDriveCredentials,
+  getDriveAuthUrl,
+  exchangeDriveCode,
+  disconnectDrive,
+  type BackupFile,
+} from "@/lib/backup.functions";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -17,7 +29,11 @@ import {
   KeyRound,
   Wallet,
   Receipt,
+  Link2,
+  Unlink,
+  CheckCircle2,
 } from "lucide-react";
+
 
 export const Route = createFileRoute("/_authenticated/admin/backup")({
   head: () => ({ meta: [{ title: "Backup — Admin BilheteIA" }] }),
@@ -40,10 +56,74 @@ function BackupPage() {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [restoreOpen, setRestoreOpen] = useState(false);
+  const [clientId, setClientId] = useState("");
+  const [clientSecret, setClientSecret] = useState("");
 
   const doBackup = useServerFn(createBackup);
   const doDrive = useServerFn(backupToDrive);
   const doRestore = useServerFn(restoreBackup);
+  const doStatus = useServerFn(getDriveStatus);
+  const doSaveCreds = useServerFn(saveDriveCredentials);
+  const doAuthUrl = useServerFn(getDriveAuthUrl);
+  const doExchange = useServerFn(exchangeDriveCode);
+  const doDisconnect = useServerFn(disconnectDrive);
+
+  const redirectUri =
+    typeof window !== "undefined" ? `${window.location.origin}/admin/backup` : "";
+
+  const statusQuery = useQuery({
+    queryKey: ["drive-status"],
+    queryFn: () => doStatus(),
+  });
+  const status = statusQuery.data;
+
+  const mutSaveCreds = useMutation({
+    mutationFn: () => doSaveCreds({ data: { clientId, clientSecret } }),
+    onSuccess: () => {
+      toast.success("Credenciais salvas.");
+      setClientSecret("");
+      statusQuery.refetch();
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar credenciais"),
+  });
+
+  const mutConnect = useMutation({
+    mutationFn: () => doAuthUrl({ data: { redirectUri } }),
+    onSuccess: (r: any) => {
+      window.location.href = r.url;
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao iniciar conexão"),
+  });
+
+  const mutExchange = useMutation({
+    mutationFn: (code: string) => doExchange({ data: { code, redirectUri } }),
+    onSuccess: () => {
+      toast.success("Google Drive conectado!");
+      statusQuery.refetch();
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao conectar", { duration: 10000 }),
+  });
+
+  const mutDisconnect = useMutation({
+    mutationFn: () => doDisconnect(),
+    onSuccess: () => {
+      toast.success("Google Drive desconectado.");
+      statusQuery.refetch();
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao desconectar"),
+  });
+
+  // Captura o ?code= retornado pelo Google após o consentimento.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    if (code) {
+      window.history.replaceState({}, "", "/admin/backup");
+      mutExchange.mutate(code);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
 
   const mutBaixar = useMutation({
     mutationFn: () => doBackup(),
@@ -113,6 +193,91 @@ function BackupPage() {
             ))}
           </ul>
         </Card>
+
+        <Card className="mb-6 p-6">
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <h2 className="font-semibold">Conexão com o Google Drive</h2>
+            {status?.connected ? (
+              <span className="flex items-center gap-1 text-sm text-primary">
+                <CheckCircle2 className="h-4 w-4" /> Conectado
+              </span>
+            ) : (
+              <span className="text-sm text-muted-foreground">Não conectado</span>
+            )}
+          </div>
+          <p className="mb-4 text-sm text-muted-foreground">
+            Conecte sua conta Google para enviar os backups (funciona em instalação
+            local). Crie credenciais OAuth no Google Cloud e use esta URL de redirecionamento:
+          </p>
+          <code className="mb-4 block break-all rounded bg-muted px-3 py-2 text-xs">
+            {redirectUri}
+          </code>
+
+          {status?.connected ? (
+            <Button
+              variant="outline"
+              disabled={mutDisconnect.isPending}
+              onClick={() => mutDisconnect.mutate()}
+            >
+              {mutDisconnect.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Unlink className="mr-2 h-4 w-4" />
+              )}
+              Desconectar
+            </Button>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="gdrive-id">Client ID</Label>
+                  <Input
+                    id="gdrive-id"
+                    value={clientId}
+                    onChange={(e) => setClientId(e.target.value)}
+                    placeholder="xxxxx.apps.googleusercontent.com"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="gdrive-secret">Client Secret</Label>
+                  <Input
+                    id="gdrive-secret"
+                    type="password"
+                    value={clientSecret}
+                    onChange={(e) => setClientSecret(e.target.value)}
+                    placeholder={status?.hasCredentials ? "•••••• (salvo)" : "GOCSPX-..."}
+                  />
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  variant="outline"
+                  disabled={mutSaveCreds.isPending || !clientId || !clientSecret}
+                  onClick={() => mutSaveCreds.mutate()}
+                >
+                  {mutSaveCreds.isPending ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <KeyRound className="mr-2 h-4 w-4" />
+                  )}
+                  Salvar credenciais
+                </Button>
+                <Button
+                  disabled={mutConnect.isPending || mutExchange.isPending || !status?.hasCredentials}
+                  onClick={() => mutConnect.mutate()}
+                >
+                  {mutConnect.isPending || mutExchange.isPending ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Link2 className="mr-2 h-4 w-4" />
+                  )}
+                  Conectar Google Drive
+                </Button>
+              </div>
+            </div>
+          )}
+        </Card>
+
 
         <Card className="mb-6 p-6">
           <h2 className="mb-1 font-semibold">Fazer backup</h2>
