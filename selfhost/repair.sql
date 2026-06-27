@@ -7,7 +7,50 @@
 -- Perfis atuais precisam ter os campos usados pela tela de usuários.
 ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS cpf text,
-  ADD COLUMN IF NOT EXISTS data_nascimento date;
+  ADD COLUMN IF NOT EXISTS data_nascimento date,
+  ADD COLUMN IF NOT EXISTS telefone text;
+
+-- Planos dinâmicos: instalações antigas nasceram com enum start/pro/elite.
+-- Converte para text e adiciona campos criados depois, sem apagar planos novos.
+DO $$
+BEGIN
+  IF to_regclass('public.subscriptions') IS NOT NULL THEN
+    ALTER TABLE public.subscriptions ALTER COLUMN plano TYPE text USING plano::text;
+  END IF;
+  IF to_regclass('public.plano_config') IS NOT NULL THEN
+    ALTER TABLE public.plano_config ALTER COLUMN plano TYPE text USING plano::text;
+    ALTER TABLE public.plano_config ALTER COLUMN price_id SET DEFAULT '';
+    ALTER TABLE public.plano_config ADD COLUMN IF NOT EXISTS desconto_semestral integer NOT NULL DEFAULT 0;
+    ALTER TABLE public.plano_config ADD COLUMN IF NOT EXISTS desconto_anual integer NOT NULL DEFAULT 0;
+  END IF;
+END $$;
+
+-- Depósitos da gestão de banca (foi adicionado depois do schema inicial).
+CREATE TABLE IF NOT EXISTS public.banca_depositos (
+  id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES auth.users ON DELETE CASCADE,
+  data DATE NOT NULL DEFAULT current_date,
+  descricao TEXT NOT NULL DEFAULT 'Aporte',
+  valor NUMERIC(12,2) NOT NULL DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.banca_depositos TO authenticated;
+GRANT ALL ON public.banca_depositos TO service_role;
+ALTER TABLE public.banca_depositos ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users manage own banca deposits" ON public.banca_depositos;
+CREATE POLICY "Users manage own banca deposits"
+ON public.banca_depositos FOR ALL
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
+CREATE INDEX IF NOT EXISTS idx_banca_depositos_user ON public.banca_depositos (user_id, data DESC);
+DROP TRIGGER IF EXISTS update_banca_depositos_updated_at ON public.banca_depositos;
+CREATE TRIGGER update_banca_depositos_updated_at
+BEFORE UPDATE ON public.banca_depositos
+FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+-- Campo de esporte na banca em instalações antigas.
+ALTER TABLE public.banca_entradas ADD COLUMN IF NOT EXISTS esporte text NOT NULL DEFAULT 'futebol';
 
 -- GoTrue quebra em algumas instalações antigas quando colunas de token estão NULL.
 DO $$
