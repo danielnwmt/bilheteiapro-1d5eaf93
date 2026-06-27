@@ -17,7 +17,11 @@ function decodeJwtEmail() {
     const payload = token.split(".")[1];
     if (!payload) return "";
     const padded = payload.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(payload.length / 4) * 4, "=");
-    const claims = JSON.parse(globalThis.atob(padded));
+    const decoded =
+      typeof globalThis.atob === "function"
+        ? globalThis.atob(padded)
+        : Buffer.from(padded, "base64").toString("utf8");
+    const claims = JSON.parse(decoded);
     return normalizeEmail(claims?.email ?? claims?.user_email);
   } catch {
     return "";
@@ -302,6 +306,15 @@ export const listClientes = createServerFn({ method: "GET" })
     let requesterRoles: AppRole[] = [];
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
+    if (!currentEmail) {
+      currentEmail = await withTimeout(
+        resolveEmail(supabaseAdmin, userId),
+        1_500,
+        "",
+        "resolver email do usuario atual",
+      );
+    }
+
     if (currentEmail !== ADMIN_EMAIL) {
       requesterRoles = await withTimeout(
         assertStaff(userId, currentEmail),
@@ -314,15 +327,6 @@ export const listClientes = createServerFn({ method: "GET" })
       }
     } else {
       requesterRoles = ["admin"];
-    }
-
-    if (!currentEmail) {
-      currentEmail = await withTimeout(
-        resolveEmail(supabaseAdmin, userId),
-        1_500,
-        "",
-        "resolver email do usuario atual",
-      );
     }
     if (currentEmail === ADMIN_EMAIL && !requesterRoles.includes("admin")) {
       requesterRoles = Array.from(new Set([...requesterRoles, "admin"]));
