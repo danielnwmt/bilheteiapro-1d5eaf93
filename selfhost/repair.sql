@@ -334,3 +334,30 @@ $$;
 
 REVOKE ALL ON FUNCTION public.admin_list_users() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_list_users() TO service_role;
+
+-- ============================================================
+--  Endurecimento de acesso (idempotente):
+--  - Oculta price_id de anon/authenticated em plano_config.
+--  - Restringe edicao direta de perfis a admin (operador so via server fn).
+-- ============================================================
+DO $$
+BEGIN
+  IF to_regclass('public.plano_config') IS NOT NULL THEN
+    REVOKE SELECT ON public.plano_config FROM anon;
+    REVOKE SELECT ON public.plano_config FROM authenticated;
+    GRANT SELECT (plano, nome, preco, descricao, nivel, historico_dias, ligas, recursos, desconto_semestral, desconto_anual, created_at, updated_at) ON public.plano_config TO anon, authenticated;
+    GRANT ALL ON public.plano_config TO service_role;
+  END IF;
+
+  IF to_regclass('public.profiles') IS NOT NULL THEN
+    DROP POLICY IF EXISTS "Staff edita perfis" ON public.profiles;
+    DROP POLICY IF EXISTS "Admin edita perfis" ON public.profiles;
+    BEGIN
+      CREATE POLICY "Admin edita perfis" ON public.profiles
+        FOR UPDATE TO authenticated
+        USING (public.has_role(auth.uid(),'admin'))
+        WITH CHECK (public.has_role(auth.uid(),'admin'));
+    EXCEPTION WHEN others THEN NULL;
+    END;
+  END IF;
+END $$;
