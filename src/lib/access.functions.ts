@@ -786,17 +786,66 @@ export const getClientStats = createServerFn({ method: "GET" })
       }
     }
 
-    const [profiles, roles, subs, planoCfg] = await Promise.all([
-      restSelect<any>(base, "profiles", { select: "id, created_at" }, "profiles (stats)"),
-      restSelect<any>(base, "user_roles", { select: "user_id, role" }, "user_roles (stats)"),
-      restSelect<any>(
-        base,
-        "subscriptions",
-        { select: "user_id, plano, status, periodo_fim, created_at" },
-        "subscriptions (stats)",
-      ),
-      restSelect<any>(base, "plano_config", { select: "plano, preco" }, "plano_config (stats)"),
+    // Leitura dupla + merge (igual listClientes): garante dados no Cloud
+    // (via sessão/RLS de admin) e no self-host (via REST service-role).
+    const readViaAuth = async (table: string, select: string): Promise<any[]> => {
+      try {
+        const { data, error } = await context.supabase.from(table as any).select(select);
+        if (error) return [];
+        return Array.isArray(data) ? data : [];
+      } catch {
+        return [];
+      }
+    };
+    const mergeById = (a: any[], b: any[], keyOf: (x: any) => string) => {
+      const map = new Map<string, any>();
+      for (const x of [...a, ...b]) {
+        const k = keyOf(x);
+        if (!k) continue;
+        map.set(k, { ...(map.get(k) ?? {}), ...x });
+      }
+      return Array.from(map.values());
+    };
+    const mergeRoleRows = (a: any[], b: any[]) => {
+      const seen = new Set<string>();
+      const out: any[] = [];
+      for (const x of [...a, ...b]) {
+        const k = `${x.user_id ?? ""}|${x.role ?? ""}`;
+        if (seen.has(k)) continue;
+        seen.add(k);
+        out.push(x);
+      }
+      return out;
+    };
+
+    const [
+      [pa, ra, sa, ca],
+      [pr, rr, sr, cr],
+    ] = await Promise.all([
+      Promise.all([
+        readViaAuth("profiles", "id, created_at"),
+        readViaAuth("user_roles", "user_id, role"),
+        readViaAuth("subscriptions", "user_id, plano, status, periodo_fim, created_at"),
+        readViaAuth("plano_config", "plano, preco"),
+      ]),
+      Promise.all([
+        restSelect<any>(base, "profiles", { select: "id, created_at" }, "profiles (stats)"),
+        restSelect<any>(base, "user_roles", { select: "user_id, role" }, "user_roles (stats)"),
+        restSelect<any>(
+          base,
+          "subscriptions",
+          { select: "user_id, plano, status, periodo_fim, created_at" },
+          "subscriptions (stats)",
+        ),
+        restSelect<any>(base, "plano_config", { select: "plano, preco" }, "plano_config (stats)"),
+      ]),
     ]);
+
+    const profiles = mergeById(pa, pr, (x) => x.id);
+    const roles = mergeRoleRows(ra, rr);
+    const subs = mergeById(sa, sr, (x) => x.user_id);
+    const planoCfg = mergeById(ca, cr, (x) => x.plano);
+
 
     const parsePreco = (v: string | null | undefined) => {
       if (!v) return 0;
