@@ -49,6 +49,15 @@ const PIE_COLORS = [
   "var(--chart-5)",
 ];
 
+const EMPTY_STATS = {
+  totalClientes: 0,
+  ativos: 0,
+  inativos: 0,
+  porPlano: { start: 0, pro: 0, elite: 0, sem: 0 },
+  cadastrosPorMes: [],
+  faturamentoPorMes: [],
+};
+
 function AdminDashboard() {
   const router = useRouter();
   const { byPlano } = usePlanos();
@@ -71,6 +80,8 @@ function AdminDashboard() {
   const { data: stats, isLoading } = useQuery({
     queryKey: ["client-stats"],
     queryFn: () => fetchStats(),
+    placeholderData: EMPTY_STATS,
+    staleTime: 60_000,
   });
 
   const planoLabel = (p: string) =>
