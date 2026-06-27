@@ -506,7 +506,22 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      admin_list_users: {
+        Args: never
+        Returns: {
+          cpf: string
+          created_at: string
+          data_nascimento: string
+          email: string
+          id: string
+          nome: string
+          periodo_fim: string
+          plano: string
+          roles: string[]
+          status: string
+          telefone: string
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "operador" | "cliente"
