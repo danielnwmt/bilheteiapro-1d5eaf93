@@ -116,9 +116,13 @@ install_ssl() {
   set +e
   {
     echo ">> [$(date)] Instalando SSL para $dominio ($email)"
+
+    # Garante nginx no host ANTES do certbot (o plugin --nginx precisa do binário).
+    ensure_host_nginx_proxy "$dominio" || { echo ">> ERRO: nginx indisponível."; exit 1; }
+
     if ! command -v certbot >/dev/null 2>&1; then
       echo ">> Instalando certbot..."
-      (apt-get update -y && apt-get install -y certbot python3-certbot-nginx) || \
+      apt_install certbot python3-certbot-nginx || \
         (command -v snap >/dev/null 2>&1 && snap install --classic certbot) || true
     fi
 
@@ -127,9 +131,16 @@ install_ssl() {
       exit 1
     fi
 
-    ensure_host_nginx_proxy "$dominio"
-    certbot --nginx --non-interactive --agree-tos -m "$email" -d "$dominio" --redirect
+    if certbot --nginx --non-interactive --agree-tos -m "$email" -d "$dominio" --redirect; then
+      echo ">> Certificado emitido via plugin nginx."
+    else
+      echo ">> Plugin nginx falhou. Tentando modo standalone..."
+      systemctl stop nginx 2>/dev/null || true
+      certbot certonly --standalone --non-interactive --agree-tos -m "$email" -d "$dominio"
+      systemctl start nginx 2>/dev/null || true
+    fi
   } >> "$SSL_LOG_FILE" 2>&1
+
   local code=$?
   set -e
 
