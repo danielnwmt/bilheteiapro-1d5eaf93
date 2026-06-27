@@ -114,6 +114,72 @@ export async function criarCobranca(
   return { url, paymentId: payment.id as string };
 }
 
+type CartaoParams = {
+  descricao: string;
+  valorReais: number;
+  externalReference: string;
+  remoteIp?: string;
+  cartao: {
+    holderName: string;
+    number: string;
+    expiryMonth: string;
+    expiryYear: string;
+    ccv: string;
+  };
+  holder: {
+    name: string;
+    email: string;
+    cpfCnpj: string;
+    postalCode: string;
+    addressNumber: string;
+    phone: string;
+  };
+};
+
+// Cobra diretamente no cartão (sem redirecionar). Retorna se foi aprovado.
+export async function cobrarCartao(
+  params: CartaoParams,
+): Promise<{ paid: boolean; status: string; paymentId: string }> {
+  const customerId = await obterCliente({
+    name: params.holder.name,
+    email: params.holder.email,
+    cpfCnpj: params.holder.cpfCnpj,
+  });
+  const due = new Date().toISOString().slice(0, 10);
+
+  const payment = await asaasFetch("/payments", {
+    method: "POST",
+    body: JSON.stringify({
+      customer: customerId,
+      billingType: "CREDIT_CARD",
+      value: Number(params.valorReais.toFixed(2)),
+      dueDate: due,
+      description: params.descricao,
+      externalReference: params.externalReference,
+      remoteIp: params.remoteIp || "127.0.0.1",
+      creditCard: {
+        holderName: params.cartao.holderName,
+        number: params.cartao.number.replace(/\s/g, ""),
+        expiryMonth: params.cartao.expiryMonth,
+        expiryYear: params.cartao.expiryYear,
+        ccv: params.cartao.ccv,
+      },
+      creditCardHolderInfo: {
+        name: params.holder.name,
+        email: params.holder.email,
+        cpfCnpj: params.holder.cpfCnpj.replace(/\D/g, ""),
+        postalCode: params.holder.postalCode.replace(/\D/g, ""),
+        addressNumber: params.holder.addressNumber,
+        phone: params.holder.phone.replace(/\D/g, ""),
+      },
+    }),
+  });
+
+  const status: string = payment?.status ?? "";
+  const paid = ["RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH"].includes(status);
+  return { paid, status, paymentId: payment?.id as string };
+}
+
 // Consulta o status de uma cobrança no Asaas.
 export async function consultarPagamento(
   paymentId: string,
