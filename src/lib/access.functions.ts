@@ -143,6 +143,26 @@ async function authListUsers(base: { url: string; key: string }): Promise<any[]>
   return users;
 }
 
+async function rpcListAuthUsers(base: { url: string; key: string }): Promise<any[]> {
+  try {
+    const res = await fetchWithTimeout(
+      `${base.url}/rest/v1/rpc/admin_list_auth_users`,
+      {
+        method: "POST",
+        headers: { ...authHeaders(base.key), "Content-Type": "application/json" },
+        body: "{}",
+      },
+      2_500,
+    );
+    if (!res.ok) return [];
+    const json = await res.json();
+    return Array.isArray(json) ? json : [];
+  } catch (error) {
+    console.error("rpcListAuthUsers: falhou", error);
+    return [];
+  }
+}
+
 // ---- helpers de e-mail / claims -------------------------------------------
 
 function decodeJwtEmail() {
@@ -427,25 +447,33 @@ export const listClientes = createServerFn({ method: "GET" })
 
     // Completa quem tem conta no Auth mas perdeu o profile/role (self-host).
     try {
-      const authUsers = await authListUsers(base);
+      const authUsersFromApi = await authListUsers(base);
+      const authUsersFromDb = await rpcListAuthUsers(base);
+      const authUsers = [
+        ...authUsersFromApi,
+        ...authUsersFromDb.filter(
+          (u) => u?.id && !authUsersFromApi.some((apiUser) => apiUser?.id === u.id),
+        ),
+      ];
       for (const u of authUsers) {
         if (!u?.id) continue;
         const existing = byId.get(u.id);
+        const meta = u.user_metadata ?? u.raw_user_meta_data ?? {};
         if (existing) {
           existing.email = existing.email ?? u.email ?? null;
           existing.nome =
-            existing.nome ?? u.user_metadata?.nome ?? u.user_metadata?.full_name ?? null;
-          existing.cpf = existing.cpf ?? u.user_metadata?.cpf ?? null;
+            existing.nome ?? meta?.nome ?? meta?.full_name ?? null;
+          existing.cpf = existing.cpf ?? meta?.cpf ?? null;
           existing.data_nascimento =
-            existing.data_nascimento ?? u.user_metadata?.data_nascimento ?? null;
+            existing.data_nascimento ?? meta?.data_nascimento ?? null;
           continue;
         }
         byId.set(u.id, {
           id: u.id,
-          nome: u.user_metadata?.nome ?? u.user_metadata?.full_name ?? null,
+          nome: meta?.nome ?? meta?.full_name ?? null,
           email: u.email ?? null,
-          cpf: u.user_metadata?.cpf ?? null,
-          data_nascimento: u.user_metadata?.data_nascimento ?? null,
+          cpf: meta?.cpf ?? null,
+          data_nascimento: meta?.data_nascimento ?? null,
           created_at: u.created_at ?? new Date().toISOString(),
         });
         if (normalizeEmail(u.email) === ADMIN_EMAIL) {
