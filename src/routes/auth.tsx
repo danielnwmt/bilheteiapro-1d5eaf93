@@ -28,6 +28,7 @@ function AuthPage() {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [nome, setNome] = useState("");
   const [cpf, setCpf] = useState("");
+  const [telefone, setTelefone] = useState("");
   const [nascimento, setNascimento] = useState("");
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
@@ -47,12 +48,25 @@ function AuthPage() {
       .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
   }
 
+  function formatTelefone(v: string) {
+    const d = v.replace(/\D/g, "").slice(0, 11);
+    if (d.length <= 10) {
+      return d
+        .replace(/(\d{2})(\d)/, "($1) $2")
+        .replace(/(\d{4})(\d{1,4})$/, "$1-$2");
+    }
+    return d
+      .replace(/(\d{2})(\d)/, "($1) $2")
+      .replace(/(\d{5})(\d{1,4})$/, "$1-$2");
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (mode === "signup") {
       const cpfDigits = cpf.replace(/\D/g, "");
-      if (!nome.trim() || cpfDigits.length !== 11 || !nascimento) {
-        toast.error("Preencha nome, CPF e data de nascimento");
+      const telDigits = telefone.replace(/\D/g, "");
+      if (!nome.trim() || cpfDigits.length !== 11 || !nascimento || telDigits.length < 10) {
+        toast.error("Preencha nome, CPF, telefone e data de nascimento");
         return;
       }
     }
@@ -120,6 +134,7 @@ function AuthPage() {
             data: {
               nome: nome.trim(),
               cpf: cpf.replace(/\D/g, ""),
+              telefone: telefone.replace(/\D/g, ""),
               data_nascimento: nascimento,
             },
           },
@@ -193,6 +208,19 @@ function AuthPage() {
                     placeholder="000.000.000-00"
                     value={cpf}
                     onChange={(e) => setCpf(formatCpf(e.target.value))}
+                    className="bg-input/40"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="telefone" className="mb-2 block text-sm">Telefone</Label>
+                  <Input
+                    id="telefone"
+                    type="tel"
+                    inputMode="numeric"
+                    autoComplete="tel"
+                    placeholder="(00) 00000-0000"
+                    value={telefone}
+                    onChange={(e) => setTelefone(formatTelefone(e.target.value))}
                     className="bg-input/40"
                   />
                 </div>
