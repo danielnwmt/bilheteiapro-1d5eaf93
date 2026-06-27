@@ -71,22 +71,32 @@ export const getMyAccess = createServerFn({ method: "GET" })
     };
   });
 
-async function assertStaff(userId: string) {
+async function assertStaff(userId: string, emailHint?: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data } = await supabaseAdmin.from("user_roles").select("role").eq("user_id", userId);
+  const { data, error } = await supabaseAdmin.from("user_roles").select("role").eq("user_id", userId);
+  if (error) console.error("assertStaff: falha ao ler user_roles", error);
   let roles = (data ?? []).map((r: any) => r.role);
 
   if (!roles.includes("admin") && !roles.includes("operador")) {
     try {
-      const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId);
-      const email = String(userData.user?.email ?? "").trim().toLowerCase();
+      let email = String(emailHint ?? "").trim().toLowerCase();
+      if (!email) {
+        const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId);
+        email = String(userData.user?.email ?? "").trim().toLowerCase();
+      }
 
-      if (email === ADMIN_EMAIL) {
+      // É o e-mail admin padrão OU ainda não existe nenhum admin (primeiro usuário)?
+      const { count } = await supabaseAdmin
+        .from("user_roles")
+        .select("user_id", { count: "exact", head: true })
+        .eq("role", "admin");
+
+      if (email === ADMIN_EMAIL || (count ?? 0) === 0) {
         await supabaseAdmin.from("profiles").upsert(
           {
             id: userId,
-            nome: "Administrador",
-            email: ADMIN_EMAIL,
+            email: email || null,
+            ...(email === ADMIN_EMAIL ? { nome: "Administrador" } : {}),
             updated_at: new Date().toISOString(),
           },
           { onConflict: "id" },
@@ -94,11 +104,13 @@ async function assertStaff(userId: string) {
         await supabaseAdmin
           .from("user_roles")
           .upsert({ user_id: userId, role: "admin" }, { onConflict: "user_id,role" });
-        await supabaseAdmin.from("user_roles").delete().eq("user_id", userId).eq("role", "cliente");
+        if (email === ADMIN_EMAIL) {
+          await supabaseAdmin.from("user_roles").delete().eq("user_id", userId).eq("role", "cliente");
+        }
         roles = Array.from(new Set<AppRole>(["admin", ...roles.filter((role: AppRole) => role !== "cliente")]));
       }
-    } catch {
-      // Se não der para reparar, mantém bloqueio abaixo.
+    } catch (err) {
+      console.error("assertStaff: falha ao reparar admin", err);
     }
   }
 
