@@ -47,6 +47,17 @@ function UsuariosPage() {
     status: "ativo" as "ativo" | "inativo",
   });
 
+  const traduzErro = (e: any, fallback: string) => {
+    const m = String(e?.message ?? "").toLowerCase();
+    if (m.includes("weak") || m.includes("easy to guess") || m.includes("pwned") || m.includes("leaked")) {
+      return "Senha muito fraca ou já vazada. Escolha uma senha mais forte (evite sequências como admin1234).";
+    }
+    if (m.includes("should be at least") || m.includes("at least 6")) {
+      return "A senha deve ter pelo menos 6 caracteres.";
+    }
+    return e?.message ?? fallback;
+  };
+
   const formatCpf = (v: string) =>
     v
       .replace(/\D/g, "")
@@ -110,7 +121,7 @@ function UsuariosPage() {
       toast.success("Senha alterada");
       setSenhas((s) => ({ ...s, [v.clienteId]: "" }));
     },
-    onError: (e: any) => toast.error(e?.message ?? "Erro ao alterar senha"),
+    onError: (e: any) => toast.error(traduzErro(e, "Erro ao alterar senha")),
   });
 
   const mutNovo = useMutation({
@@ -133,7 +144,7 @@ function UsuariosPage() {
       setNovo({ nome: "", email: "", senha: "", cpf: "", data_nascimento: "", plano: "start", status: "ativo" });
       qc.invalidateQueries({ queryKey: ["clientes"] });
     },
-    onError: (e: any) => toast.error(e?.message ?? "Erro ao criar usuário"),
+    onError: (e: any) => toast.error(traduzErro(e, "Erro ao criar usuário")),
   });
 
   const handleSalvar = (c: any, cur: { plano: Plano; status: "ativo" | "inativo" }) => {
