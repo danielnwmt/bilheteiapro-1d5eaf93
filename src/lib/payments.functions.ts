@@ -114,3 +114,87 @@ export const createAsaasCheckout = createServerFn({ method: "POST" })
     }
   });
 
+// ============ CARTÃO (cobrança imediata, sem redirecionar) ============
+type CartaoInput = {
+  plano: Plano;
+  ciclo?: Ciclo;
+  cartao: { holderName: string; number: string; expiryMonth: string; expiryYear: string; ccv: string };
+  cep: string;
+  numeroEndereco: string;
+};
+
+type CartaoResult = { ok: true; status: string } | { ok: false; error: string };
+
+export const pagarComCartao = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: CartaoInput) => {
+    if (!data.plano) throw new Error("Plano inválido");
+    const ciclo: Ciclo = CICLOS.includes(data.ciclo as Ciclo) ? (data.ciclo as Ciclo) : "mensal";
+    const c = data.cartao;
+    if (!c?.number || !c?.holderName || !c?.expiryMonth || !c?.expiryYear || !c?.ccv) {
+      throw new Error("Preencha todos os dados do cartão");
+    }
+    if (!data.cep || !data.numeroEndereco) throw new Error("Informe CEP e número do endereço");
+    return { plano: data.plano, ciclo, cartao: c, cep: data.cep, numeroEndereco: data.numeroEndereco };
+  })
+  .handler(async ({ data, context }): Promise<CartaoResult> => {
+    try {
+      const { userId, supabase } = context;
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("nome, cpf, telefone")
+        .eq("id", userId)
+        .maybeSingle();
+
+      const cfg = await getPlanoConfig(data.plano);
+      const precoCentavos = precoCicloCentavos(cfg, data.ciclo);
+      if (precoCentavos <= 0) throw new Error("Preço do plano inválido");
+
+      const cpf = (profile?.cpf ?? "").replace(/\D/g, "");
+      if (cpf.length !== 11) throw new Error("CPF do cadastro inválido. Atualize seu perfil.");
+
+      const externalReference = `${userId}|${data.plano}|${data.ciclo}`;
+      const { paid, status } = await cobrarCartao({
+        descricao: `BilheteIA PRO — ${cfg.nome} (${CICLO_LABEL[data.ciclo]})`,
+        valorReais: precoCentavos / 100,
+        externalReference,
+        cartao: data.cartao,
+        holder: {
+          name: profile?.nome ?? user?.user_metadata?.nome ?? "Cliente",
+          email: user?.email ?? "",
+          cpfCnpj: cpf,
+          postalCode: data.cep,
+          addressNumber: data.numeroEndereco,
+          phone: (profile?.telefone ?? "").toString(),
+        },
+      });
+
+      if (!paid) {
+        return { ok: false, error: "Pagamento não aprovado. Verifique os dados do cartão." };
+      }
+
+      // Aprovado: libera o plano imediatamente (o webhook confirma depois também).
+      const mesesPorCiclo: Record<string, number> = { mensal: 1, semestral: 6, anual: 12 };
+      const periodoFim = new Date();
+      periodoFim.setMonth(periodoFim.getMonth() + (mesesPorCiclo[data.ciclo] ?? 1));
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      await supabaseAdmin.from("subscriptions").upsert(
+        {
+          user_id: userId,
+          plano: data.plano as "start" | "pro" | "elite",
+          status: "ativo",
+          stripe_subscription_id: `asaas_card_${Date.now()}`,
+          periodo_fim: periodoFim.toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" },
+      );
+
+      return { ok: true, status };
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : "Falha no pagamento" };
+    }
+  });
+
+
