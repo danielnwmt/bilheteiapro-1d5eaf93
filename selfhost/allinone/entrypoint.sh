@@ -35,8 +35,8 @@ NODE
 
 # As chaves locais precisam ser assinadas com o JWT_SECRET atual. Se ficarem
 # estáticas, o login funciona mas as funções de admin não conseguem listar usuários.
-ANON_KEY="${ANON_KEY:-$(make_jwt anon)}"
-SERVICE_ROLE_KEY="${SERVICE_ROLE_KEY:-$(make_jwt service_role)}"
+ANON_KEY="${ANON_KEY:-${SUPABASE_PUBLISHABLE_KEY:-$(make_jwt anon)}}"
+SERVICE_ROLE_KEY="${SERVICE_ROLE_KEY:-${SUPABASE_SERVICE_ROLE_KEY:-$(make_jwt service_role)}}"
 
 # --- URL pública (mesma origem do app) -----------------------------
 PUBLIC_URL="${SUPABASE_PUBLIC_URL:-}"
