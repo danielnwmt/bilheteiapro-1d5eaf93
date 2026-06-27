@@ -2,7 +2,7 @@ import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ADMIN_EMAIL, listClientes, setClientePlano, updateClienteProfile, setClientePassword, createCliente } from "@/lib/access.functions";
+import { ADMIN_EMAIL, listClientes, listClientesLocalFallback, setClientePlano, updateClienteProfile, setClientePassword, createCliente } from "@/lib/access.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,6 +24,7 @@ function UsuariosPage() {
   const qc = useQueryClient();
   const { list: planos, byPlano } = usePlanos();
   const fetchClientes = useServerFn(listClientes);
+  const fetchClientesLocal = useServerFn(listClientesLocalFallback);
   const salvar = useServerFn(setClientePlano);
   const salvarPerfil = useServerFn(updateClienteProfile);
   const salvarSenha = useServerFn(setClientePassword);
@@ -77,7 +78,17 @@ function UsuariosPage() {
 
   const { data: clientes, isLoading } = useQuery({
     queryKey: ["clientes"],
-    queryFn: () => fetchClientes(),
+    queryFn: async () => {
+      const primary = await fetchClientes().catch((error) => {
+        console.error("listClientes falhou; tentando fallback local", error);
+        return [];
+      });
+      if (Array.isArray(primary) && primary.length > 0) return primary;
+      return fetchClientesLocal().catch((error) => {
+        console.error("listClientesLocalFallback falhou", error);
+        return primary;
+      });
+    },
     placeholderData: [],
     staleTime: 60_000,
   });
