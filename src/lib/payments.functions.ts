@@ -28,7 +28,6 @@ async function getPlanoConfig(plano: Plano): Promise<PlanoConfig> {
     preco: data.preco,
     descricao: data.descricao ?? "",
     nivel: data.nivel ?? 0,
-    priceId: data.price_id ?? "",
     historicoDias: data.historico_dias ?? 15,
     ligas: Array.isArray(data.ligas) ? (data.ligas as string[]) : [],
     recursos: (data.recursos ?? {}) as PlanoConfig["recursos"],
