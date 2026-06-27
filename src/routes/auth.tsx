@@ -161,16 +161,23 @@ function AuthPage() {
     }
   }
 
-  async function onGoogle() {
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
-    });
-    if (result.error) {
-      toast.error("Não foi possível entrar com Google.");
+  async function onForgotPassword() {
+    if (!email) {
+      toast.error("Digite seu e-mail para redefinir a senha.");
       return;
     }
-    if (result.redirected) return;
-    router.navigate({ to: "/", replace: true });
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      toast.success("Enviamos um link de redefinição para seu e-mail.");
+    } catch {
+      toast.error("Não foi possível enviar o e-mail de redefinição.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
