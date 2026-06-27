@@ -398,9 +398,9 @@ ALTER POLICY "Admin gerencia papeis" ON public.user_roles
 ALTER POLICY "Staff ve todos perfis" ON public.profiles
   USING (private.has_role(auth.uid(), 'admin'::public.app_role) OR private.has_role(auth.uid(), 'operador'::public.app_role));
 
-ALTER POLICY "Staff edita perfis" ON public.profiles
-  USING (private.has_role(auth.uid(), 'admin'::public.app_role) OR private.has_role(auth.uid(), 'operador'::public.app_role))
-  WITH CHECK (private.has_role(auth.uid(), 'admin'::public.app_role) OR private.has_role(auth.uid(), 'operador'::public.app_role));
+ALTER POLICY "Admin edita perfis" ON public.profiles
+  USING (private.has_role(auth.uid(), 'admin'::public.app_role))
+  WITH CHECK (private.has_role(auth.uid(), 'admin'::public.app_role));
 
 ALTER POLICY "Staff ve todas assinaturas" ON public.subscriptions
   USING (private.has_role(auth.uid(), 'admin'::public.app_role) OR private.has_role(auth.uid(), 'operador'::public.app_role));
