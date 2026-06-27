@@ -115,6 +115,7 @@ function UsuariosPage() {
       nome: string;
       email: string;
       cpf: string;
+      telefone: string;
       data_nascimento: string | null;
     }) => salvarPerfil({ data: v }),
     onSuccess: () => {
@@ -141,6 +142,7 @@ function UsuariosPage() {
           email: v.email,
           senha: v.senha,
           cpf: v.cpf,
+          telefone: v.telefone,
           data_nascimento: v.data_nascimento || null,
           plano: v.plano,
           status: v.status,
@@ -150,7 +152,7 @@ function UsuariosPage() {
     onSuccess: (_d, v) => {
       toast.success(v.isAdmin ? "Admin criado" : "Cliente criado");
       setShowNovo(false);
-      setNovo({ nome: "", email: "", senha: "", cpf: "", data_nascimento: "", plano: "start", status: "ativo" });
+      setNovo({ nome: "", email: "", senha: "", cpf: "", telefone: "", data_nascimento: "", plano: "start", status: "ativo" });
       qc.invalidateQueries({ queryKey: ["clientes"] });
     },
     onError: (e: any) => toast.error(traduzErro(e, "Erro ao criar usuário")),
@@ -161,6 +163,7 @@ function UsuariosPage() {
       nome: c.nome ?? "",
       email: c.email ?? "",
       cpf: c.cpf ?? "",
+      telefone: c.telefone ?? "",
       data_nascimento: c.data_nascimento ?? "",
     };
     mutPerfil.mutate({
@@ -168,6 +171,7 @@ function UsuariosPage() {
       nome: p.nome,
       email: p.email,
       cpf: p.cpf,
+      telefone: p.telefone,
       data_nascimento: p.data_nascimento || null,
     });
     mut.mutate({ clienteId: c.id, plano: cur.plano, status: cur.status });
