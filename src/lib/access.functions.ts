@@ -449,11 +449,16 @@ export const getMyProfile = createServerFn({ method: "GET" })
       }
       if (!email) email = await resolveEmail(base, userId);
 
-      if (!rows[0] && (email || nome)) {
+      if ((email || nome) && (!rows[0] || !rows[0]?.nome || !rows[0]?.email)) {
         await restUpsert(
           base,
           "profiles",
-          { id: userId, nome, email, updated_at: new Date().toISOString() },
+          {
+            id: userId,
+            nome: rows[0]?.nome || nome,
+            email: rows[0]?.email || email,
+            updated_at: new Date().toISOString(),
+          },
           "id",
         ).catch((error) => console.error("getMyProfile: falha ao recriar perfil", error));
       }
