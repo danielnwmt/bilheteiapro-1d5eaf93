@@ -50,7 +50,6 @@ function PlanosPage() {
   const [carregando, setCarregando] = useState(false);
   const [ciclo, setCiclo] = useState<Ciclo>("mensal");
 
-  const infinitePayCheckout = useServerFn(createInfinitePayCheckout);
   const asaasCheckout = useServerFn(createAsaasCheckout);
 
   const planoAtual = access?.plano ?? null;
