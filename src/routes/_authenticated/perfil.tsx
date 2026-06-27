@@ -48,6 +48,17 @@ function PerfilPage() {
       const meta = user.user_metadata ?? {};
       setNome((current) => current || meta.nome || meta.full_name || "");
       setEmail((current) => current || user.email || "");
+
+      supabase
+        .from("profiles")
+        .select("nome, email")
+        .eq("id", user.id)
+        .maybeSingle()
+        .then(({ data: profile }) => {
+          if (!profile) return;
+          setNome((current) => current || profile.nome || "");
+          setEmail((current) => current || profile.email || "");
+        });
     });
   }, []);
 
