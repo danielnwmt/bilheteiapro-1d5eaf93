@@ -22,7 +22,7 @@ export const Route = createFileRoute("/_authenticated/admin/usuarios")({
 function UsuariosPage() {
   const router = useRouter();
   const qc = useQueryClient();
-  const { byPlano } = usePlanos();
+  const { list: planos, byPlano } = usePlanos();
   const fetchClientes = useServerFn(listClientes);
   const salvar = useServerFn(setClientePlano);
   const salvarPerfil = useServerFn(updateClienteProfile);
@@ -30,7 +30,7 @@ function UsuariosPage() {
   const criarCliente = useServerFn(createCliente);
   const [edit, setEdit] = useState<Record<string, { plano: Plano; status: "ativo" | "inativo" }>>({});
   const [perfil, setPerfil] = useState<
-    Record<string, { nome: string; email: string; cpf: string; data_nascimento: string }>
+    Record<string, { nome: string; email: string; cpf: string; telefone: string; data_nascimento: string }>
   >({});
   const [senhas, setSenhas] = useState<Record<string, string>>({});
   const [openId, setOpenId] = useState<string | null>(null);
@@ -42,6 +42,7 @@ function UsuariosPage() {
     email: "",
     senha: "",
     cpf: "",
+    telefone: "",
     data_nascimento: "",
     plano: "start" as Plano,
     status: "ativo" as "ativo" | "inativo",
@@ -65,6 +66,14 @@ function UsuariosPage() {
       .replace(/(\d{3})(\d)/, "$1.$2")
       .replace(/(\d{3})(\d)/, "$1.$2")
       .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+
+  const formatTelefone = (v: string) => {
+    const d = v.replace(/\D/g, "").slice(0, 11);
+    if (d.length <= 10) {
+      return d.replace(/(\d{2})(\d)/, "($1) $2").replace(/(\d{4})(\d{1,4})$/, "$1-$2");
+    }
+    return d.replace(/(\d{2})(\d)/, "($1) $2").replace(/(\d{5})(\d{1,4})$/, "$1-$2");
+  };
 
   const { data: clientes, isLoading } = useQuery({
     queryKey: ["clientes"],
@@ -106,6 +115,7 @@ function UsuariosPage() {
       nome: string;
       email: string;
       cpf: string;
+      telefone: string;
       data_nascimento: string | null;
     }) => salvarPerfil({ data: v }),
     onSuccess: () => {
@@ -132,6 +142,7 @@ function UsuariosPage() {
           email: v.email,
           senha: v.senha,
           cpf: v.cpf,
+          telefone: v.telefone,
           data_nascimento: v.data_nascimento || null,
           plano: v.plano,
           status: v.status,
@@ -141,7 +152,7 @@ function UsuariosPage() {
     onSuccess: (_d, v) => {
       toast.success(v.isAdmin ? "Admin criado" : "Cliente criado");
       setShowNovo(false);
-      setNovo({ nome: "", email: "", senha: "", cpf: "", data_nascimento: "", plano: "start", status: "ativo" });
+      setNovo({ nome: "", email: "", senha: "", cpf: "", telefone: "", data_nascimento: "", plano: "start", status: "ativo" });
       qc.invalidateQueries({ queryKey: ["clientes"] });
     },
     onError: (e: any) => toast.error(traduzErro(e, "Erro ao criar usuário")),
@@ -152,6 +163,7 @@ function UsuariosPage() {
       nome: c.nome ?? "",
       email: c.email ?? "",
       cpf: c.cpf ?? "",
+      telefone: c.telefone ?? "",
       data_nascimento: c.data_nascimento ?? "",
     };
     mutPerfil.mutate({
@@ -159,6 +171,7 @@ function UsuariosPage() {
       nome: p.nome,
       email: p.email,
       cpf: p.cpf,
+      telefone: p.telefone,
       data_nascimento: p.data_nascimento || null,
     });
     mut.mutate({ clienteId: c.id, plano: cur.plano, status: cur.status });
@@ -227,6 +240,10 @@ function UsuariosPage() {
                 <Input value={formatCpf(novo.cpf)} onChange={(e) => setNovo((s) => ({ ...s, cpf: e.target.value }))} />
               </div>
               <div className="space-y-1">
+                <Label className="text-xs">Telefone</Label>
+                <Input value={formatTelefone(novo.telefone)} onChange={(e) => setNovo((s) => ({ ...s, telefone: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
                 <Label className="text-xs">Data de nascimento</Label>
                 <Input type="date" value={novo.data_nascimento} onChange={(e) => setNovo((s) => ({ ...s, data_nascimento: e.target.value }))} />
               </div>
@@ -239,7 +256,7 @@ function UsuariosPage() {
                       onChange={(e) => setNovo((s) => ({ ...s, plano: e.target.value as Plano }))}
                       className="w-full rounded-md border border-border bg-input/40 px-2 py-2 text-sm"
                     >
-                      {PLANOS.map((p) => (
+                      {(planos.length ? planos.map((p) => p.plano) : PLANOS).map((p) => (
                         <option key={p} value={p}>{byPlano[p]?.nome ?? p}</option>
                       ))}
                     </select>
@@ -291,6 +308,7 @@ function UsuariosPage() {
                 nome: c.nome ?? "",
                 email: c.email ?? "",
                 cpf: c.cpf ?? "",
+                telefone: c.telefone ?? "",
                 data_nascimento: c.data_nascimento ?? "",
               };
               const isOpen = openId === c.id;
@@ -316,7 +334,7 @@ function UsuariosPage() {
                             }
                             className="rounded-md border border-border bg-input/40 px-2 py-1 text-sm"
                           >
-                            {PLANOS.map((p) => (
+                            {(planos.length ? planos.map((p) => p.plano) : PLANOS).map((p) => (
                               <option key={p} value={p}>{byPlano[p]?.nome ?? p}</option>
                             ))}
                           </select>
@@ -386,6 +404,15 @@ function UsuariosPage() {
                             value={pf.data_nascimento ?? ""}
                             onChange={(e) =>
                               setPerfil((s) => ({ ...s, [c.id]: { ...pf, data_nascimento: e.target.value } }))
+                            }
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Telefone</Label>
+                          <Input
+                            value={formatTelefone(pf.telefone ?? "")}
+                            onChange={(e) =>
+                              setPerfil((s) => ({ ...s, [c.id]: { ...pf, telefone: e.target.value } }))
                             }
                           />
                         </div>

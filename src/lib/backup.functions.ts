@@ -29,7 +29,7 @@ const BACKUP_TABLES: { table: string; onConflict: string }[] = [
   { table: "profiles", onConflict: "id" },
   { table: "user_roles", onConflict: "user_id,role" },
   { table: "subscriptions", onConflict: "id" },
-  { table: "plano_config", onConflict: "id" },
+  { table: "plano_config", onConflict: "plano" },
   { table: "system_config", onConflict: "chave" },
 ];
 

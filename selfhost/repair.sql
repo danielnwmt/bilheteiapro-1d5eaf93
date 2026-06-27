@@ -7,7 +7,97 @@
 -- Perfis atuais precisam ter os campos usados pela tela de usuários.
 ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS cpf text,
-  ADD COLUMN IF NOT EXISTS data_nascimento date;
+  ADD COLUMN IF NOT EXISTS data_nascimento date,
+  ADD COLUMN IF NOT EXISTS telefone text;
+
+-- Planos dinâmicos: instalações antigas nasceram com enum start/pro/elite.
+-- Converte para text e adiciona campos criados depois, sem apagar planos novos.
+DO $$
+BEGIN
+  IF to_regclass('public.subscriptions') IS NOT NULL THEN
+    ALTER TABLE public.subscriptions ALTER COLUMN plano TYPE text USING plano::text;
+  END IF;
+  IF to_regclass('public.plano_config') IS NOT NULL THEN
+    ALTER TABLE public.plano_config ALTER COLUMN plano TYPE text USING plano::text;
+    ALTER TABLE public.plano_config ALTER COLUMN price_id SET DEFAULT '';
+    ALTER TABLE public.plano_config ADD COLUMN IF NOT EXISTS desconto_semestral integer NOT NULL DEFAULT 0;
+    ALTER TABLE public.plano_config ADD COLUMN IF NOT EXISTS desconto_anual integer NOT NULL DEFAULT 0;
+  END IF;
+END $$;
+
+-- sync_state tinha RLS sem policy em algumas versões locais.
+DO $$
+BEGIN
+  IF to_regclass('public.sync_state') IS NOT NULL THEN
+    ALTER TABLE public.sync_state ENABLE ROW LEVEL SECURITY;
+    IF NOT EXISTS (
+      SELECT 1
+      FROM pg_policy p
+      JOIN pg_class c ON c.oid = p.polrelid
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public'
+        AND c.relname = 'sync_state'
+        AND p.polname = 'Auth sync state access'
+    ) THEN
+      CREATE POLICY "Auth sync state access" ON public.sync_state
+      FOR ALL TO authenticated
+      USING (true)
+      WITH CHECK (true);
+    END IF;
+  END IF;
+END $$;
+
+-- Depósitos da gestão de banca (foi adicionado depois do schema inicial).
+CREATE TABLE IF NOT EXISTS public.banca_entradas (
+  id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES auth.users ON DELETE CASCADE,
+  data DATE NOT NULL DEFAULT current_date,
+  descricao TEXT NOT NULL,
+  valor NUMERIC(12,2) NOT NULL DEFAULT 0,
+  odd NUMERIC(8,2) NOT NULL DEFAULT 1,
+  resultado TEXT NOT NULL DEFAULT 'pendente',
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.banca_entradas TO authenticated;
+GRANT ALL ON public.banca_entradas TO service_role;
+ALTER TABLE public.banca_entradas ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users manage own banca entries" ON public.banca_entradas;
+CREATE POLICY "Users manage own banca entries"
+ON public.banca_entradas FOR ALL
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
+CREATE INDEX IF NOT EXISTS idx_banca_entradas_user ON public.banca_entradas (user_id, data DESC);
+DROP TRIGGER IF EXISTS update_banca_entradas_updated_at ON public.banca_entradas;
+CREATE TRIGGER update_banca_entradas_updated_at
+BEFORE UPDATE ON public.banca_entradas
+FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+CREATE TABLE IF NOT EXISTS public.banca_depositos (
+  id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES auth.users ON DELETE CASCADE,
+  data DATE NOT NULL DEFAULT current_date,
+  descricao TEXT NOT NULL DEFAULT 'Aporte',
+  valor NUMERIC(12,2) NOT NULL DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.banca_depositos TO authenticated;
+GRANT ALL ON public.banca_depositos TO service_role;
+ALTER TABLE public.banca_depositos ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users manage own banca deposits" ON public.banca_depositos;
+CREATE POLICY "Users manage own banca deposits"
+ON public.banca_depositos FOR ALL
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
+CREATE INDEX IF NOT EXISTS idx_banca_depositos_user ON public.banca_depositos (user_id, data DESC);
+DROP TRIGGER IF EXISTS update_banca_depositos_updated_at ON public.banca_depositos;
+CREATE TRIGGER update_banca_depositos_updated_at
+BEFORE UPDATE ON public.banca_depositos
+FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+-- Campo de esporte na banca em instalações antigas.
+ALTER TABLE public.banca_entradas ADD COLUMN IF NOT EXISTS esporte text NOT NULL DEFAULT 'futebol';
 
 -- GoTrue quebra em algumas instalações antigas quando colunas de token estão NULL.
 DO $$
@@ -33,7 +123,8 @@ BEGIN
   END IF;
 END $$;
 
--- Trigger correto para novos cadastros: admin padrão nunca vira cliente.
+-- Trigger correto para novos cadastros: admin padrão nunca vira cliente e
+-- clientes sempre recebem perfil + papel mesmo em instalações antigas.
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -41,17 +132,25 @@ SECURITY DEFINER
 SET search_path TO 'public'
 AS $function$
 BEGIN
-  INSERT INTO public.profiles (id, nome, email, cpf, data_nascimento)
+  INSERT INTO public.profiles (id, nome, email, cpf, data_nascimento, telefone)
   VALUES (
     NEW.id,
-    COALESCE(NEW.raw_user_meta_data->>'nome', NEW.raw_user_meta_data->>'full_name', 'Administrador'),
+    COALESCE(
+      NEW.raw_user_meta_data->>'nome',
+      NEW.raw_user_meta_data->>'full_name',
+      CASE WHEN lower(NEW.email) = 'contato@protenexus.com' THEN 'Administrador' END
+    ),
     NEW.email,
     NEW.raw_user_meta_data->>'cpf',
-    NULLIF(NEW.raw_user_meta_data->>'data_nascimento','')::date
+    NULLIF(NEW.raw_user_meta_data->>'data_nascimento','')::date,
+    NEW.raw_user_meta_data->>'telefone'
   )
   ON CONFLICT (id) DO UPDATE SET
     email = EXCLUDED.email,
     nome = COALESCE(public.profiles.nome, EXCLUDED.nome),
+    cpf = COALESCE(public.profiles.cpf, EXCLUDED.cpf),
+    data_nascimento = COALESCE(public.profiles.data_nascimento, EXCLUDED.data_nascimento),
+    telefone = COALESCE(public.profiles.telefone, EXCLUDED.telefone),
     updated_at = now();
 
   IF lower(NEW.email) = 'contato@protenexus.com'
@@ -79,17 +178,21 @@ AFTER INSERT ON auth.users
 FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 -- Cria perfis que faltaram por trigger quebrado/instalação antiga.
-INSERT INTO public.profiles (id, nome, email, cpf, data_nascimento)
+INSERT INTO public.profiles (id, nome, email, cpf, data_nascimento, telefone)
 SELECT
   u.id,
   COALESCE(u.raw_user_meta_data->>'nome', u.raw_user_meta_data->>'full_name'),
   u.email,
   u.raw_user_meta_data->>'cpf',
-  NULLIF(u.raw_user_meta_data->>'data_nascimento','')::date
+  NULLIF(u.raw_user_meta_data->>'data_nascimento','')::date,
+  u.raw_user_meta_data->>'telefone'
 FROM auth.users u
 ON CONFLICT (id) DO UPDATE SET
   email = EXCLUDED.email,
   nome = COALESCE(public.profiles.nome, EXCLUDED.nome),
+  cpf = COALESCE(public.profiles.cpf, EXCLUDED.cpf),
+  data_nascimento = COALESCE(public.profiles.data_nascimento, EXCLUDED.data_nascimento),
+  telefone = COALESCE(public.profiles.telefone, EXCLUDED.telefone),
   updated_at = now();
 
 -- Usuário sem papel não aparece direito; vira cliente por padrão.
