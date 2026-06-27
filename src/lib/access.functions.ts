@@ -365,30 +365,16 @@ export const listClientes = createServerFn({ method: "GET" })
     // Só consulta Auth quando quase não há perfis, com limite curto de tempo.
     if (byId.size <= 1) {
       try {
-        const authUsers: any[] = await withTimeout(
-          listAuthUsersViaRpc(supabaseAdmin),
-          2_500,
-          [] as any[],
-          "listar usuários via RPC",
-        );
-        if (authUsers.length === 0) {
-          authUsers.push(
-            ...(await withTimeout(
-              listAuthUsersDirectly(),
-              3_000,
-              [] as any[],
-              "listar usuários direto Auth",
-            )),
-          );
-        }
-        if (authUsers.length === 0) {
-          const authList = await withTimeout<any>(
-            Promise.resolve(supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 })) as Promise<any>,
-            3_000,
-            { data: { users: [] as any[] }, error: null },
-            "listar usuários Auth Admin",
-          );
-          authUsers.push(...(authList.data?.users ?? []));
+        const [rpcUsers, directUsers] = await Promise.all([
+          withTimeout(listAuthUsersViaRpc(supabaseAdmin), 2_500, [] as any[], "listar usuários via RPC"),
+          withTimeout(listAuthUsersDirectly(), 2_500, [] as any[], "listar usuários direto Auth"),
+        ]);
+        const authUsers: any[] = [];
+        const seenAuthIds = new Set<string>();
+        for (const u of [...rpcUsers, ...directUsers]) {
+          if (!u?.id || seenAuthIds.has(u.id)) continue;
+          seenAuthIds.add(u.id);
+          authUsers.push(u);
         }
       for (const u of authUsers) {
         const existing = byId.get(u.id);
