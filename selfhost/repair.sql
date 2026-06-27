@@ -147,10 +147,10 @@ BEGIN
   )
   ON CONFLICT (id) DO UPDATE SET
     email = EXCLUDED.email,
-    nome = COALESCE(public.profiles.nome, EXCLUDED.nome),
-    cpf = COALESCE(public.profiles.cpf, EXCLUDED.cpf),
+    nome = COALESCE(NULLIF(public.profiles.nome, ''), EXCLUDED.nome),
+    cpf = COALESCE(NULLIF(public.profiles.cpf, ''), EXCLUDED.cpf),
     data_nascimento = COALESCE(public.profiles.data_nascimento, EXCLUDED.data_nascimento),
-    telefone = COALESCE(public.profiles.telefone, EXCLUDED.telefone),
+    telefone = COALESCE(NULLIF(public.profiles.telefone, ''), EXCLUDED.telefone),
     updated_at = now();
 
   IF lower(NEW.email) = 'contato@protenexus.com'
@@ -189,10 +189,10 @@ SELECT
 FROM auth.users u
 ON CONFLICT (id) DO UPDATE SET
   email = EXCLUDED.email,
-  nome = COALESCE(public.profiles.nome, EXCLUDED.nome),
-  cpf = COALESCE(public.profiles.cpf, EXCLUDED.cpf),
+  nome = COALESCE(NULLIF(public.profiles.nome, ''), EXCLUDED.nome),
+  cpf = COALESCE(NULLIF(public.profiles.cpf, ''), EXCLUDED.cpf),
   data_nascimento = COALESCE(public.profiles.data_nascimento, EXCLUDED.data_nascimento),
-  telefone = COALESCE(public.profiles.telefone, EXCLUDED.telefone),
+  telefone = COALESCE(NULLIF(public.profiles.telefone, ''), EXCLUDED.telefone),
   updated_at = now();
 
 -- Usuário sem papel não aparece direito; vira cliente por padrão.

@@ -41,6 +41,27 @@ function PerfilPage() {
     }
   }, [data]);
 
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: userData }) => {
+      const user = userData.user;
+      if (!user) return;
+      const meta = user.user_metadata ?? {};
+      setNome((current) => current || meta.nome || meta.full_name || "");
+      setEmail((current) => current || user.email || "");
+
+      supabase
+        .from("profiles")
+        .select("nome, email")
+        .eq("id", user.id)
+        .maybeSingle()
+        .then(({ data: profile }) => {
+          if (!profile) return;
+          setNome((current) => current || profile.nome || "");
+          setEmail((current) => current || profile.email || "");
+        });
+    });
+  }, []);
+
   async function salvarNome() {
     setSavingNome(true);
     try {

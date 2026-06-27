@@ -239,22 +239,33 @@ function authUserMeta(user: any) {
 
 // ---- helpers de e-mail / claims -------------------------------------------
 
-function decodeJwtEmail() {
+function decodeJwtPayload() {
   try {
     const authHeader = getRequestHeader("authorization") ?? getRequestHeader("Authorization") ?? "";
     const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
     const payload = token.split(".")[1];
-    if (!payload) return "";
+    if (!payload) return null;
     const padded = payload.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(payload.length / 4) * 4, "=");
     const decoded =
       typeof globalThis.atob === "function"
         ? globalThis.atob(padded)
         : Buffer.from(padded, "base64").toString("utf8");
-    const claims = JSON.parse(decoded);
-    return normalizeEmail(claims?.email ?? claims?.user_email);
+    return JSON.parse(decoded);
   } catch {
-    return "";
+    return null;
   }
+}
+
+function decodeJwtEmail() {
+  const claims = decodeJwtPayload();
+  return normalizeEmail(claims?.email ?? claims?.user_email);
+}
+
+function getAuthMetadata(claims: unknown) {
+  const direct = (claims as any)?.user_metadata ?? (claims as any)?.raw_user_meta_data;
+  if (direct && typeof direct === "object") return direct;
+  const decoded = decodeJwtPayload();
+  return decoded?.user_metadata ?? decoded?.raw_user_meta_data ?? {};
 }
 
 function getAuthEmail(claims: unknown) {
@@ -416,9 +427,10 @@ export const getMyProfile = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { userId, claims } = context;
     const emailClaim = getAuthEmail(claims);
+    const meta = getAuthMetadata(claims);
     const base = tryRestBase();
 
-    let nome: string | null = null;
+    let nome: string | null = meta?.nome ?? meta?.full_name ?? null;
     let email: string | null = emailClaim || null;
     if (base) {
       const rows = await restSelect<any>(
@@ -427,9 +439,29 @@ export const getMyProfile = createServerFn({ method: "GET" })
         { select: "nome, email", id: `eq.${userId}`, limit: "1" },
         "profiles (getMyProfile)",
       );
-      nome = rows[0]?.nome ?? null;
+      nome = rows[0]?.nome ?? nome;
       email = email || rows[0]?.email || null;
+      if (!email || !nome) {
+        const authUser = await authGetUserById(base, userId);
+        const authMeta = authUserMeta(authUser);
+        email = email || normalizeEmail(authUser?.email) || null;
+        nome = nome || authMeta?.nome || authMeta?.full_name || null;
+      }
       if (!email) email = await resolveEmail(base, userId);
+
+      if ((email || nome) && (!rows[0] || !rows[0]?.nome || !rows[0]?.email)) {
+        await restUpsert(
+          base,
+          "profiles",
+          {
+            id: userId,
+            nome: rows[0]?.nome || nome,
+            email: rows[0]?.email || email,
+            updated_at: new Date().toISOString(),
+          },
+          "id",
+        ).catch((error) => console.error("getMyProfile: falha ao recriar perfil", error));
+      }
     }
     return { nome, email };
   });
