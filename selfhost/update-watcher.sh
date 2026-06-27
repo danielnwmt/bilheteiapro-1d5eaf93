@@ -158,9 +158,15 @@ install_ssl() {
       else
         echo "SUPABASE_PUBLIC_URL=https://$dominio" >> "$ENV_FILE"
       fi
-      (cd "$APP_DIR" && bash deploy.sh) || echo ">> ERRO ao reconstruir o app."
+      if (cd "$APP_DIR" && BILHETEIA_SKIP_WATCHER_RESTART=1 bash deploy.sh); then
+        echo ">> App reconstruído com HTTPS com sucesso."
+        echo "ok: SSL instalado e app ajustado para https://$dominio $(date)" > "$SSL_STATUS_FILE"
+      else
+        echo ">> ERRO ao reconstruir o app."
+        echo "atenção: SSL instalado, mas falhou ao reconstruir o app $(date) — rode: cd $APP_DIR && bash deploy.sh" > "$SSL_STATUS_FILE"
+      fi
     } >> "$SSL_LOG_FILE" 2>&1
-
+  else
     echo "falha ao instalar SSL para $dominio $(date) — veja $SSL_LOG_FILE" > "$SSL_STATUS_FILE"
   fi
   chmod 666 "$SSL_LOG_FILE" "$SSL_STATUS_FILE" 2>/dev/null || true
