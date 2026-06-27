@@ -22,6 +22,7 @@ import { Route as ApiPublicIngestRouteImport } from './routes/api/public/ingest'
 import { Route as AuthenticatedAdminUsuariosRouteImport } from './routes/_authenticated/admin/usuarios'
 import { Route as AuthenticatedAdminSslRouteImport } from './routes/_authenticated/admin/ssl'
 import { Route as AuthenticatedAdminConfiguracoesRouteImport } from './routes/_authenticated/admin/configuracoes'
+import { Route as AuthenticatedAdminBackupRouteImport } from './routes/_authenticated/admin/backup'
 import { Route as AuthenticatedAdminApisRouteImport } from './routes/_authenticated/admin/apis'
 import { Route as ApiPublicWebhooksAsaasRouteImport } from './routes/api/public/webhooks/asaas'
 import { Route as ApiPublicPaymentsInfinitepayRouteImport } from './routes/api/public/payments/infinitepay'
@@ -95,6 +96,12 @@ const AuthenticatedAdminConfiguracoesRoute =
     path: '/configuracoes',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const AuthenticatedAdminBackupRoute =
+  AuthenticatedAdminBackupRouteImport.update({
+    id: '/backup',
+    path: '/backup',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const AuthenticatedAdminApisRoute = AuthenticatedAdminApisRouteImport.update({
   id: '/apis',
   path: '/apis',
@@ -139,6 +146,7 @@ export interface FileRoutesByFullPath {
   '/perfil': typeof AuthenticatedPerfilRoute
   '/planos': typeof AuthenticatedPlanosRoute
   '/admin/apis': typeof AuthenticatedAdminApisRoute
+  '/admin/backup': typeof AuthenticatedAdminBackupRoute
   '/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
   '/admin/ssl': typeof AuthenticatedAdminSslRoute
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
@@ -158,6 +166,7 @@ export interface FileRoutesByTo {
   '/planos': typeof AuthenticatedPlanosRoute
   '/': typeof AuthenticatedIndexRoute
   '/admin/apis': typeof AuthenticatedAdminApisRoute
+  '/admin/backup': typeof AuthenticatedAdminBackupRoute
   '/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
   '/admin/ssl': typeof AuthenticatedAdminSslRoute
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
@@ -180,6 +189,7 @@ export interface FileRoutesById {
   '/_authenticated/planos': typeof AuthenticatedPlanosRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/admin/apis': typeof AuthenticatedAdminApisRoute
+  '/_authenticated/admin/backup': typeof AuthenticatedAdminBackupRoute
   '/_authenticated/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
   '/_authenticated/admin/ssl': typeof AuthenticatedAdminSslRoute
   '/_authenticated/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
@@ -202,6 +212,7 @@ export interface FileRouteTypes {
     | '/perfil'
     | '/planos'
     | '/admin/apis'
+    | '/admin/backup'
     | '/admin/configuracoes'
     | '/admin/ssl'
     | '/admin/usuarios'
@@ -221,6 +232,7 @@ export interface FileRouteTypes {
     | '/planos'
     | '/'
     | '/admin/apis'
+    | '/admin/backup'
     | '/admin/configuracoes'
     | '/admin/ssl'
     | '/admin/usuarios'
@@ -242,6 +254,7 @@ export interface FileRouteTypes {
     | '/_authenticated/planos'
     | '/_authenticated/'
     | '/_authenticated/admin/apis'
+    | '/_authenticated/admin/backup'
     | '/_authenticated/admin/configuracoes'
     | '/_authenticated/admin/ssl'
     | '/_authenticated/admin/usuarios'
@@ -359,6 +372,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminConfiguracoesRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/admin/backup': {
+      id: '/_authenticated/admin/backup'
+      path: '/backup'
+      fullPath: '/admin/backup'
+      preLoaderRoute: typeof AuthenticatedAdminBackupRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/admin/apis': {
       id: '/_authenticated/admin/apis'
       path: '/apis'
@@ -406,6 +426,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminApisRoute: typeof AuthenticatedAdminApisRoute
+  AuthenticatedAdminBackupRoute: typeof AuthenticatedAdminBackupRoute
   AuthenticatedAdminConfiguracoesRoute: typeof AuthenticatedAdminConfiguracoesRoute
   AuthenticatedAdminSslRoute: typeof AuthenticatedAdminSslRoute
   AuthenticatedAdminUsuariosRoute: typeof AuthenticatedAdminUsuariosRoute
@@ -415,6 +436,7 @@ interface AuthenticatedAdminRouteRouteChildren {
 const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren =
   {
     AuthenticatedAdminApisRoute: AuthenticatedAdminApisRoute,
+    AuthenticatedAdminBackupRoute: AuthenticatedAdminBackupRoute,
     AuthenticatedAdminConfiguracoesRoute: AuthenticatedAdminConfiguracoesRoute,
     AuthenticatedAdminSslRoute: AuthenticatedAdminSslRoute,
     AuthenticatedAdminUsuariosRoute: AuthenticatedAdminUsuariosRoute,
