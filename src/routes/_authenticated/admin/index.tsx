@@ -17,6 +17,7 @@ import {
   LogOut,
   RefreshCw,
   ShieldCheck,
+  Cog,
 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { deploySystem } from "@/lib/deploy.functions";
