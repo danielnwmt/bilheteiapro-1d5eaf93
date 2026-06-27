@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { criarLinkPagamento } from "@/lib/infinitepay.server";
-import { criarCobranca } from "@/lib/asaas.server";
+import { criarCobranca, cobrarCartao } from "@/lib/asaas.server";
 import {
   CICLO_LABEL,
   precoCicloCentavos,
