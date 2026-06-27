@@ -117,6 +117,17 @@ echo ">> Watcher de atualização ativo. Monitorando $TRIGGER_FILE"
 # Sinaliza imediatamente que o watcher está vivo (o painel checa este arquivo).
 date +%s > "$HEARTBEAT_FILE" 2>/dev/null || true
 
+# Mantém o pulso vivo mesmo enquanto deploy.sh/certbot estão rodando.
+heartbeat_loop() {
+  while true; do
+    date +%s > "$HEARTBEAT_FILE" 2>/dev/null || true
+    sleep 10
+  done
+}
+heartbeat_loop &
+HEARTBEAT_PID=$!
+trap 'kill "$HEARTBEAT_PID" 2>/dev/null || true' EXIT
+
 while true; do
   # Pulso de vida: o botão "Atualizar sistema" usa isto para saber que o
   # watcher está rodando no host. Atualizado a cada ciclo.
