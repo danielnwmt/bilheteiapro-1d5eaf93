@@ -187,8 +187,11 @@ async function readLocalDbSnapshot(): Promise<{
   if (!isLocal || typeof window !== "undefined") return null;
 
   try {
-    const { execFile } = await import("node:child_process");
-    const { promisify } = await import("node:util");
+    const nodeImport = new Function("specifier", "return import(specifier)") as <T = any>(
+      specifier: string,
+    ) => Promise<T>;
+    const { execFile } = await nodeImport<typeof import("node:child_process")>("node:child_process");
+    const { promisify } = await nodeImport<typeof import("node:util")>("node:util");
     const execFileAsync = promisify(execFile);
     const sql = `
       WITH snapshot AS (
