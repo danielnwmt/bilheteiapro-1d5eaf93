@@ -445,7 +445,6 @@ CREATE TABLE public.plano_config (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
--- price_id fica oculto de anon/authenticated (apenas servidor/service_role le).
 GRANT SELECT (plano, nome, preco, descricao, nivel, historico_dias, ligas, recursos, desconto_semestral, desconto_anual, created_at, updated_at) ON public.plano_config TO authenticated, anon;
 GRANT INSERT, UPDATE, DELETE ON public.plano_config TO authenticated;
 GRANT ALL ON public.plano_config TO service_role;
