@@ -104,14 +104,19 @@ export async function syncFixtures(periodo: Periodo): Promise<number> {
     { auth: { persistSession: false, autoRefreshToken: false } },
   );
 
-  const rows = fixtures.map((f) => ({
-    external_id: String(f.fixture.id),
-    liga: LEAGUE_ID_TO_NAME[f.league.id] ?? f.league.name,
-    time_casa: f.teams.home.name,
-    time_fora: f.teams.away.name,
-    inicio: f.fixture.date,
-    status: STATUS_MAP[f.fixture.status.short] ?? "agendado",
-  }));
+  // Mantém apenas os campeonatos suportados no app (os da tela).
+  const rows = fixtures
+    .filter((f) => LEAGUE_ID_TO_NAME[f.league.id])
+    .map((f) => ({
+      external_id: String(f.fixture.id),
+      liga: LEAGUE_ID_TO_NAME[f.league.id],
+      time_casa: f.teams.home.name,
+      time_fora: f.teams.away.name,
+      inicio: f.fixture.date,
+      status: STATUS_MAP[f.fixture.status.short] ?? "agendado",
+    }));
+
+  if (!rows.length) return 0;
 
   const { error } = await supabase
     .from("partidas")
