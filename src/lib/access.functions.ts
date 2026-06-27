@@ -298,19 +298,35 @@ export const listClientes = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { userId, claims } = context;
-    const currentEmail = getAuthEmail(claims);
+    let currentEmail = getAuthEmail(claims);
+    let requesterRoles: AppRole[] = [];
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
     if (currentEmail !== ADMIN_EMAIL) {
-      const roles = await withTimeout(
+      requesterRoles = await withTimeout(
         assertStaff(userId, currentEmail),
         3_000,
         [] as AppRole[],
         "validacao staff listClientes",
       );
-      if (!roles.includes("admin") && !roles.includes("operador")) {
+      if (!requesterRoles.includes("admin") && !requesterRoles.includes("operador")) {
         throw new Error("Acesso restrito");
       }
+    } else {
+      requesterRoles = ["admin"];
     }
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    if (!currentEmail) {
+      currentEmail = await withTimeout(
+        resolveEmail(supabaseAdmin, userId),
+        1_500,
+        "",
+        "resolver email do usuario atual",
+      );
+    }
+    if (currentEmail === ADMIN_EMAIL && !requesterRoles.includes("admin")) {
+      requesterRoles = Array.from(new Set([...requesterRoles, "admin"]));
+    }
 
     const [profiles, roles, subs] = await Promise.all([
       // `select("*")` mantém compatibilidade com servidores locais antigos que
@@ -326,6 +342,9 @@ export const listClientes = createServerFn({ method: "GET" })
       const arr = roleMap.get(r.user_id) ?? [];
       arr.push(r.role);
       roleMap.set(r.user_id, arr);
+    }
+    if (requesterRoles.length > 0) {
+      roleMap.set(userId, Array.from(new Set([...(roleMap.get(userId) ?? []), ...requesterRoles])));
     }
     const subMap = new Map<string, any>();
     for (const s of subs) if (s.user_id) subMap.set(s.user_id, s);
@@ -349,7 +368,7 @@ export const listClientes = createServerFn({ method: "GET" })
     // Mesmo que profiles ou Auth Admin falhem no self-host, qualquer usuário com
     // papel ou assinatura ainda aparece no painel.
     ensureUserRow(userId, {
-      nome: currentEmail === ADMIN_EMAIL ? "Administrador" : null,
+      nome: currentEmail === ADMIN_EMAIL || requesterRoles.includes("admin") ? "Administrador" : null,
       email: currentEmail || null,
     });
     for (const id of roleMap.keys()) ensureUserRow(id);
@@ -368,11 +387,11 @@ export const listClientes = createServerFn({ method: "GET" })
 
       // Self-host robusto: se Auth/Admin API ou triggers locais falharem,
       // pelo menos o admin logado aparece na tela como administrador geral.
-      if (currentEmail === ADMIN_EMAIL) {
+      if (currentEmail === ADMIN_EMAIL || requesterRoles.includes("admin")) {
         byId.set(userId, {
           id: userId,
           nome: "Administrador",
-          email: ADMIN_EMAIL,
+          email: currentEmail || ADMIN_EMAIL,
           cpf: null,
           data_nascimento: null,
           created_at: new Date().toISOString(),
