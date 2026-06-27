@@ -19,7 +19,7 @@ import {
   type Plano,
 } from "@/lib/planos";
 import { usePlanos } from "@/hooks/usePlanos";
-import { createInfinitePayCheckout } from "@/lib/payments.functions";
+import { createInfinitePayCheckout, createAsaasCheckout } from "@/lib/payments.functions";
 import { useAccess } from "@/hooks/useAccess";
 
 export const Route = createFileRoute("/_authenticated/planos")({
