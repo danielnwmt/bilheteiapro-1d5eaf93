@@ -21,6 +21,7 @@ import {
 import { usePlanos } from "@/hooks/usePlanos";
 import { createAsaasCheckout } from "@/lib/payments.functions";
 import { useAccess } from "@/hooks/useAccess";
+import { CartaoPagamento } from "@/components/CartaoPagamento";
 
 export const Route = createFileRoute("/_authenticated/planos")({
   head: () => ({
