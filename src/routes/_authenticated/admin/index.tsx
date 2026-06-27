@@ -58,6 +58,9 @@ const EMPTY_STATS = {
   porPlano: { start: 0, pro: 0, elite: 0, sem: 0 },
   cadastrosPorMes: [],
   faturamentoPorMes: [],
+  vendasDia: 0,
+  faturamentoDia: 0,
+  recebidos: 0,
 };
 
 function AdminDashboard() {
