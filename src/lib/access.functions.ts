@@ -722,7 +722,7 @@ export const getSystemConfig = createServerFn({ method: "GET" })
     if (!roles.includes("admin")) throw new Error("Acesso restrito");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data, error } = await withTimeout(
+    const { data, error } = await withTimeout<any>(
       Promise.resolve(
         supabaseAdmin.from("system_config").select("chave, valor, descricao").order("chave"),
       ),
