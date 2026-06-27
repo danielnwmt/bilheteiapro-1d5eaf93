@@ -30,7 +30,7 @@ function UsuariosPage() {
   const criarCliente = useServerFn(createCliente);
   const [edit, setEdit] = useState<Record<string, { plano: Plano; status: "ativo" | "inativo" }>>({});
   const [perfil, setPerfil] = useState<
-    Record<string, { nome: string; email: string; cpf: string; data_nascimento: string }>
+    Record<string, { nome: string; email: string; cpf: string; telefone: string; data_nascimento: string }>
   >({});
   const [senhas, setSenhas] = useState<Record<string, string>>({});
   const [openId, setOpenId] = useState<string | null>(null);
@@ -42,6 +42,7 @@ function UsuariosPage() {
     email: "",
     senha: "",
     cpf: "",
+    telefone: "",
     data_nascimento: "",
     plano: "start" as Plano,
     status: "ativo" as "ativo" | "inativo",
@@ -65,6 +66,14 @@ function UsuariosPage() {
       .replace(/(\d{3})(\d)/, "$1.$2")
       .replace(/(\d{3})(\d)/, "$1.$2")
       .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+
+  const formatTelefone = (v: string) => {
+    const d = v.replace(/\D/g, "").slice(0, 11);
+    if (d.length <= 10) {
+      return d.replace(/(\d{2})(\d)/, "($1) $2").replace(/(\d{4})(\d{1,4})$/, "$1-$2");
+    }
+    return d.replace(/(\d{2})(\d)/, "($1) $2").replace(/(\d{5})(\d{1,4})$/, "$1-$2");
+  };
 
   const { data: clientes, isLoading } = useQuery({
     queryKey: ["clientes"],
