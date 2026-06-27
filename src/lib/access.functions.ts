@@ -71,22 +71,32 @@ export const getMyAccess = createServerFn({ method: "GET" })
     };
   });
 
-async function assertStaff(userId: string) {
+async function assertStaff(userId: string, emailHint?: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data } = await supabaseAdmin.from("user_roles").select("role").eq("user_id", userId);
+  const { data, error } = await supabaseAdmin.from("user_roles").select("role").eq("user_id", userId);
+  if (error) console.error("assertStaff: falha ao ler user_roles", error);
   let roles = (data ?? []).map((r: any) => r.role);
 
   if (!roles.includes("admin") && !roles.includes("operador")) {
     try {
-      const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId);
-      const email = String(userData.user?.email ?? "").trim().toLowerCase();
+      let email = String(emailHint ?? "").trim().toLowerCase();
+      if (!email) {
+        const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId);
+        email = String(userData.user?.email ?? "").trim().toLowerCase();
+      }
 
-      if (email === ADMIN_EMAIL) {
+      // É o e-mail admin padrão OU ainda não existe nenhum admin (primeiro usuário)?
+      const { count } = await supabaseAdmin
+        .from("user_roles")
+        .select("user_id", { count: "exact", head: true })
+        .eq("role", "admin");
+
+      if (email === ADMIN_EMAIL || (count ?? 0) === 0) {
         await supabaseAdmin.from("profiles").upsert(
           {
             id: userId,
-            nome: "Administrador",
-            email: ADMIN_EMAIL,
+            email: email || null,
+            ...(email === ADMIN_EMAIL ? { nome: "Administrador" } : {}),
             updated_at: new Date().toISOString(),
           },
           { onConflict: "id" },
@@ -94,11 +104,13 @@ async function assertStaff(userId: string) {
         await supabaseAdmin
           .from("user_roles")
           .upsert({ user_id: userId, role: "admin" }, { onConflict: "user_id,role" });
-        await supabaseAdmin.from("user_roles").delete().eq("user_id", userId).eq("role", "cliente");
+        if (email === ADMIN_EMAIL) {
+          await supabaseAdmin.from("user_roles").delete().eq("user_id", userId).eq("role", "cliente");
+        }
         roles = Array.from(new Set<AppRole>(["admin", ...roles.filter((role: AppRole) => role !== "cliente")]));
       }
-    } catch {
-      // Se não der para reparar, mantém bloqueio abaixo.
+    } catch (err) {
+      console.error("assertStaff: falha ao reparar admin", err);
     }
   }
 
@@ -111,8 +123,8 @@ async function assertStaff(userId: string) {
 export const listClientes = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { userId } = context;
-    await assertStaff(userId);
+    const { userId, claims } = context;
+    await assertStaff(userId, (claims as any)?.email);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const [{ data: profiles }, { data: roles }, { data: subs }] = await Promise.all([
@@ -189,8 +201,8 @@ export const updateClienteProfile = createServerFn({ method: "POST" })
     }) => d,
   )
   .handler(async ({ data, context }) => {
-    const { userId } = context;
-    await assertStaff(userId);
+    const { userId, claims } = context;
+    await assertStaff(userId, (claims as any)?.email);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { error } = await supabaseAdmin
@@ -211,8 +223,8 @@ export const setClientePassword = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { clienteId: string; senha: string }) => d)
   .handler(async ({ data, context }) => {
-    const { userId } = context;
-    const roles = await assertStaff(userId);
+    const { userId, claims } = context;
+    const roles = await assertStaff(userId, (claims as any)?.email);
     if (!roles.includes("admin")) throw new Error("Apenas admin pode alterar senha");
     if (!data.senha || data.senha.length < 6)
       throw new Error("A senha deve ter ao menos 6 caracteres");
@@ -231,8 +243,8 @@ export const setClientePlano = createServerFn({ method: "POST" })
     (d: { clienteId: string; plano: string; status: "ativo" | "inativo" }) => d,
   )
   .handler(async ({ data, context }) => {
-    const { userId } = context;
-    await assertStaff(userId);
+    const { userId, claims } = context;
+    await assertStaff(userId, (claims as any)?.email);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { error } = await supabaseAdmin.from("subscriptions").upsert(
@@ -263,8 +275,8 @@ export const createCliente = createServerFn({ method: "POST" })
     }) => d,
   )
   .handler(async ({ data, context }) => {
-    const { userId } = context;
-    const roles = await assertStaff(userId);
+    const { userId, claims } = context;
+    const roles = await assertStaff(userId, (claims as any)?.email);
     if (!roles.includes("admin")) throw new Error("Apenas admin pode criar usuários");
     if (!data.email.trim()) throw new Error("Informe um e-mail");
     if (!data.senha || data.senha.length < 6)
@@ -320,8 +332,8 @@ export const createCliente = createServerFn({ method: "POST" })
 export const getClientStats = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { userId } = context;
-    await assertStaff(userId);
+    const { userId, claims } = context;
+    await assertStaff(userId, (claims as any)?.email);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const [{ data: profiles }, { data: roles }, { data: subs }, { data: planoCfg }] =
@@ -414,8 +426,8 @@ export const getClientStats = createServerFn({ method: "GET" })
 export const getSystemConfig = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { userId } = context;
-    const roles = await assertStaff(userId);
+    const { userId, claims } = context;
+    const roles = await assertStaff(userId, (claims as any)?.email);
     if (!roles.includes("admin")) throw new Error("Acesso restrito");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -431,8 +443,8 @@ export const setSystemConfig = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { chave: string; valor: string; descricao?: string }) => d)
   .handler(async ({ data, context }) => {
-    const { userId } = context;
-    const roles = await assertStaff(userId);
+    const { userId, claims } = context;
+    const roles = await assertStaff(userId, (claims as any)?.email);
     if (!roles.includes("admin")) throw new Error("Acesso restrito");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
