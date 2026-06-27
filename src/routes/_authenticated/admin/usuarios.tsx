@@ -22,7 +22,7 @@ export const Route = createFileRoute("/_authenticated/admin/usuarios")({
 function UsuariosPage() {
   const router = useRouter();
   const qc = useQueryClient();
-  const { byPlano } = usePlanos();
+  const { list: planos, byPlano } = usePlanos();
   const fetchClientes = useServerFn(listClientes);
   const salvar = useServerFn(setClientePlano);
   const salvarPerfil = useServerFn(updateClienteProfile);
@@ -256,7 +256,7 @@ function UsuariosPage() {
                       onChange={(e) => setNovo((s) => ({ ...s, plano: e.target.value as Plano }))}
                       className="w-full rounded-md border border-border bg-input/40 px-2 py-2 text-sm"
                     >
-                      {PLANOS.map((p) => (
+                      {(planos.length ? planos.map((p) => p.plano) : PLANOS).map((p) => (
                         <option key={p} value={p}>{byPlano[p]?.nome ?? p}</option>
                       ))}
                     </select>
@@ -334,7 +334,7 @@ function UsuariosPage() {
                             }
                             className="rounded-md border border-border bg-input/40 px-2 py-1 text-sm"
                           >
-                            {PLANOS.map((p) => (
+                            {(planos.length ? planos.map((p) => p.plano) : PLANOS).map((p) => (
                               <option key={p} value={p}>{byPlano[p]?.nome ?? p}</option>
                             ))}
                           </select>
