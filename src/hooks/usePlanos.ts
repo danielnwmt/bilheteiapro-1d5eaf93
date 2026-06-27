@@ -16,7 +16,7 @@ function mapRow(row: any): PlanoConfig {
     preco: row.preco,
     descricao: row.descricao,
     nivel: row.nivel,
-    priceId: row.price_id,
+    priceId: "",
     historicoDias: row.historico_dias,
     ligas: Array.isArray(row.ligas) ? (row.ligas as string[]) : [],
     recursos,
@@ -31,7 +31,9 @@ export function usePlanos() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("plano_config")
-        .select("*")
+        .select(
+          "plano, nome, preco, descricao, nivel, historico_dias, ligas, recursos, created_at, updated_at, desconto_semestral, desconto_anual",
+        )
         .order("nivel", { ascending: true });
       if (error) throw error;
       return (data ?? []).map(mapRow);

@@ -301,23 +301,10 @@ STABLE
 SECURITY DEFINER
 SET search_path = public, auth
 AS $$
-DECLARE
-  v_uid uuid := auth.uid();
-  v_email text := lower(coalesce((SELECT u.email FROM auth.users u WHERE u.id = v_uid), ''));
-  v_is_staff boolean := false;
 BEGIN
-  IF v_uid IS NULL THEN
-    RAISE EXCEPTION 'not authenticated';
-  END IF;
+  -- Só executável por service_role (servidor). A autorização do solicitante
+  -- (admin/operador) é validada na server function auditada antes de chamar.
 
-  SELECT EXISTS(
-    SELECT 1 FROM public.user_roles r
-    WHERE r.user_id = v_uid AND r.role IN ('admin'::public.app_role, 'operador'::public.app_role)
-  ) INTO v_is_staff;
-
-  IF NOT v_is_staff AND v_email <> 'contato@protenexus.com' THEN
-    RAISE EXCEPTION 'forbidden';
-  END IF;
 
   RETURN QUERY
   SELECT
@@ -345,5 +332,32 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.admin_list_users() FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.admin_list_users() TO authenticated, service_role;
+REVOKE ALL ON FUNCTION public.admin_list_users() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_list_users() TO service_role;
+
+-- ============================================================
+--  Endurecimento de acesso (idempotente):
+--  - Oculta price_id de anon/authenticated em plano_config.
+--  - Restringe edicao direta de perfis a admin (operador so via server fn).
+-- ============================================================
+DO $$
+BEGIN
+  IF to_regclass('public.plano_config') IS NOT NULL THEN
+    REVOKE SELECT ON public.plano_config FROM anon;
+    REVOKE SELECT ON public.plano_config FROM authenticated;
+    GRANT SELECT (plano, nome, preco, descricao, nivel, historico_dias, ligas, recursos, desconto_semestral, desconto_anual, created_at, updated_at) ON public.plano_config TO anon, authenticated;
+    GRANT ALL ON public.plano_config TO service_role;
+  END IF;
+
+  IF to_regclass('public.profiles') IS NOT NULL THEN
+    DROP POLICY IF EXISTS "Staff edita perfis" ON public.profiles;
+    DROP POLICY IF EXISTS "Admin edita perfis" ON public.profiles;
+    BEGIN
+      CREATE POLICY "Admin edita perfis" ON public.profiles
+        FOR UPDATE TO authenticated
+        USING (public.has_role(auth.uid(),'admin'))
+        WITH CHECK (public.has_role(auth.uid(),'admin'));
+    EXCEPTION WHEN others THEN NULL;
+    END;
+  END IF;
+END $$;

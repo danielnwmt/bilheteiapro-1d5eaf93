@@ -204,9 +204,9 @@ CREATE POLICY "Usuario edita o proprio perfil" ON public.profiles
   FOR UPDATE TO authenticated USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
 CREATE POLICY "Staff ve todos perfis" ON public.profiles
   FOR SELECT TO authenticated USING (public.has_role(auth.uid(),'admin') OR public.has_role(auth.uid(),'operador'));
-CREATE POLICY "Staff edita perfis" ON public.profiles
-  FOR UPDATE TO authenticated USING (public.has_role(auth.uid(),'admin') OR public.has_role(auth.uid(),'operador'))
-  WITH CHECK (public.has_role(auth.uid(),'admin') OR public.has_role(auth.uid(),'operador'));
+CREATE POLICY "Admin edita perfis" ON public.profiles
+  FOR UPDATE TO authenticated USING (public.has_role(auth.uid(),'admin'))
+  WITH CHECK (public.has_role(auth.uid(),'admin'));
 
 CREATE TRIGGER profiles_updated_at BEFORE UPDATE ON public.profiles
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
@@ -398,9 +398,9 @@ ALTER POLICY "Admin gerencia papeis" ON public.user_roles
 ALTER POLICY "Staff ve todos perfis" ON public.profiles
   USING (private.has_role(auth.uid(), 'admin'::public.app_role) OR private.has_role(auth.uid(), 'operador'::public.app_role));
 
-ALTER POLICY "Staff edita perfis" ON public.profiles
-  USING (private.has_role(auth.uid(), 'admin'::public.app_role) OR private.has_role(auth.uid(), 'operador'::public.app_role))
-  WITH CHECK (private.has_role(auth.uid(), 'admin'::public.app_role) OR private.has_role(auth.uid(), 'operador'::public.app_role));
+ALTER POLICY "Admin edita perfis" ON public.profiles
+  USING (private.has_role(auth.uid(), 'admin'::public.app_role))
+  WITH CHECK (private.has_role(auth.uid(), 'admin'::public.app_role));
 
 ALTER POLICY "Staff ve todas assinaturas" ON public.subscriptions
   USING (private.has_role(auth.uid(), 'admin'::public.app_role) OR private.has_role(auth.uid(), 'operador'::public.app_role));
@@ -450,7 +450,8 @@ CREATE TABLE public.plano_config (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
-GRANT SELECT ON public.plano_config TO authenticated, anon;
+-- price_id fica oculto de anon/authenticated (apenas servidor/service_role le).
+GRANT SELECT (plano, nome, preco, descricao, nivel, historico_dias, ligas, recursos, desconto_semestral, desconto_anual, created_at, updated_at) ON public.plano_config TO authenticated, anon;
 GRANT INSERT, UPDATE, DELETE ON public.plano_config TO authenticated;
 GRANT ALL ON public.plano_config TO service_role;
 
@@ -646,23 +647,10 @@ STABLE
 SECURITY DEFINER
 SET search_path = public, auth
 AS $$
-DECLARE
-  v_uid uuid := auth.uid();
-  v_email text := lower(coalesce((SELECT u.email FROM auth.users u WHERE u.id = v_uid), ''));
-  v_is_staff boolean := false;
 BEGIN
-  IF v_uid IS NULL THEN
-    RAISE EXCEPTION 'not authenticated';
-  END IF;
+  -- Só executável por service_role (servidor). A autorização do solicitante
+  -- (admin/operador) é validada na server function auditada antes de chamar.
 
-  SELECT EXISTS(
-    SELECT 1 FROM public.user_roles r
-    WHERE r.user_id = v_uid AND r.role IN ('admin'::public.app_role, 'operador'::public.app_role)
-  ) INTO v_is_staff;
-
-  IF NOT v_is_staff AND v_email <> 'contato@protenexus.com' THEN
-    RAISE EXCEPTION 'forbidden';
-  END IF;
 
   RETURN QUERY
   SELECT
@@ -690,5 +678,5 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.admin_list_users() FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.admin_list_users() TO authenticated, service_role;
+REVOKE ALL ON FUNCTION public.admin_list_users() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_list_users() TO service_role;

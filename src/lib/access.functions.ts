@@ -68,6 +68,38 @@ async function restSelect<T = any>(
   }
 }
 
+// Chama uma função RPC (SECURITY DEFINER) via PostgREST com a service role.
+// admin_list_users só é executável por service_role, então o painel admin
+// passa por aqui (a autorização do solicitante é feita antes, na server fn).
+async function restRpc<T = any>(
+  base: { url: string; key: string },
+  fn: string,
+  args: Record<string, unknown> = {},
+  ms = 4000,
+): Promise<T[]> {
+  try {
+    const endpoint = new URL(`${base.url}/rest/v1/rpc/${fn}`);
+    const res = await fetchWithTimeout(
+      endpoint,
+      {
+        method: "POST",
+        headers: { ...authHeaders(base.key), "Content-Type": "application/json" },
+        body: JSON.stringify(args),
+      },
+      ms,
+    );
+    if (!res.ok) {
+      console.error(`restRpc ${fn}: status ${res.status}`);
+      return [];
+    }
+    const json = await res.json();
+    return Array.isArray(json) ? (json as T[]) : [];
+  } catch (error) {
+    console.error(`restRpc ${fn}: falhou`, error);
+    return [];
+  }
+}
+
 async function restWrite(
   base: { url: string; key: string },
   table: string,
@@ -506,14 +538,13 @@ export const listClientes = createServerFn({ method: "GET" })
     }
 
     // Caminho primário e mais confiável: RPC SECURITY DEFINER chamada com a
-    // sessão autenticada do admin. Funciona igual no Cloud e no self-host porque
-    // usa o JWT válido do usuário logado e ignora RLS dentro da função. Se trouxer
-    // linhas, já vem tudo pronto (perfil + papéis + assinatura).
+    // service role via REST. A função não é mais executável por usuários logados;
+    // a autorização do solicitante (admin/operador) já foi validada acima. Se
+    // trouxer linhas, já vem tudo pronto (perfil + papéis + assinatura).
     try {
-      const { data: rpcRows, error: rpcErr } = await context.supabase.rpc("admin_list_users");
-      if (rpcErr) {
-        console.error("listClientes: admin_list_users falhou", rpcErr.message);
-      } else if (Array.isArray(rpcRows) && rpcRows.length > 0) {
+      const rpcBase = tryRestBase();
+      const rpcRows = rpcBase ? await restRpc<any>(rpcBase, "admin_list_users") : [];
+      if (Array.isArray(rpcRows) && rpcRows.length > 0) {
         return rpcRows.map((r: any) => {
           const isAdminEmail = normalizeEmail(r.email) === ADMIN_EMAIL;
           return {
@@ -1000,7 +1031,8 @@ export const getClientStats = createServerFn({ method: "GET" })
     let rpcRoles: any[] = [];
     let rpcSubs: any[] = [];
     try {
-      const { data: rpcRows } = await context.supabase.rpc("admin_list_users");
+      const rpcBase = tryRestBase();
+      const rpcRows = rpcBase ? await restRpc<any>(rpcBase, "admin_list_users") : [];
       if (Array.isArray(rpcRows)) {
         for (const r of rpcRows as any[]) {
           if (!r?.id) continue;
