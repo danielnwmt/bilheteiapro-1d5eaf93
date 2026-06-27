@@ -33,10 +33,13 @@ process.stdout.write(`${header}.${payload}.${sig}`);
 NODE
 }
 
-# As chaves locais precisam ser assinadas com o JWT_SECRET atual. Se ficarem
-# estáticas, o login funciona mas as funções de admin não conseguem listar usuários.
-ANON_KEY="${ANON_KEY:-${SUPABASE_PUBLISHABLE_KEY:-$(make_jwt anon)}}"
-SERVICE_ROLE_KEY="${SERVICE_ROLE_KEY:-${SUPABASE_SERVICE_ROLE_KEY:-$(make_jwt service_role)}}"
+# As chaves locais PRECISAM ser assinadas com o JWT_SECRET local. Se vierem do
+# .env (ex.: chaves da NUVEM), o PostgREST local rejeita (401) e o painel não
+# lista clientes — embora o login (GoTrue local) ainda funcione. Por isso
+# geramos SEMPRE as chaves a partir do JWT_SECRET atual, ignorando chaves
+# externas que não pertençam a esta instalação local.
+ANON_KEY="$(make_jwt anon)"
+SERVICE_ROLE_KEY="$(make_jwt service_role)"
 
 # --- URL pública (mesma origem do app) -----------------------------
 PUBLIC_URL="${SUPABASE_PUBLIC_URL:-}"
