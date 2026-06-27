@@ -1031,7 +1031,8 @@ export const getClientStats = createServerFn({ method: "GET" })
     let rpcRoles: any[] = [];
     let rpcSubs: any[] = [];
     try {
-      const { data: rpcRows } = await context.supabase.rpc("admin_list_users");
+      const rpcBase = tryRestBase();
+      const rpcRows = rpcBase ? await restRpc<any>(rpcBase, "admin_list_users") : [];
       if (Array.isArray(rpcRows)) {
         for (const r of rpcRows as any[]) {
           if (!r?.id) continue;
