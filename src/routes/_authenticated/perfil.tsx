@@ -41,6 +41,16 @@ function PerfilPage() {
     }
   }, [data]);
 
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: userData }) => {
+      const user = userData.user;
+      if (!user) return;
+      const meta = user.user_metadata ?? {};
+      setNome((current) => current || meta.nome || meta.full_name || "");
+      setEmail((current) => current || user.email || "");
+    });
+  }, []);
+
   async function salvarNome() {
     setSavingNome(true);
     try {
