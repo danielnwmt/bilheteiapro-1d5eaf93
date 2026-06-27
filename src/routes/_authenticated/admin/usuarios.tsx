@@ -1,8 +1,9 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { listClientes, setClientePlano, updateClienteProfile, setClientePassword, createCliente } from "@/lib/access.functions";
+import { ADMIN_EMAIL, listClientes, setClientePlano, updateClienteProfile, setClientePassword, createCliente } from "@/lib/access.functions";
+import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,7 @@ function UsuariosPage() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [showNovo, setShowNovo] = useState(false);
   const [novoTipo, setNovoTipo] = useState<"cliente" | "admin">("cliente");
+  const [sessionUser, setSessionUser] = useState<{ id: string; email: string } | null>(null);
   const [novo, setNovo] = useState({
     nome: "",
     email: "",
@@ -59,6 +61,22 @@ function UsuariosPage() {
     placeholderData: [],
     staleTime: 60_000,
   });
+
+  useEffect(() => {
+    let active = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (!active) return;
+      const user = data.session?.user;
+      setSessionUser(
+        user
+          ? { id: user.id, email: String(user.email ?? "").trim().toLowerCase() }
+          : null,
+      );
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const mut = useMutation({
     mutationFn: (v: { clienteId: string; plano: Plano; status: "ativo" | "inativo" }) =>
@@ -406,7 +424,30 @@ function UsuariosPage() {
                 );
               };
 
-              const all = clientes ?? [];
+              const raw = Array.isArray(clientes) ? clientes : [];
+              const hasAdmin = raw.some(
+                (c: any) =>
+                  String(c.email ?? "").trim().toLowerCase() === ADMIN_EMAIL ||
+                  c.roles?.includes("admin") ||
+                  c.roles?.includes("operador"),
+              );
+              const fallbackAdmin =
+                sessionUser?.email === ADMIN_EMAIL && !hasAdmin
+                  ? [
+                      {
+                        id: sessionUser.id,
+                        nome: "Administrador",
+                        email: ADMIN_EMAIL,
+                        cpf: null,
+                        data_nascimento: null,
+                        created_at: new Date().toISOString(),
+                        roles: ["admin"],
+                        plano: "elite",
+                        status: "ativo",
+                      },
+                    ]
+                  : [];
+              const all = [...fallbackAdmin, ...raw];
               const admins = all.filter((c) => c.roles.includes("admin") || c.roles.includes("operador"));
               const clis = all.filter((c) => !c.roles.includes("admin") && !c.roles.includes("operador"));
 
