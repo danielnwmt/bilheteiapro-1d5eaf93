@@ -48,12 +48,25 @@ function AuthPage() {
       .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
   }
 
+  function formatTelefone(v: string) {
+    const d = v.replace(/\D/g, "").slice(0, 11);
+    if (d.length <= 10) {
+      return d
+        .replace(/(\d{2})(\d)/, "($1) $2")
+        .replace(/(\d{4})(\d{1,4})$/, "$1-$2");
+    }
+    return d
+      .replace(/(\d{2})(\d)/, "($1) $2")
+      .replace(/(\d{5})(\d{1,4})$/, "$1-$2");
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (mode === "signup") {
       const cpfDigits = cpf.replace(/\D/g, "");
-      if (!nome.trim() || cpfDigits.length !== 11 || !nascimento) {
-        toast.error("Preencha nome, CPF e data de nascimento");
+      const telDigits = telefone.replace(/\D/g, "");
+      if (!nome.trim() || cpfDigits.length !== 11 || !nascimento || telDigits.length < 10) {
+        toast.error("Preencha nome, CPF, telefone e data de nascimento");
         return;
       }
     }
