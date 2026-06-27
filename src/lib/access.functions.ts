@@ -174,6 +174,62 @@ async function collectAuthUsers(base: { url: string; key: string }): Promise<any
   return Array.from(byId.values());
 }
 
+async function readLocalDbSnapshot(): Promise<{
+  profiles: any[];
+  roles: any[];
+  subs: any[];
+  authUsers: any[];
+} | null> {
+  const isLocal =
+    process.env.SUPABASE_PROJECT_ID === "local" ||
+    process.env.SUPABASE_URL?.includes("127.0.0.1") ||
+    process.env.SUPABASE_URL?.includes("localhost");
+  if (!isLocal || typeof window !== "undefined") return null;
+
+  try {
+    const { execFile } = await import("node:child_process");
+    const { promisify } = await import("node:util");
+    const execFileAsync = promisify(execFile);
+    const sql = `
+      WITH snapshot AS (
+        SELECT
+          CASE WHEN to_regclass('public.profiles') IS NULL THEN '[]'::jsonb ELSE COALESCE((SELECT jsonb_agg(to_jsonb(p) ORDER BY p.created_at DESC) FROM public.profiles p), '[]'::jsonb) END AS profiles,
+          CASE WHEN to_regclass('public.user_roles') IS NULL THEN '[]'::jsonb ELSE COALESCE((SELECT jsonb_agg(jsonb_build_object('user_id', r.user_id, 'role', r.role::text) ORDER BY r.created_at DESC) FROM public.user_roles r), '[]'::jsonb) END AS roles,
+          CASE WHEN to_regclass('public.subscriptions') IS NULL THEN '[]'::jsonb ELSE COALESCE((SELECT jsonb_agg(to_jsonb(s) ORDER BY s.created_at DESC) FROM public.subscriptions s), '[]'::jsonb) END AS subs,
+          CASE WHEN to_regclass('auth.users') IS NULL THEN '[]'::jsonb ELSE COALESCE((SELECT jsonb_agg(jsonb_build_object('id', u.id, 'email', u.email, 'raw_user_meta_data', u.raw_user_meta_data, 'user_metadata', u.raw_user_meta_data, 'created_at', u.created_at) ORDER BY u.created_at DESC) FROM auth.users u), '[]'::jsonb) END AS auth_users
+      )
+      SELECT jsonb_build_object('profiles', profiles, 'roles', roles, 'subs', subs, 'authUsers', auth_users)::text FROM snapshot;
+    `;
+    const { stdout } = await execFileAsync(
+      "psql",
+      ["-X", "-q", "-t", "-A", "-v", "ON_ERROR_STOP=1", "-c", sql],
+      {
+        timeout: 2_500,
+        maxBuffer: 10 * 1024 * 1024,
+        env: {
+          ...process.env,
+          PGHOST: process.env.PGHOST || "127.0.0.1",
+          PGPORT: process.env.PGPORT || "5432",
+          PGUSER: process.env.PGUSER || "postgres",
+          PGDATABASE: process.env.PGDATABASE || "postgres",
+        },
+      },
+    );
+    const raw = stdout.trim().split(/\r?\n/).filter(Boolean).pop();
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return {
+      profiles: Array.isArray(parsed?.profiles) ? parsed.profiles : [],
+      roles: Array.isArray(parsed?.roles) ? parsed.roles : [],
+      subs: Array.isArray(parsed?.subs) ? parsed.subs : [],
+      authUsers: Array.isArray(parsed?.authUsers) ? parsed.authUsers : [],
+    };
+  } catch (error) {
+    console.error("readLocalDbSnapshot: falha ao ler banco local", error);
+    return null;
+  }
+}
+
 function authUserMeta(user: any) {
   return user?.user_metadata ?? user?.raw_user_meta_data ?? {};
 }
