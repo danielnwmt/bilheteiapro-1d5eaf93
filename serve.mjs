@@ -3,11 +3,35 @@
 
 // Node.js < 22 has no native global WebSocket. @supabase/supabase-js resolves a
 // WebSocket implementation eagerly when ANY client is created and throws on
-// Node < 22 ("Node.js 20 detected without native WebSocket support"), which
-// breaks every server function. Provide a global WebSocket before loading the app.
+// Node < 22. The server only uses REST/Auth, so a no-op constructor is enough
+// and avoids requiring node_modules in the Docker runtime.
 if (typeof globalThis.WebSocket === 'undefined') {
-  const { WebSocket } = await import('ws');
-  globalThis.WebSocket = WebSocket;
+  globalThis.WebSocket = class ServerNoopWebSocket extends EventTarget {
+    static CONNECTING = 0;
+    static OPEN = 1;
+    static CLOSING = 2;
+    static CLOSED = 3;
+    CONNECTING = 0;
+    OPEN = 1;
+    CLOSING = 2;
+    CLOSED = 3;
+    readyState = 3;
+    protocol = '';
+    extensions = '';
+    bufferedAmount = 0;
+    binaryType = 'blob';
+    onopen = null;
+    onmessage = null;
+    onclose = null;
+    onerror = null;
+    constructor(url, protocols) {
+      super();
+      this.url = String(url);
+      this.protocols = protocols;
+    }
+    close() {}
+    send() { throw new Error('Realtime não está habilitado no servidor local.'); }
+  };
 }
 
 import { createServer } from 'node:http';
