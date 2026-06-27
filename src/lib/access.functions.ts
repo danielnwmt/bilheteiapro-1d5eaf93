@@ -68,6 +68,38 @@ async function restSelect<T = any>(
   }
 }
 
+// Chama uma função RPC (SECURITY DEFINER) via PostgREST com a service role.
+// admin_list_users só é executável por service_role, então o painel admin
+// passa por aqui (a autorização do solicitante é feita antes, na server fn).
+async function restRpc<T = any>(
+  base: { url: string; key: string },
+  fn: string,
+  args: Record<string, unknown> = {},
+  ms = 4000,
+): Promise<T[]> {
+  try {
+    const endpoint = new URL(`${base.url}/rest/v1/rpc/${fn}`);
+    const res = await fetchWithTimeout(
+      endpoint,
+      {
+        method: "POST",
+        headers: { ...authHeaders(base.key), "Content-Type": "application/json" },
+        body: JSON.stringify(args),
+      },
+      ms,
+    );
+    if (!res.ok) {
+      console.error(`restRpc ${fn}: status ${res.status}`);
+      return [];
+    }
+    const json = await res.json();
+    return Array.isArray(json) ? (json as T[]) : [];
+  } catch (error) {
+    console.error(`restRpc ${fn}: falhou`, error);
+    return [];
+  }
+}
+
 async function restWrite(
   base: { url: string; key: string },
   table: string,
