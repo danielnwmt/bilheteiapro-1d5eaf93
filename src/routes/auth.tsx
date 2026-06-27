@@ -28,6 +28,7 @@ function AuthPage() {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [nome, setNome] = useState("");
   const [cpf, setCpf] = useState("");
+  const [telefone, setTelefone] = useState("");
   const [nascimento, setNascimento] = useState("");
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
