@@ -120,11 +120,22 @@ export const getSslStatus = createServerFn({ method: "GET" }).handler(async () =
   await assertAdmin();
   const fs = await import("fs/promises");
   const path = await import("path");
-  const statusFile = path.join(triggerDir(), "ssl-status");
+  const dir = triggerDir();
+  const statusFile = path.join(dir, "ssl-status");
+  const logFile = path.join(dir, "ssl.log");
+  let status = "";
+  let log = "";
   try {
     const raw = await fs.readFile(statusFile, "utf8");
-    return { status: String(raw).trim() };
+    status = String(raw).trim();
   } catch {
-    return { status: "" };
+    status = "";
   }
+  try {
+    const rawLog = await fs.readFile(logFile, "utf8");
+    log = rawLog.split("\n").slice(-80).join("\n").trim();
+  } catch {
+    log = "";
+  }
+  return { status, log };
 });

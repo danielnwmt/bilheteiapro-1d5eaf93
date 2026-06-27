@@ -98,6 +98,15 @@ function SslPage() {
           </Card>
         ) : null}
 
+        {status?.log ? (
+          <Card className="mt-4 border-border/60 bg-card p-4">
+            <Label className="text-sm font-semibold">Último log do SSL</Label>
+            <pre className="mt-2 max-h-80 overflow-auto whitespace-pre-wrap rounded-md bg-muted p-3 text-xs text-muted-foreground">
+              {status.log}
+            </pre>
+          </Card>
+        ) : null}
+
         <Card className="mt-4 border-dashed border-border/60 bg-card p-4 text-xs text-muted-foreground">
           <p className="mb-1 font-semibold text-foreground">Como funciona</p>
           O painel solicita ao servidor a emissão do certificado via certbot. A renovação é automática.

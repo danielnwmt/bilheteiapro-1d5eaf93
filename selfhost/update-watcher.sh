@@ -21,6 +21,8 @@ SSL_LOG_FILE="$TRIGGER_DIR/ssl.log"
 
 mkdir -p "$TRIGGER_DIR"
 chmod 777 "$TRIGGER_DIR" 2>/dev/null || true
+touch "$SSL_LOG_FILE" "$SSL_STATUS_FILE" 2>/dev/null || true
+chmod 666 "$SSL_LOG_FILE" "$SSL_STATUS_FILE" 2>/dev/null || true
 LAST=""
 [ -f "$TRIGGER_FILE" ] && LAST="$(cat "$TRIGGER_FILE" 2>/dev/null || true)"
 # Não marque o pedido SSL existente como processado no boot. Se o usuário clicou
@@ -110,6 +112,7 @@ install_ssl() {
   else
     echo "falha ao instalar SSL para $dominio $(date) — veja $SSL_LOG_FILE" > "$SSL_STATUS_FILE"
   fi
+  chmod 666 "$SSL_LOG_FILE" "$SSL_STATUS_FILE" 2>/dev/null || true
   date +%s > "$HEARTBEAT_FILE" 2>/dev/null || true
 }
 
