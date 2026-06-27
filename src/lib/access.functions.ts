@@ -166,7 +166,8 @@ export const listClientes = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { userId, claims } = context;
-    await assertStaff(userId, (claims as any)?.email);
+    const currentEmail = String((claims as any)?.email ?? "").trim().toLowerCase();
+    await assertStaff(userId, currentEmail);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const [{ data: profiles }, { data: roles }, { data: subs }] = await Promise.all([
@@ -187,6 +188,32 @@ export const listClientes = createServerFn({ method: "GET" })
     // Indexa os perfis existentes.
     const byId = new Map<string, any>();
     for (const p of profiles ?? []) byId.set(p.id, p);
+
+    const ensureDefaultAdminVisible = () => {
+      const existing = Array.from(byId.values()).find(
+        (p) => String(p.email ?? "").trim().toLowerCase() === ADMIN_EMAIL,
+      );
+      if (existing) {
+        roleMap.set(existing.id, Array.from(new Set([...(roleMap.get(existing.id) ?? []), "admin"])));
+        existing.nome = existing.nome || "Administrador";
+        existing.email = ADMIN_EMAIL;
+        return;
+      }
+
+      // Self-host robusto: se Auth/Admin API ou triggers locais falharem,
+      // pelo menos o admin logado aparece na tela como administrador geral.
+      if (currentEmail === ADMIN_EMAIL) {
+        byId.set(userId, {
+          id: userId,
+          nome: "Administrador",
+          email: ADMIN_EMAIL,
+          cpf: null,
+          data_nascimento: null,
+          created_at: new Date().toISOString(),
+        });
+        roleMap.set(userId, ["admin"]);
+      }
+    };
 
     // Robustez (inclui instalações locais): a fonte de verdade de "quem existe"
     // é o Auth. Em servidores locais, profiles/user_roles podem não ter linha
@@ -220,22 +247,29 @@ export const listClientes = createServerFn({ method: "GET" })
           data_nascimento: u.user_metadata?.data_nascimento ?? null,
           created_at: u.created_at ?? new Date().toISOString(),
         });
+        if (String(u.email ?? "").trim().toLowerCase() === ADMIN_EMAIL) {
+          roleMap.set(u.id, Array.from(new Set([...(roleMap.get(u.id) ?? []), "admin"])));
+        }
       }
     } catch (error) {
       console.error("Falha ao listar usuários no Auth", error);
     }
 
+    ensureDefaultAdminVisible();
 
     return Array.from(byId.values()).map((p) => ({
       id: p.id,
-      nome: p.nome,
-      email: p.email,
+      nome: String(p.email ?? "").trim().toLowerCase() === ADMIN_EMAIL ? "Administrador" : p.nome,
+      email: String(p.email ?? "").trim().toLowerCase() === ADMIN_EMAIL ? ADMIN_EMAIL : p.email,
       cpf: (p as any).cpf ?? null,
       data_nascimento: (p as any).data_nascimento ?? null,
       created_at: p.created_at,
-      roles: roleMap.get(p.id) ?? [],
-      plano: subMap.get(p.id)?.plano ?? null,
-      status: subMap.get(p.id)?.status ?? "inativo",
+      roles:
+        String(p.email ?? "").trim().toLowerCase() === ADMIN_EMAIL
+          ? Array.from(new Set([...(roleMap.get(p.id) ?? []), "admin"]))
+          : roleMap.get(p.id) ?? [],
+      plano: String(p.email ?? "").trim().toLowerCase() === ADMIN_EMAIL ? "elite" : subMap.get(p.id)?.plano ?? null,
+      status: String(p.email ?? "").trim().toLowerCase() === ADMIN_EMAIL ? "ativo" : subMap.get(p.id)?.status ?? "inativo",
     }));
   });
 
