@@ -99,7 +99,7 @@ function UsuariosPage() {
   }, []);
 
   const mut = useMutation({
-    mutationFn: (v: { clienteId: string; plano: Plano; status: "ativo" | "inativo" }) =>
+    mutationFn: (v: { clienteId: string; plano: Plano; status: "ativo" | "inativo" | "cortesia"; periodo_fim: string | null }) =>
       salvar({ data: v }),
     onSuccess: () => {
       toast.success("Cliente atualizado");
