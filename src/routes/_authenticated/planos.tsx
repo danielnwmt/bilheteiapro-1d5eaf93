@@ -165,24 +165,24 @@ function PlanosPage() {
               </p>
             )}
             <p className="mt-4 mb-3 text-sm text-muted-foreground">
-              Escolha a forma de pagamento (Pix, Boleto ou Cartão).
+              Escolha a forma de pagamento.
             </p>
             <div className="space-y-3">
               <Button
                 className="w-full font-semibold"
                 disabled={carregando}
-                onClick={() => pagar("asaas")}
+                onClick={() => pagar("pix")}
               >
                 {carregando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Pagar com Asaas (Pix/Boleto/Cartão)
+                Pagar com Pix
               </Button>
               <Button
                 variant="outline"
                 className="w-full font-semibold"
                 disabled={carregando}
-                onClick={() => pagar("infinitepay")}
+                onClick={() => pagar("cartao")}
               >
-                Pagar com InfinitePay (Pix/Cartão)
+                Crédito / Débito
               </Button>
             </div>
           </Card>
