@@ -493,6 +493,62 @@ function Index() {
           </form>
         </Card>
 
+        <Card className="mt-8 border-border/60 bg-card p-6 md:p-8">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h2 className="flex items-center gap-2 text-lg font-bold">
+              <CalendarDays className="h-5 w-5 text-primary" />
+              {periodo === "aovivo"
+                ? "Jogos ao vivo"
+                : periodo === "amanha"
+                ? "Jogos de amanhã"
+                : periodo === "semana"
+                ? "Jogos da semana"
+                : "Jogos do dia"}
+            </h2>
+            {!loadingJogos && (
+              <Badge variant="secondary">{jogosFiltrados.length} jogos</Badge>
+            )}
+          </div>
+
+          {loadingJogos ? (
+            <div className="flex items-center justify-center py-10 text-muted-foreground">
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando jogos...
+            </div>
+          ) : jogosFiltrados.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              Nenhum jogo encontrado para este período. Os jogos são atualizados automaticamente.
+            </p>
+          ) : (
+            <div className="divide-y divide-border/60">
+              {jogosFiltrados.map((j) => (
+                <div key={j.id} className="flex items-center gap-3 py-3">
+                  <div className="w-16 shrink-0 text-sm font-semibold text-primary">
+                    {j.status === "ao_vivo" ? (
+                      <span className="flex items-center gap-1">🔴 AO VIVO</span>
+                    ) : (
+                      new Date(j.inicio).toLocaleTimeString("pt-BR", {
+                        timeZone: "America/Sao_Paulo",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">
+                      {j.time_casa} <span className="text-muted-foreground">x</span> {j.time_fora}
+                    </p>
+                    {j.liga && (
+                      <p className="truncate text-xs text-muted-foreground">{j.liga}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
+
+
         {ticket && (
           <Card className="mt-8 overflow-hidden border-primary/30 bg-card">
             <div className="border-b border-border/60 bg-primary/5 p-6">
