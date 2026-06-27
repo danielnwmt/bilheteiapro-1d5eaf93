@@ -107,6 +107,7 @@ function ApisPage() {
                 existentes.get(chave) ??
                 CHAVES_PADRAO.find((c) => c.chave === chave)?.descricao ??
                 "";
+              const chaveIntervalo = `${chave}_INTERVALO_MIN`;
               return (
                 <Card key={chave} className="border-border/60 bg-card p-4">
                   <Label className="text-sm font-semibold">{chave}</Label>
@@ -126,9 +127,40 @@ function ApisPage() {
                       Salvar
                     </Button>
                   </div>
+
+                  <div className="mt-3 flex items-center gap-2 border-t border-border/40 pt-3">
+                    <Clock className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <Label className="shrink-0 text-xs text-muted-foreground">
+                      Intervalo de chamada (min)
+                    </Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      placeholder="ex: 60"
+                      value={vals[chaveIntervalo] ?? ""}
+                      onChange={(e) =>
+                        setVals((v) => ({ ...v, [chaveIntervalo]: e.target.value }))
+                      }
+                      className="bg-input/40"
+                    />
+                    <Button
+                      variant="outline"
+                      disabled={mut.isPending}
+                      onClick={() =>
+                        mut.mutate({
+                          chave: chaveIntervalo,
+                          valor: vals[chaveIntervalo] ?? "",
+                          descricao: `Intervalo (min) entre chamadas da ${chave}`,
+                        })
+                      }
+                    >
+                      Salvar
+                    </Button>
+                  </div>
                 </Card>
               );
             })}
+
 
             <Card className="border-dashed border-border/60 bg-card p-4">
               <Label className="mb-2 block text-sm font-semibold">Nova chave</Label>
