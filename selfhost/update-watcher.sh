@@ -38,6 +38,27 @@ app_port() {
   echo "$port"
 }
 
+apt_wait() {
+  # Espera o lock do apt/dpkg liberar (unattended-upgrades costuma segurar no boot).
+  local t=0
+  while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 \
+     || fuser /var/lib/dpkg/lock >/dev/null 2>&1 \
+     || fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do
+    echo ">> Aguardando o apt liberar (outro processo está instalando)... ${t}s"
+    sleep 5
+    t=$((t+5))
+    [ "$t" -ge 300 ] && { echo ">> Timeout esperando o apt. Tentando mesmo assim."; break; }
+  done
+}
+
+apt_install() {
+  export DEBIAN_FRONTEND=noninteractive
+  apt_wait
+  apt-get update -y || true
+  apt_wait
+  apt-get install -y "$@"
+}
+
 ensure_host_nginx_proxy() {
   local dominio="$1"
   local port
@@ -45,9 +66,14 @@ ensure_host_nginx_proxy() {
 
   if ! command -v nginx >/dev/null 2>&1; then
     echo ">> Instalando nginx no host..."
-    apt-get update -y
-    apt-get install -y nginx
+    apt_install nginx
   fi
+
+  if ! command -v nginx >/dev/null 2>&1; then
+    echo ">> ERRO: nginx não pôde ser instalado (apt travado). Abortando."
+    return 1
+  fi
+
 
   mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
   cat > "/etc/nginx/sites-available/bilheteia-$dominio.conf" <<EOF
