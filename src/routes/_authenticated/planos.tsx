@@ -166,19 +166,28 @@ function PlanosPage() {
               </p>
             )}
             <p className="mt-4 mb-3 text-sm text-muted-foreground">
-              Pague com Pix ou Cartão em até 12x via InfinitePay.
+              Escolha a forma de pagamento (Pix, Boleto ou Cartão).
             </p>
             <div className="space-y-3">
               <Button
                 className="w-full font-semibold"
                 disabled={carregando}
-                onClick={() => pagar()}
+                onClick={() => pagar("asaas")}
               >
                 {carregando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Pagar com Asaas (Pix/Boleto/Cartão)
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full font-semibold"
+                disabled={carregando}
+                onClick={() => pagar("infinitepay")}
+              >
                 Pagar com InfinitePay (Pix/Cartão)
               </Button>
             </div>
           </Card>
+
         ) : (
           <div className="mt-8 grid gap-4 md:grid-cols-3">
             {list.map((info) => {
