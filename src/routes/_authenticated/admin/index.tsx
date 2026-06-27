@@ -17,6 +17,7 @@ import {
   LogOut,
   RefreshCw,
   ShieldCheck,
+  Cog,
 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { deploySystem } from "@/lib/deploy.functions";
@@ -116,6 +117,14 @@ function AdminDashboard() {
             </Button>
             <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/admin/ssl" })}>
               <ShieldCheck className="mr-2 h-4 w-4" /> SSL
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              title="Backup do sistema"
+              onClick={() => router.navigate({ to: "/admin/backup" })}
+            >
+              <Cog className="mr-2 h-4 w-4" /> Backup
             </Button>
             <Button variant="outline" size="sm" disabled={mutDeploy.isPending} onClick={() => mutDeploy.mutate()}>
               {mutDeploy.isPending ? (
