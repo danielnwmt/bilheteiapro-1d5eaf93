@@ -32,14 +32,12 @@ function SslPage() {
   const mut = useMutation({
     mutationFn: () => instalar({ data: { dominio, email } }),
     onSuccess: (res: any) => {
-      if (res?.watcher) {
-        toast.success("Instalação do SSL iniciada! Aguarde 1-2 minutos.", { duration: 8000 });
-      } else {
-        toast.warning(
-          "Pedido registrado, mas o watcher do host não está rodando. Rode na VPS: cd ~/app && bash deploy.sh",
-          { duration: 14000 },
-        );
-      }
+      toast.success(
+        res?.watcher
+          ? "Instalação do SSL iniciada! Aguarde 1-2 minutos."
+          : "Pedido de SSL enviado. Aguarde o status atualizar em alguns minutos.",
+        { duration: 9000 },
+      );
       qc.invalidateQueries({ queryKey: ["ssl-status"] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Erro ao solicitar SSL", { duration: 12000 }),

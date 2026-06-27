@@ -108,7 +108,11 @@ export const requestSsl = createServerFn({ method: "POST" })
       await wait(7000);
       alive = await watcherIsAlive();
     }
-    return { ok: true, watcher: alive, dominio: data.dominio };
+
+    // O pedido já foi gravado no arquivo compartilhado. Mesmo quando o pulso não
+    // aparece imediatamente (serviço reiniciando, clock/volume atrasado), o watcher
+    // vai processar assim que estiver ativo. A UI não deve tratar isso como erro.
+    return { ok: true, watcher: alive, queued: true, dominio: data.dominio };
   });
 
 // Lê o status da última instalação de SSL gravado pelo watcher do host.

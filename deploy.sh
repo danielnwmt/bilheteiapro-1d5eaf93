@@ -107,7 +107,11 @@ RestartSec=5
 WantedBy=multi-user.target
 EOF
       systemctl daemon-reload 2>/dev/null || true
-      systemctl enable --now bilheteia-updater.service 2>/dev/null || true
+      systemctl enable bilheteia-updater.service 2>/dev/null || true
+      # Sempre reinicia para carregar a versão nova do watcher após atualizar o código.
+      # Sem isso o serviço podia continuar rodando o script antigo e o painel mostrava
+      # falso erro de "watcher não está rodando" no SSL.
+      systemctl restart bilheteia-updater.service 2>/dev/null || systemctl start bilheteia-updater.service 2>/dev/null || true
       echo ">> Watcher de atualização ativado (systemd)."
     else
       # Sem systemd: roda em segundo plano com nohup.
