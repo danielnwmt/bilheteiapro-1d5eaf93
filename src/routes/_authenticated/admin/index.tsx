@@ -195,14 +195,16 @@ function AdminDashboard() {
                           nameKey="name"
                           cx="50%"
                           cy="50%"
-                          outerRadius={80}
-                          label
+                          innerRadius={55}
+                          outerRadius={85}
+                          paddingAngle={2}
+                          stroke="var(--card)"
+                          strokeWidth={2}
                         >
                           {pieData.map((_, i) => (
                             <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                           ))}
                         </Pie>
-                        <Legend />
                         <Tooltip
                           contentStyle={{
                             background: "var(--card)",
@@ -210,6 +212,11 @@ function AdminDashboard() {
                             borderRadius: 8,
                             color: "var(--foreground)",
                           }}
+                        />
+                        <Legend
+                          iconType="square"
+                          iconSize={10}
+                          wrapperStyle={{ fontSize: 12 }}
                         />
                       </PieChart>
                     </ResponsiveContainer>
