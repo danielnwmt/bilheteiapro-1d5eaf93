@@ -56,13 +56,12 @@ function PlanosPage() {
   const planoAtual = access?.plano ?? null;
   const checkoutCfg = checkout ? byPlano[checkout] : null;
 
-  async function pagar(gateway: "infinitepay" | "asaas") {
+  async function pagar(metodo: "pix" | "cartao") {
     if (!checkout) return;
     setCarregando(true);
     try {
       const returnUrl = `${window.location.origin}/?checkout=success`;
-      const fn = gateway === "asaas" ? asaasCheckout : infinitePayCheckout;
-      const result = await fn({ data: { plano: checkout, ciclo, returnUrl } });
+      const result = await asaasCheckout({ data: { plano: checkout, ciclo, returnUrl, metodo } });
       if ("error" in result) {
         toast.error(result.error);
         return;
