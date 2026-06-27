@@ -538,14 +538,13 @@ export const listClientes = createServerFn({ method: "GET" })
     }
 
     // Caminho primário e mais confiável: RPC SECURITY DEFINER chamada com a
-    // sessão autenticada do admin. Funciona igual no Cloud e no self-host porque
-    // usa o JWT válido do usuário logado e ignora RLS dentro da função. Se trouxer
-    // linhas, já vem tudo pronto (perfil + papéis + assinatura).
+    // service role via REST. A função não é mais executável por usuários logados;
+    // a autorização do solicitante (admin/operador) já foi validada acima. Se
+    // trouxer linhas, já vem tudo pronto (perfil + papéis + assinatura).
     try {
-      const { data: rpcRows, error: rpcErr } = await context.supabase.rpc("admin_list_users");
-      if (rpcErr) {
-        console.error("listClientes: admin_list_users falhou", rpcErr.message);
-      } else if (Array.isArray(rpcRows) && rpcRows.length > 0) {
+      const rpcBase = tryRestBase();
+      const rpcRows = rpcBase ? await restRpc<any>(rpcBase, "admin_list_users") : [];
+      if (Array.isArray(rpcRows) && rpcRows.length > 0) {
         return rpcRows.map((r: any) => {
           const isAdminEmail = normalizeEmail(r.email) === ADMIN_EMAIL;
           return {
