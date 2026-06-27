@@ -10,6 +10,141 @@ function normalizeEmail(value: unknown) {
   return String(value ?? "").trim().toLowerCase();
 }
 
+// ============================================================================
+// Acesso direto via REST (PostgREST/GoTrue) para evitar @supabase/supabase-js,
+// que exige WebSocket nativo e quebra no Node 20 em self-host. Toda a leitura e
+// escrita do painel administrativo passa por aqui.
+// ============================================================================
+
+function restBase() {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error("Configuração do servidor incompleta.");
+  return { url: url.replace(/\/$/, ""), key };
+}
+
+function tryRestBase(): { url: string; key: string } | null {
+  try {
+    return restBase();
+  } catch {
+    return null;
+  }
+}
+
+function authHeaders(key: string) {
+  return { apikey: key, Authorization: `Bearer ${key}` } as Record<string, string>;
+}
+
+async function fetchWithTimeout(input: URL | string, init: RequestInit, ms: number) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function restSelect<T = any>(
+  base: { url: string; key: string },
+  table: string,
+  query: Record<string, string> = {},
+  label = table,
+  ms = 3000,
+): Promise<T[]> {
+  try {
+    const endpoint = new URL(`${base.url}/rest/v1/${table}`);
+    for (const [k, v] of Object.entries(query)) endpoint.searchParams.set(k, v);
+    const res = await fetchWithTimeout(endpoint, { headers: authHeaders(base.key) }, ms);
+    if (!res.ok) {
+      console.error(`restSelect ${label}: status ${res.status}`);
+      return [];
+    }
+    const json = await res.json();
+    return Array.isArray(json) ? (json as T[]) : [];
+  } catch (error) {
+    console.error(`restSelect ${label}: falhou`, error);
+    return [];
+  }
+}
+
+async function restWrite(
+  base: { url: string; key: string },
+  table: string,
+  init: RequestInit & { query?: Record<string, string> },
+) {
+  const endpoint = new URL(`${base.url}/rest/v1/${table}`);
+  for (const [k, v] of Object.entries(init.query ?? {})) endpoint.searchParams.set(k, v);
+  const res = await fetch(endpoint, {
+    ...init,
+    headers: {
+      ...authHeaders(base.key),
+      "Content-Type": "application/json",
+      Prefer: "return=minimal",
+      ...(init.headers ?? {}),
+    },
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(text || `Erro ${res.status}`);
+  }
+  return res;
+}
+
+async function restUpsert(
+  base: { url: string; key: string },
+  table: string,
+  body: any,
+  onConflict: string,
+) {
+  return restWrite(base, table, {
+    method: "POST",
+    query: { on_conflict: onConflict },
+    headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+    body: JSON.stringify(body),
+  });
+}
+
+// ---- GoTrue admin via REST -------------------------------------------------
+
+async function authGetUserById(base: { url: string; key: string }, userId: string): Promise<any | null> {
+  try {
+    const res = await fetchWithTimeout(
+      `${base.url}/auth/v1/admin/users/${userId}`,
+      { headers: authHeaders(base.key) },
+      2_500,
+    );
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (error) {
+    console.error("authGetUserById: falhou", error);
+    return null;
+  }
+}
+
+async function authListUsers(base: { url: string; key: string }): Promise<any[]> {
+  const users: any[] = [];
+  for (let page = 1; page <= 3; page++) {
+    try {
+      const url = new URL(`${base.url}/auth/v1/admin/users`);
+      url.searchParams.set("page", String(page));
+      url.searchParams.set("per_page", "1000");
+      const res = await fetchWithTimeout(url, { headers: authHeaders(base.key) }, 2_500);
+      if (!res.ok) break;
+      const json = await res.json();
+      const pageUsers = Array.isArray(json?.users) ? json.users : Array.isArray(json) ? json : [];
+      users.push(...pageUsers);
+      if (pageUsers.length < 1000) break;
+    } catch (error) {
+      console.error("authListUsers: falhou", error);
+      break;
+    }
+  }
+  return users;
+}
+
+// ---- helpers de e-mail / claims -------------------------------------------
+
 function decodeJwtEmail() {
   try {
     const authHeader = getRequestHeader("authorization") ?? getRequestHeader("Authorization") ?? "";
@@ -33,187 +168,72 @@ function getAuthEmail(claims: unknown) {
   return direct || decodeJwtEmail();
 }
 
-async function withTimeout<T>(
-  promise: Promise<T>,
-  ms: number,
-  fallback: T,
-  label: string,
-): Promise<T> {
-  let timeoutId: ReturnType<typeof setTimeout> | undefined;
-  const guarded = promise.catch((error) => {
-    console.error(`${label}: falhou`, error);
-    return fallback;
-  });
-
-  try {
-    return await Promise.race([
-      guarded,
-      new Promise<T>((resolve) => {
-        timeoutId = setTimeout(() => {
-          console.error(`${label}: tempo limite atingido`);
-          resolve(fallback);
-        }, ms);
-      }),
-    ]);
-  } finally {
-    if (timeoutId) clearTimeout(timeoutId);
-  }
-}
-
-type SupabaseAdmin = Awaited<
-  typeof import("@/integrations/supabase/client.server")
->["supabaseAdmin"];
-
-/**
- * Resolve o e-mail do usuário (claims do token ou Auth).
- */
 async function resolveEmail(
-  admin: SupabaseAdmin,
+  base: { url: string; key: string },
   userId: string,
   hint?: string,
 ): Promise<string> {
   const fromHint = normalizeEmail(hint);
   if (fromHint) return fromHint;
-  try {
-    const { data } = await admin.auth.admin.getUserById(userId);
-    return normalizeEmail(data.user?.email);
-  } catch {
-    return "";
-  }
-}
-
-async function safeSelectRows<T>(label: string, query: any): Promise<T[]> {
-  try {
-    const { data, error } = await withTimeout(
-      Promise.resolve(query),
-      2_500,
-      { data: [], error: null },
-      `leitura ${label}`,
-    );
-    if (error) {
-      console.error(`listClientes: falha ao ler ${label}`, error);
-      return [];
-    }
-    return (data ?? []) as T[];
-  } catch (error) {
-    console.error(`listClientes: excecao ao ler ${label}`, error);
-    return [];
-  }
-}
-
-async function listAuthUsersDirectly(): Promise<any[]> {
-  const baseUrl = process.env.SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!baseUrl || !serviceKey) return [];
-
-  const users: any[] = [];
-  for (let page = 1; page <= 3; page++) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2_500);
-    try {
-      const url = new URL("/auth/v1/admin/users", baseUrl);
-      url.searchParams.set("page", String(page));
-      url.searchParams.set("per_page", "1000");
-      const res = await fetch(url, {
-        signal: controller.signal,
-        headers: {
-          apikey: serviceKey,
-          Authorization: `Bearer ${serviceKey}`,
-          "Content-Type": "application/json",
-        },
-      });
-      if (!res.ok) break;
-      const json = await res.json();
-      const pageUsers = Array.isArray(json?.users) ? json.users : Array.isArray(json) ? json : [];
-      users.push(...pageUsers);
-      if (pageUsers.length < 1000) break;
-    } catch (error) {
-      console.error("listClientes: fallback direto no Auth falhou", error);
-      break;
-    } finally {
-      clearTimeout(timeoutId);
-    }
-  }
-  return users;
-}
-
-async function listAuthUsersViaRpc(admin: SupabaseAdmin): Promise<any[]> {
-  try {
-    const { data, error } = await withTimeout(
-      Promise.resolve((admin as any).rpc("admin_list_auth_users")),
-      2_000,
-      { data: [], error: null },
-      "fallback RPC auth.users",
-    );
-    if (error) {
-      console.error("listClientes: fallback RPC auth.users falhou", error);
-      return [];
-    }
-    const rows = Array.isArray(data) ? data : [];
-    return rows.map((u: any) => ({
-      id: u.id,
-      email: u.email,
-      created_at: u.created_at,
-      user_metadata: u.raw_user_meta_data ?? {},
-    }));
-  } catch (error) {
-    console.error("listClientes: excecao fallback RPC auth.users", error);
-    return [];
-  }
+  const user = await authGetUserById(base, userId);
+  return normalizeEmail(user?.email);
 }
 
 /**
  * Fonte única de verdade para os papéis do usuário.
  * Garante (auto-reparo) que o admin padrão — ou o primeiro usuário de uma
  * instalação nova/local sem nenhum admin — receba o papel "admin".
- * Retorna a lista de papéis já corrigida.
  */
 async function resolveRoles(
-  admin: SupabaseAdmin,
+  base: { url: string; key: string },
   userId: string,
   emailHint?: string,
 ): Promise<AppRole[]> {
-  const { data, error } = await admin
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId);
-  if (error) console.error("resolveRoles: falha ao ler user_roles", error);
-
-  let roles = (data ?? []).map((r) => r.role as AppRole);
+  const rows = await restSelect<{ role: AppRole }>(
+    base,
+    "user_roles",
+    { select: "role", user_id: `eq.${userId}` },
+    "user_roles (resolveRoles)",
+  );
+  let roles = rows.map((r) => r.role as AppRole);
   if (roles.includes("admin")) return roles;
 
-  // Só tenta promover quando faz sentido: usuário sem papel ou apenas "cliente".
   if (roles.length > 0 && !(roles.length === 1 && roles[0] === "cliente")) {
     return roles;
   }
 
-  const email = await resolveEmail(admin, userId, emailHint);
+  const email = await resolveEmail(base, userId, emailHint);
   const isDefaultAdminEmail = email === ADMIN_EMAIL;
 
   let shouldPromote = isDefaultAdminEmail;
   if (!shouldPromote) {
-    const { count } = await admin
-      .from("user_roles")
-      .select("user_id", { count: "exact", head: true })
-      .eq("role", "admin");
-    shouldPromote = (count ?? 0) === 0;
+    const admins = await restSelect(
+      base,
+      "user_roles",
+      { select: "user_id", role: "eq.admin", limit: "1" },
+      "user_roles (count admins)",
+    );
+    shouldPromote = admins.length === 0;
   }
   if (!shouldPromote) return roles;
 
   try {
-    await admin.from("profiles").upsert(
+    await restUpsert(
+      base,
+      "profiles",
       {
         id: userId,
         email: email || null,
         ...(isDefaultAdminEmail ? { nome: "Administrador" } : {}),
         updated_at: new Date().toISOString(),
       },
-      { onConflict: "id" },
+      "id",
     );
-    await admin
-      .from("user_roles")
-      .upsert({ user_id: userId, role: "admin" }, { onConflict: "user_id,role" });
-    await admin.from("user_roles").delete().eq("user_id", userId).eq("role", "cliente");
+    await restUpsert(base, "user_roles", { user_id: userId, role: "admin" }, "user_id,role");
+    await restWrite(base, "user_roles", {
+      method: "DELETE",
+      query: { user_id: `eq.${userId}`, role: "eq.cliente" },
+    });
     roles = ["admin"];
   } catch (err) {
     console.error("resolveRoles: falha ao promover admin", err);
@@ -221,38 +241,59 @@ async function resolveRoles(
   return roles;
 }
 
+async function assertStaff(base: { url: string; key: string }, userId: string, emailHint?: string) {
+  const email = normalizeEmail(emailHint);
+
+  if (email === ADMIN_EMAIL) {
+    try {
+      const roles = await resolveRoles(base, userId, email);
+      return Array.from(new Set([...roles, "admin"])) as AppRole[];
+    } catch {
+      return ["admin"] as AppRole[];
+    }
+  }
+
+  const roles = await resolveRoles(base, userId, emailHint);
+  if (!roles.includes("admin") && !roles.includes("operador")) {
+    throw new Error("Acesso restrito");
+  }
+  return roles;
+}
+
+// ============================================================================
+// Server functions
+// ============================================================================
+
 export const getMyAccess = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { userId, claims } = context;
     const emailClaim = getAuthEmail(claims);
     const isDefaultAdmin = emailClaim === ADMIN_EMAIL;
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const base = tryRestBase();
 
-    // Papéis do banco (best-effort). Em servidores locais a leitura/escrita pode
-    // falhar; por isso o e-mail do admin padrão é a fonte de verdade definitiva.
     let roles: AppRole[] = [];
-    try {
-      roles = await resolveRoles(supabaseAdmin, userId, emailClaim);
-    } catch (err) {
-      console.error("getMyAccess: falha ao resolver papéis", err);
-    }
-
     let sub: { plano: string; status: string; periodo_fim: string | null } | null = null;
-    try {
-      const res = await supabaseAdmin
-        .from("subscriptions")
-        .select("plano, status, periodo_fim")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      sub = (res.data as any) ?? null;
-    } catch (err) {
-      console.error("getMyAccess: falha ao ler assinatura", err);
+    if (base) {
+      try {
+        roles = await resolveRoles(base, userId, emailClaim);
+      } catch (err) {
+        console.error("getMyAccess: falha ao resolver papéis", err);
+      }
+      const subs = await restSelect<any>(
+        base,
+        "subscriptions",
+        {
+          select: "plano, status, periodo_fim",
+          user_id: `eq.${userId}`,
+          order: "created_at.desc",
+          limit: "1",
+        },
+        "subscriptions (getMyAccess)",
+      );
+      sub = subs[0] ?? null;
     }
 
-    // O admin padrão é SEMPRE admin, mesmo que o banco não tenha o papel.
     const isAdmin = roles.includes("admin") || isDefaultAdmin;
     const isStaff = isAdmin || roles.includes("operador");
     if (isAdmin && !roles.includes("admin")) roles = [...roles, "admin"];
@@ -261,7 +302,6 @@ export const getMyAccess = createServerFn({ method: "GET" })
       sub?.status === "ativo" &&
       (!sub?.periodo_fim || new Date(sub.periodo_fim) > new Date());
 
-    // Admin/operador têm ACESSO TOTAL: tratamos como plano máximo (elite).
     const plano: "start" | "pro" | "elite" | null = isStaff
       ? "elite"
       : ativo
@@ -282,22 +322,21 @@ export const getMyProfile = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { userId, claims } = context;
     const emailClaim = getAuthEmail(claims);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const base = tryRestBase();
 
     let nome: string | null = null;
     let email: string | null = emailClaim || null;
-    try {
-      const { data } = await supabaseAdmin
-        .from("profiles")
-        .select("nome, email")
-        .eq("id", userId)
-        .maybeSingle();
-      nome = (data as any)?.nome ?? null;
-      email = email || (data as any)?.email || null;
-    } catch (err) {
-      console.error("getMyProfile: falha ao ler profile", err);
+    if (base) {
+      const rows = await restSelect<any>(
+        base,
+        "profiles",
+        { select: "nome, email", id: `eq.${userId}`, limit: "1" },
+        "profiles (getMyProfile)",
+      );
+      nome = rows[0]?.nome ?? null;
+      email = email || rows[0]?.email || null;
+      if (!email) email = await resolveEmail(base, userId);
     }
-    if (!email) email = await resolveEmail(supabaseAdmin, userId);
     return { nome, email };
   });
 
@@ -306,60 +345,30 @@ export const updateMyName = createServerFn({ method: "POST" })
   .inputValidator((d: { nome: string }) => d)
   .handler(async ({ data, context }) => {
     const { userId } = context;
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.from("profiles").upsert(
+    const base = restBase();
+    await restUpsert(
+      base,
+      "profiles",
       { id: userId, nome: data.nome.trim() || null, updated_at: new Date().toISOString() },
-      { onConflict: "id" },
+      "id",
     );
-    if (error) throw new Error(error.message);
     return { ok: true };
   });
-
-async function assertStaff(userId: string, emailHint?: string) {
-  const email = normalizeEmail(emailHint);
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-  // Admin padrão tem acesso garantido em qualquer ambiente (inclui self-host).
-  if (email === ADMIN_EMAIL) {
-    try {
-      const roles = await resolveRoles(supabaseAdmin, userId, email);
-      return Array.from(new Set([...roles, "admin"])) as AppRole[];
-    } catch {
-      return ["admin"] as AppRole[];
-    }
-  }
-
-  const roles = await resolveRoles(supabaseAdmin, userId, emailHint);
-  if (!roles.includes("admin") && !roles.includes("operador")) {
-    throw new Error("Acesso restrito");
-  }
-  return roles;
-}
 
 export const listClientes = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { userId, claims } = context;
+    const base = restBase();
     let currentEmail = getAuthEmail(claims);
     let requesterRoles: AppRole[] = [];
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     if (!currentEmail) {
-      currentEmail = await withTimeout(
-        resolveEmail(supabaseAdmin, userId),
-        1_500,
-        "",
-        "resolver email do usuario atual",
-      );
+      currentEmail = await resolveEmail(base, userId);
     }
 
     if (currentEmail !== ADMIN_EMAIL) {
-      requesterRoles = await withTimeout(
-        assertStaff(userId, currentEmail),
-        3_000,
-        [] as AppRole[],
-        "validacao staff listClientes",
-      );
+      requesterRoles = await assertStaff(base, userId, currentEmail);
       if (!requesterRoles.includes("admin") && !requesterRoles.includes("operador")) {
         throw new Error("Acesso restrito");
       }
@@ -371,11 +380,14 @@ export const listClientes = createServerFn({ method: "GET" })
     }
 
     const [profiles, roles, subs] = await Promise.all([
-      // `select("*")` mantém compatibilidade com servidores locais antigos que
-      // ainda não tinham cpf/data_nascimento no profiles.
-      safeSelectRows<any>("profiles", supabaseAdmin.from("profiles").select("*")),
-      safeSelectRows<any>("user_roles", supabaseAdmin.from("user_roles").select("user_id, role")),
-      safeSelectRows<any>("subscriptions", supabaseAdmin.from("subscriptions").select("user_id, plano, status, periodo_fim")),
+      restSelect<any>(base, "profiles", { select: "*" }, "profiles (listClientes)"),
+      restSelect<any>(base, "user_roles", { select: "user_id, role" }, "user_roles (listClientes)"),
+      restSelect<any>(
+        base,
+        "subscriptions",
+        { select: "user_id, plano, status, periodo_fim" },
+        "subscriptions (listClientes)",
+      ),
     ]);
 
     const roleMap = new Map<string, string[]>();
@@ -391,7 +403,6 @@ export const listClientes = createServerFn({ method: "GET" })
     const subMap = new Map<string, any>();
     for (const s of subs) if (s.user_id) subMap.set(s.user_id, s);
 
-    // Indexa os perfis existentes.
     const byId = new Map<string, any>();
     for (const p of profiles) if (p.id) byId.set(p.id, p);
 
@@ -407,8 +418,6 @@ export const listClientes = createServerFn({ method: "GET" })
       });
     };
 
-    // Mesmo que profiles ou Auth Admin falhem no self-host, qualquer usuário com
-    // papel ou assinatura ainda aparece no painel.
     ensureUserRow(userId, {
       nome: currentEmail === ADMIN_EMAIL || requesterRoles.includes("admin") ? "Administrador" : null,
       email: currentEmail || null,
@@ -416,54 +425,19 @@ export const listClientes = createServerFn({ method: "GET" })
     for (const id of roleMap.keys()) ensureUserRow(id);
     for (const id of subMap.keys()) ensureUserRow(id);
 
-    const ensureDefaultAdminVisible = () => {
-      const existing = Array.from(byId.values()).find(
-        (p) => normalizeEmail(p.email) === ADMIN_EMAIL,
-      );
-      if (existing) {
-        roleMap.set(existing.id, Array.from(new Set([...(roleMap.get(existing.id) ?? []), "admin"])));
-        existing.nome = existing.nome || "Administrador";
-        existing.email = ADMIN_EMAIL;
-        return;
-      }
-
-      // Self-host robusto: se Auth/Admin API ou triggers locais falharem,
-      // pelo menos o admin logado aparece na tela como administrador geral.
-      if (currentEmail === ADMIN_EMAIL || requesterRoles.includes("admin")) {
-        byId.set(userId, {
-          id: userId,
-          nome: "Administrador",
-          email: currentEmail || ADMIN_EMAIL,
-          cpf: null,
-          data_nascimento: null,
-          created_at: new Date().toISOString(),
-        });
-        roleMap.set(userId, ["admin"]);
-      }
-    };
-
-    // Robustez sem travar a tela: usa primeiro os dados públicos já rápidos.
-    // Só consulta Auth quando quase não há perfis, com limite curto de tempo.
-    if (byId.size <= 1) {
-      try {
-        const [rpcUsers, directUsers] = await Promise.all([
-          withTimeout(listAuthUsersViaRpc(supabaseAdmin), 2_500, [] as any[], "listar usuários via RPC"),
-          withTimeout(listAuthUsersDirectly(), 2_500, [] as any[], "listar usuários direto Auth"),
-        ]);
-        const authUsers: any[] = [];
-        const seenAuthIds = new Set<string>();
-        for (const u of [...rpcUsers, ...directUsers]) {
-          if (!u?.id || seenAuthIds.has(u.id)) continue;
-          seenAuthIds.add(u.id);
-          authUsers.push(u);
-        }
+    // Completa quem tem conta no Auth mas perdeu o profile/role (self-host).
+    try {
+      const authUsers = await authListUsers(base);
       for (const u of authUsers) {
+        if (!u?.id) continue;
         const existing = byId.get(u.id);
         if (existing) {
-          // Completa campos faltantes do perfil com dados do Auth.
           existing.email = existing.email ?? u.email ?? null;
           existing.nome =
             existing.nome ?? u.user_metadata?.nome ?? u.user_metadata?.full_name ?? null;
+          existing.cpf = existing.cpf ?? u.user_metadata?.cpf ?? null;
+          existing.data_nascimento =
+            existing.data_nascimento ?? u.user_metadata?.data_nascimento ?? null;
           continue;
         }
         byId.set(u.id, {
@@ -478,12 +452,32 @@ export const listClientes = createServerFn({ method: "GET" })
           roleMap.set(u.id, Array.from(new Set([...(roleMap.get(u.id) ?? []), "admin"])));
         }
       }
-      } catch (error) {
-        console.error("Falha ao listar usuários no Auth", error);
-      }
+    } catch (error) {
+      console.error("listClientes: falha ao listar usuários no Auth", error);
     }
 
-    ensureDefaultAdminVisible();
+    // Garante que o admin padrão sempre apareça.
+    const existingAdmin = Array.from(byId.values()).find(
+      (p) => normalizeEmail(p.email) === ADMIN_EMAIL,
+    );
+    if (existingAdmin) {
+      roleMap.set(
+        existingAdmin.id,
+        Array.from(new Set([...(roleMap.get(existingAdmin.id) ?? []), "admin"])),
+      );
+      existingAdmin.nome = existingAdmin.nome || "Administrador";
+      existingAdmin.email = ADMIN_EMAIL;
+    } else if (currentEmail === ADMIN_EMAIL || requesterRoles.includes("admin")) {
+      byId.set(userId, {
+        id: userId,
+        nome: "Administrador",
+        email: currentEmail || ADMIN_EMAIL,
+        cpf: null,
+        data_nascimento: null,
+        created_at: new Date().toISOString(),
+      });
+      roleMap.set(userId, ["admin"]);
+    }
 
     return Array.from(byId.values()).map((p) => ({
       id: p.id,
@@ -501,7 +495,6 @@ export const listClientes = createServerFn({ method: "GET" })
     }));
   });
 
-
 export const updateClienteProfile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
@@ -515,32 +508,34 @@ export const updateClienteProfile = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { userId, claims } = context;
-    await assertStaff(userId, getAuthEmail(claims));
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const base = restBase();
+    await assertStaff(base, userId, getAuthEmail(claims));
 
-    let { error } = await supabaseAdmin
-      .from("profiles")
-      .update({
-        nome: data.nome.trim() || null,
-        email: data.email.trim() || null,
-        cpf: data.cpf.replace(/\D/g, "") || null,
-        data_nascimento: data.data_nascimento || null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", data.clienteId);
-    if (error) {
+    const fullPayload = {
+      nome: data.nome.trim() || null,
+      email: data.email.trim() || null,
+      cpf: data.cpf.replace(/\D/g, "") || null,
+      data_nascimento: data.data_nascimento || null,
+      updated_at: new Date().toISOString(),
+    };
+    try {
+      await restWrite(base, "profiles", {
+        method: "PATCH",
+        query: { id: `eq.${data.clienteId}` },
+        body: JSON.stringify(fullPayload),
+      });
+    } catch (error) {
       console.error("updateClienteProfile: retry sem campos novos", error);
-      const retry = await supabaseAdmin
-        .from("profiles")
-        .update({
+      await restWrite(base, "profiles", {
+        method: "PATCH",
+        query: { id: `eq.${data.clienteId}` },
+        body: JSON.stringify({
           nome: data.nome.trim() || null,
           email: data.email.trim() || null,
           updated_at: new Date().toISOString(),
-        })
-        .eq("id", data.clienteId);
-      error = retry.error;
+        }),
+      });
     }
-    if (error) throw new Error(error.message);
     return { ok: true };
   });
 
@@ -549,16 +544,21 @@ export const setClientePassword = createServerFn({ method: "POST" })
   .inputValidator((d: { clienteId: string; senha: string }) => d)
   .handler(async ({ data, context }) => {
     const { userId, claims } = context;
-    const roles = await assertStaff(userId, getAuthEmail(claims));
+    const base = restBase();
+    const roles = await assertStaff(base, userId, getAuthEmail(claims));
     if (!roles.includes("admin")) throw new Error("Apenas admin pode alterar senha");
     if (!data.senha || data.senha.length < 6)
       throw new Error("A senha deve ter ao menos 6 caracteres");
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.auth.admin.updateUserById(data.clienteId, {
-      password: data.senha,
+    const res = await fetch(`${base.url}/auth/v1/admin/users/${data.clienteId}`, {
+      method: "PUT",
+      headers: { ...authHeaders(base.key), "Content-Type": "application/json" },
+      body: JSON.stringify({ password: data.senha }),
     });
-    if (error) throw new Error(error.message);
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(text || `Erro ${res.status}`);
+    }
     return { ok: true };
   });
 
@@ -569,19 +569,20 @@ export const setClientePlano = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { userId, claims } = context;
-    await assertStaff(userId, getAuthEmail(claims));
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const base = restBase();
+    await assertStaff(base, userId, getAuthEmail(claims));
 
-    const { error } = await supabaseAdmin.from("subscriptions").upsert(
+    await restUpsert(
+      base,
+      "subscriptions",
       {
         user_id: data.clienteId,
         plano: data.plano,
         status: data.status,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: "user_id" },
+      "user_id",
     );
-    if (error) throw new Error(error.message);
     return { ok: true };
   });
 
@@ -601,99 +602,116 @@ export const createCliente = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { userId, claims } = context;
-    const roles = await assertStaff(userId, getAuthEmail(claims));
+    const base = restBase();
+    const roles = await assertStaff(base, userId, getAuthEmail(claims));
     if (!roles.includes("admin")) throw new Error("Apenas admin pode criar usuários");
     if (!data.email.trim()) throw new Error("Informe um e-mail");
     if (!data.senha || data.senha.length < 6)
       throw new Error("A senha deve ter ao menos 6 caracteres");
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
-      email: data.email.trim(),
-      password: data.senha,
-      email_confirm: true,
-      user_metadata: {
-        nome: data.nome.trim(),
-        cpf: (data.cpf ?? "").replace(/\D/g, ""),
-        data_nascimento: data.data_nascimento || "",
-      },
+    const createRes = await fetch(`${base.url}/auth/v1/admin/users`, {
+      method: "POST",
+      headers: { ...authHeaders(base.key), "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: data.email.trim(),
+        password: data.senha,
+        email_confirm: true,
+        user_metadata: {
+          nome: data.nome.trim(),
+          cpf: (data.cpf ?? "").replace(/\D/g, ""),
+          data_nascimento: data.data_nascimento || "",
+        },
+      }),
     });
-    if (error) throw new Error(error.message);
-    const newId = created.user!.id;
+    if (!createRes.ok) {
+      const text = await createRes.text().catch(() => "");
+      throw new Error(text || `Erro ${createRes.status}`);
+    }
+    const created = await createRes.json();
+    const newId = created?.id ?? created?.user?.id;
+    if (!newId) throw new Error("Não foi possível criar o usuário.");
 
-    const profilePayload =
-      {
-        id: newId,
-        nome: data.nome.trim() || null,
-        email: data.email.trim() || null,
-        cpf: (data.cpf ?? "").replace(/\D/g, "") || null,
-        data_nascimento: data.data_nascimento || null,
-        updated_at: new Date().toISOString(),
-      };
-    let profileResult = await supabaseAdmin.from("profiles").upsert(profilePayload, { onConflict: "id" });
-    if (profileResult.error) {
-      console.error("createCliente: retry perfil sem campos novos", profileResult.error);
-      profileResult = await supabaseAdmin.from("profiles").upsert(
+    const cpf = (data.cpf ?? "").replace(/\D/g, "") || null;
+    try {
+      await restUpsert(
+        base,
+        "profiles",
         {
           id: newId,
           nome: data.nome.trim() || null,
           email: data.email.trim() || null,
+          cpf,
+          data_nascimento: data.data_nascimento || null,
           updated_at: new Date().toISOString(),
         },
-        { onConflict: "id" },
+        "id",
       );
+    } catch (error) {
+      console.error("createCliente: retry perfil sem campos novos", error);
+      try {
+        await restUpsert(
+          base,
+          "profiles",
+          {
+            id: newId,
+            nome: data.nome.trim() || null,
+            email: data.email.trim() || null,
+            updated_at: new Date().toISOString(),
+          },
+          "id",
+        );
+      } catch (err) {
+        console.error("createCliente: falha ao criar perfil", err);
+      }
     }
-    if (profileResult.error) console.error("createCliente: falha ao criar perfil", profileResult.error);
 
     if (data.isAdmin) {
-      await supabaseAdmin.from("user_roles").upsert(
-        { user_id: newId, role: "admin" },
-        { onConflict: "user_id,role" },
-      );
-      await supabaseAdmin.from("user_roles").delete().eq("user_id", newId).eq("role", "cliente");
+      await restUpsert(base, "user_roles", { user_id: newId, role: "admin" }, "user_id,role");
+      await restWrite(base, "user_roles", {
+        method: "DELETE",
+        query: { user_id: `eq.${newId}`, role: "eq.cliente" },
+      }).catch((e) => console.error("createCliente: limpar cliente", e));
     } else {
-      await supabaseAdmin.from("user_roles").upsert(
-        { user_id: newId, role: "cliente" },
-        { onConflict: "user_id,role" },
-      );
-      await supabaseAdmin.from("subscriptions").upsert(
+      await restUpsert(base, "user_roles", { user_id: newId, role: "cliente" }, "user_id,role");
+      await restUpsert(
+        base,
+        "subscriptions",
         {
           user_id: newId,
           plano: data.plano,
           status: data.status,
           updated_at: new Date().toISOString(),
         },
-        { onConflict: "user_id" },
+        "user_id",
       );
     }
 
     return { ok: true, id: newId };
   });
 
-
 export const getClientStats = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { userId, claims } = context;
+    const base = restBase();
     const currentEmail = getAuthEmail(claims);
     if (currentEmail !== ADMIN_EMAIL) {
-      const roles = await withTimeout(
-        assertStaff(userId, currentEmail),
-        3_000,
-        [] as AppRole[],
-        "validacao staff dashboard",
-      );
+      const roles = await assertStaff(base, userId, currentEmail);
       if (!roles.includes("admin") && !roles.includes("operador")) {
         throw new Error("Acesso restrito");
       }
     }
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const [profiles, roles, subs, planoCfg] = await Promise.all([
-      safeSelectRows<any>("profiles stats", supabaseAdmin.from("profiles").select("id, created_at")),
-      safeSelectRows<any>("user_roles stats", supabaseAdmin.from("user_roles").select("user_id, role")),
-      safeSelectRows<any>("subscriptions stats", supabaseAdmin.from("subscriptions").select("user_id, plano, status, periodo_fim, created_at")),
-      safeSelectRows<any>("plano_config stats", supabaseAdmin.from("plano_config").select("plano, preco")),
+      restSelect<any>(base, "profiles", { select: "id, created_at" }, "profiles (stats)"),
+      restSelect<any>(base, "user_roles", { select: "user_id, role" }, "user_roles (stats)"),
+      restSelect<any>(
+        base,
+        "subscriptions",
+        { select: "user_id, plano, status, periodo_fim, created_at" },
+        "subscriptions (stats)",
+      ),
+      restSelect<any>(base, "plano_config", { select: "plano, preco" }, "plano_config (stats)"),
     ]);
 
     const parsePreco = (v: string | null | undefined) => {
@@ -704,7 +722,6 @@ export const getClientStats = createServerFn({ method: "GET" })
     const precoMap: Record<string, number> = { start: 29.9, pro: 49.9, elite: 79.9 };
     for (const p of planoCfg) precoMap[p.plano] = parsePreco(p.preco);
 
-    // IDs que são apenas staff (admin/operador) não contam como clientes.
     const staffIds = new Set(
       roles
         .filter((r) => r.role === "admin" || r.role === "operador")
@@ -732,7 +749,6 @@ export const getClientStats = createServerFn({ method: "GET" })
       }
     }
 
-    // Cadastros nos últimos 6 meses.
     const meses: { mes: string; total: number }[] = [];
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -745,7 +761,6 @@ export const getClientStats = createServerFn({ method: "GET" })
       meses.push({ mes: label, total });
     }
 
-    // Faturamento por mês (últimos 6 meses) — assinaturas ativas no período.
     const clienteIds = new Set(clientes.map((c) => c.id));
     const faturamentoPorMes: { mes: string; total: number }[] = [];
     for (let i = 5; i >= 0; i--) {
@@ -774,28 +789,20 @@ export const getClientStats = createServerFn({ method: "GET" })
     };
   });
 
-
 export const getSystemConfig = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { userId, claims } = context;
-    const roles = await assertStaff(userId, getAuthEmail(claims));
+    const base = restBase();
+    const roles = await assertStaff(base, userId, getAuthEmail(claims));
     if (!roles.includes("admin")) throw new Error("Acesso restrito");
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data, error } = await withTimeout<any>(
-      Promise.resolve(
-        supabaseAdmin.from("system_config").select("chave, valor, descricao").order("chave"),
-      ),
-      2_500,
-      { data: [], error: null },
-      "leitura system_config",
+    return restSelect<any>(
+      base,
+      "system_config",
+      { select: "chave, valor, descricao", order: "chave.asc" },
+      "system_config",
     );
-    if (error) {
-      console.error("getSystemConfig: falha ao ler configurações", error);
-      return [];
-    }
-    return data ?? [];
   });
 
 export const setSystemConfig = createServerFn({ method: "POST" })
@@ -803,19 +810,20 @@ export const setSystemConfig = createServerFn({ method: "POST" })
   .inputValidator((d: { chave: string; valor: string; descricao?: string }) => d)
   .handler(async ({ data, context }) => {
     const { userId, claims } = context;
-    const roles = await assertStaff(userId, getAuthEmail(claims));
+    const base = restBase();
+    const roles = await assertStaff(base, userId, getAuthEmail(claims));
     if (!roles.includes("admin")) throw new Error("Acesso restrito");
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { error } = await supabaseAdmin.from("system_config").upsert(
+    await restUpsert(
+      base,
+      "system_config",
       {
         chave: data.chave,
         valor: data.valor,
         descricao: data.descricao ?? null,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: "chave" },
+      "chave",
     );
-    if (error) throw new Error(error.message);
     return { ok: true };
   });
