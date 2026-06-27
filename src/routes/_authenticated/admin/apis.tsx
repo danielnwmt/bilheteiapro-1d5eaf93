@@ -8,6 +8,13 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Loader2, Plus, Clock } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin/apis")({
@@ -107,7 +114,8 @@ function ApisPage() {
                 existentes.get(chave) ??
                 CHAVES_PADRAO.find((c) => c.chave === chave)?.descricao ??
                 "";
-              const chaveIntervalo = `${chave}_INTERVALO_MIN`;
+              const chaveValor = `${chave}_INTERVALO_VALOR`;
+              const chaveUnidade = `${chave}_INTERVALO_UNIDADE`;
               return (
                 <Card key={chave} className="border-border/60 bg-card p-4">
                   <Label className="text-sm font-semibold">{chave}</Label>
@@ -131,28 +139,48 @@ function ApisPage() {
                   <div className="mt-3 flex items-center gap-2 border-t border-border/40 pt-3">
                     <Clock className="h-4 w-4 shrink-0 text-muted-foreground" />
                     <Label className="shrink-0 text-xs text-muted-foreground">
-                      Intervalo de chamada (min)
+                      Intervalo de chamada
                     </Label>
                     <Input
                       type="number"
                       min={1}
                       placeholder="ex: 60"
-                      value={vals[chaveIntervalo] ?? ""}
+                      value={vals[chaveValor] ?? ""}
                       onChange={(e) =>
-                        setVals((v) => ({ ...v, [chaveIntervalo]: e.target.value }))
+                        setVals((v) => ({ ...v, [chaveValor]: e.target.value }))
                       }
                       className="bg-input/40"
                     />
+                    <Select
+                      value={vals[chaveUnidade] ?? "minutos"}
+                      onValueChange={(u) =>
+                        setVals((v) => ({ ...v, [chaveUnidade]: u }))
+                      }
+                    >
+                      <SelectTrigger className="w-32 bg-input/40">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="segundos">Segundos</SelectItem>
+                        <SelectItem value="minutos">Minutos</SelectItem>
+                        <SelectItem value="horas">Horas</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <Button
                       variant="outline"
                       disabled={mut.isPending}
-                      onClick={() =>
+                      onClick={() => {
                         mut.mutate({
-                          chave: chaveIntervalo,
-                          valor: vals[chaveIntervalo] ?? "",
-                          descricao: `Intervalo (min) entre chamadas da ${chave}`,
-                        })
-                      }
+                          chave: chaveValor,
+                          valor: vals[chaveValor] ?? "",
+                          descricao: `Intervalo entre chamadas da ${chave}`,
+                        });
+                        mut.mutate({
+                          chave: chaveUnidade,
+                          valor: vals[chaveUnidade] ?? "minutos",
+                          descricao: `Unidade do intervalo da ${chave}`,
+                        });
+                      }}
                     >
                       Salvar
                     </Button>
@@ -160,6 +188,7 @@ function ApisPage() {
                 </Card>
               );
             })}
+
 
 
             <Card className="border-dashed border-border/60 bg-card p-4">
