@@ -161,13 +161,12 @@ export const pagarComCartao = createServerFn({ method: "POST" })
         descricao: `BilheteIA PRO — ${cfg.nome} (${CICLO_LABEL[data.ciclo]})`,
         valorReais: precoCentavos / 100,
         externalReference,
+        parcelas: data.parcelas,
         cartao: data.cartao,
         holder: {
           name: profile?.nome ?? user?.user_metadata?.nome ?? "Cliente",
           email: user?.email ?? "",
           cpfCnpj: cpf,
-          postalCode: data.cep,
-          addressNumber: data.numeroEndereco,
           phone: (profile?.telefone ?? "").toString(),
         },
       });
