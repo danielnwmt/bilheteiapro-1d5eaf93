@@ -115,6 +115,11 @@ services:
       SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
       SUPABASE_PROJECT_ID: local
       INGEST_SECRET: ${INGEST_SECRET}
+      PORT: 3000
+      HOST: 0.0.0.0
+    command: >
+      bash -lc 'cd /opt/app/runtime &&
+      if [ -f .output/server/index.mjs ]; then node .output/server/index.mjs; else node serve.mjs; fi'
     ports:
       - "${APP_PORT}:3000"
 

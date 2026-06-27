@@ -76,6 +76,25 @@ async function listAuthUsersDirectly(): Promise<any[]> {
   return users;
 }
 
+async function listAuthUsersViaRpc(admin: SupabaseAdmin): Promise<any[]> {
+  try {
+    const { data, error } = await admin.rpc("admin_list_auth_users" as any);
+    if (error) {
+      console.error("listClientes: fallback RPC auth.users falhou", error);
+      return [];
+    }
+    return (data ?? []).map((u: any) => ({
+      id: u.id,
+      email: u.email,
+      created_at: u.created_at,
+      user_metadata: u.raw_user_meta_data ?? {},
+    }));
+  } catch (error) {
+    console.error("listClientes: excecao fallback RPC auth.users", error);
+    return [];
+  }
+}
+
 /**
  * Fonte única de verdade para os papéis do usuário.
  * Garante (auto-reparo) que o admin padrão — ou o primeiro usuário de uma
@@ -305,6 +324,7 @@ export const listClientes = createServerFn({ method: "GET" })
         authUsers.push(...users);
         if (users.length < 1000) break;
       }
+      if (authUsers.length === 0) authUsers.push(...(await listAuthUsersViaRpc(supabaseAdmin)));
       if (authUsers.length === 0) authUsers.push(...(await listAuthUsersDirectly()));
       for (const u of authUsers) {
         const existing = byId.get(u.id);
@@ -329,6 +349,33 @@ export const listClientes = createServerFn({ method: "GET" })
       }
     } catch (error) {
       console.error("Falha ao listar usuários no Auth", error);
+      try {
+        const fallbackUsers = [
+          ...(await listAuthUsersViaRpc(supabaseAdmin)),
+          ...(await listAuthUsersDirectly()),
+        ];
+        for (const u of fallbackUsers) {
+          const existing = byId.get(u.id);
+          if (existing) {
+            existing.email = existing.email ?? u.email ?? null;
+            existing.nome = existing.nome ?? u.user_metadata?.nome ?? u.user_metadata?.full_name ?? null;
+          } else {
+            byId.set(u.id, {
+              id: u.id,
+              nome: u.user_metadata?.nome ?? u.user_metadata?.full_name ?? null,
+              email: u.email ?? null,
+              cpf: u.user_metadata?.cpf ?? null,
+              data_nascimento: u.user_metadata?.data_nascimento ?? null,
+              created_at: u.created_at ?? new Date().toISOString(),
+            });
+          }
+          if (normalizeEmail(u.email) === ADMIN_EMAIL) {
+            roleMap.set(u.id, Array.from(new Set([...(roleMap.get(u.id) ?? []), "admin"])));
+          }
+        }
+      } catch (fallbackError) {
+        console.error("Falha no fallback de usuários do Auth", fallbackError);
+      }
     }
 
     ensureDefaultAdminVisible();
