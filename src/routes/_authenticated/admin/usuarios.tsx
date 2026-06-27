@@ -121,7 +121,7 @@ function UsuariosPage() {
       toast.success("Senha alterada");
       setSenhas((s) => ({ ...s, [v.clienteId]: "" }));
     },
-    onError: (e: any) => toast.error(e?.message ?? "Erro ao alterar senha"),
+    onError: (e: any) => toast.error(traduzErro(e, "Erro ao alterar senha")),
   });
 
   const mutNovo = useMutation({
