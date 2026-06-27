@@ -4,8 +4,8 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 // ============================================================================
 // Backup / Restauração do sistema.
 // Salva: bancas (depósitos + entradas), cadastro dos clientes (profiles +
-// papéis + assinaturas), chaves de API (system_config) e histórico de
-// pagamento (subscriptions). Envia para o Google Drive e permite restaurar.
+// papéis + assinaturas), planos (plano_config), chaves de API (system_config)
+// e histórico de pagamento (subscriptions). Envia ao Google Drive e restaura.
 //
 // Usa REST direto (PostgREST/GoTrue) para evitar @supabase/supabase-js, que
 // quebra no Node 20 em self-host.
