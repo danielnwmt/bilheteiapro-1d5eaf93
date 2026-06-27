@@ -163,6 +163,21 @@ async function rpcListAuthUsers(base: { url: string; key: string }): Promise<any
   }
 }
 
+async function collectAuthUsers(base: { url: string; key: string }): Promise<any[]> {
+  const [fromApi, fromDb] = await Promise.all([authListUsers(base), rpcListAuthUsers(base)]);
+  const byId = new Map<string, any>();
+  for (const u of [...fromApi, ...fromDb]) {
+    if (!u?.id) continue;
+    const previous = byId.get(u.id) ?? {};
+    byId.set(u.id, { ...previous, ...u });
+  }
+  return Array.from(byId.values());
+}
+
+function authUserMeta(user: any) {
+  return user?.user_metadata ?? user?.raw_user_meta_data ?? {};
+}
+
 // ---- helpers de e-mail / claims -------------------------------------------
 
 function decodeJwtEmail() {
@@ -503,18 +518,11 @@ export const listClientes = createServerFn({ method: "GET" })
 
     // Completa quem tem conta no Auth mas perdeu o profile/role (self-host).
     try {
-      const authUsersFromApi = await authListUsers(base);
-      const authUsersFromDb = await rpcListAuthUsers(base);
-      const authUsers = [
-        ...authUsersFromApi,
-        ...authUsersFromDb.filter(
-          (u) => u?.id && !authUsersFromApi.some((apiUser) => apiUser?.id === u.id),
-        ),
-      ];
+      const authUsers = await collectAuthUsers(base);
       for (const u of authUsers) {
         if (!u?.id) continue;
         const existing = byId.get(u.id);
-        const meta = u.user_metadata ?? u.raw_user_meta_data ?? {};
+        const meta = authUserMeta(u);
         if (existing) {
           existing.email = existing.email ?? u.email ?? null;
           existing.nome =
@@ -522,6 +530,10 @@ export const listClientes = createServerFn({ method: "GET" })
           existing.cpf = existing.cpf ?? meta?.cpf ?? null;
           existing.data_nascimento =
             existing.data_nascimento ?? meta?.data_nascimento ?? null;
+          existing.telefone = existing.telefone ?? meta?.telefone ?? null;
+          if (!(roleMap.get(u.id) ?? []).length) {
+            roleMap.set(u.id, [normalizeEmail(u.email) === ADMIN_EMAIL ? "admin" : "cliente"]);
+          }
           continue;
         }
         byId.set(u.id, {
@@ -530,10 +542,13 @@ export const listClientes = createServerFn({ method: "GET" })
           email: u.email ?? null,
           cpf: meta?.cpf ?? null,
           data_nascimento: meta?.data_nascimento ?? null,
+          telefone: meta?.telefone ?? null,
           created_at: u.created_at ?? new Date().toISOString(),
         });
         if (normalizeEmail(u.email) === ADMIN_EMAIL) {
           roleMap.set(u.id, Array.from(new Set([...(roleMap.get(u.id) ?? []), "admin"])));
+        } else if (!(roleMap.get(u.id) ?? []).length) {
+          roleMap.set(u.id, ["cliente"]);
         }
       }
     } catch (error) {
@@ -569,6 +584,7 @@ export const listClientes = createServerFn({ method: "GET" })
       email: normalizeEmail(p.email) === ADMIN_EMAIL ? ADMIN_EMAIL : p.email,
       cpf: (p as any).cpf ?? null,
       data_nascimento: (p as any).data_nascimento ?? null,
+      telefone: (p as any).telefone ?? null,
       created_at: p.created_at,
       roles:
         normalizeEmail(p.email) === ADMIN_EMAIL
@@ -841,10 +857,63 @@ export const getClientStats = createServerFn({ method: "GET" })
       ]),
     ]);
 
-    const profiles = mergeById(pa, pr, (x) => x.id);
-    const roles = mergeRoleRows(ra, rr);
+    let profiles = mergeById(pa, pr, (x) => x.id);
+    let roles = mergeRoleRows(ra, rr);
     const subs = mergeById(sa, sr, (x) => x.user_id);
     const planoCfg = mergeById(ca, cr, (x) => x.plano);
+
+    const profileMap = new Map<string, any>();
+    for (const p of profiles) if (p?.id) profileMap.set(p.id, p);
+
+    const ensureProfileForStats = (id: string, fallback: Partial<any> = {}) => {
+      if (!id || profileMap.has(id)) return;
+      profileMap.set(id, {
+        id,
+        created_at: fallback.created_at ?? new Date().toISOString(),
+        email: fallback.email ?? null,
+      });
+    };
+
+    for (const r of roles) ensureProfileForStats(r.user_id);
+    for (const s of subs) ensureProfileForStats(s.user_id, { created_at: s.created_at });
+
+    try {
+      const authUsers = await collectAuthUsers(base);
+      const roleKey = (id: string, role: string) => `${id}|${role}`;
+      const knownRoleRows = new Set(roles.map((r) => roleKey(r.user_id, r.role)));
+      const hasAnyRole = new Set(roles.map((r) => r.user_id).filter(Boolean));
+
+      for (const u of authUsers) {
+        if (!u?.id) continue;
+        const meta = authUserMeta(u);
+        ensureProfileForStats(u.id, {
+          created_at: u.created_at,
+          email: u.email,
+        });
+        const p = profileMap.get(u.id);
+        p.created_at = p.created_at ?? u.created_at ?? new Date().toISOString();
+        p.email = p.email ?? u.email ?? null;
+        p.nome = p.nome ?? meta?.nome ?? meta?.full_name ?? null;
+
+        if (!hasAnyRole.has(u.id)) {
+          const role = normalizeEmail(u.email) === ADMIN_EMAIL ? "admin" : "cliente";
+          const key = roleKey(u.id, role);
+          if (!knownRoleRows.has(key)) {
+            roles.push({ user_id: u.id, role });
+            knownRoleRows.add(key);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("getClientStats: falha ao completar usuários do Auth", error);
+    }
+
+    if (currentEmail === ADMIN_EMAIL && !roles.some((r) => r.user_id === userId && r.role === "admin")) {
+      roles.push({ user_id: userId, role: "admin" });
+      ensureProfileForStats(userId, { email: ADMIN_EMAIL });
+    }
+
+    profiles = Array.from(profileMap.values());
 
 
     const parsePreco = (v: string | null | undefined) => {
