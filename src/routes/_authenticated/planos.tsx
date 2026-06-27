@@ -21,6 +21,7 @@ import {
 import { usePlanos } from "@/hooks/usePlanos";
 import { createAsaasCheckout } from "@/lib/payments.functions";
 import { useAccess } from "@/hooks/useAccess";
+import { CartaoPagamento } from "@/components/CartaoPagamento";
 
 export const Route = createFileRoute("/_authenticated/planos")({
   head: () => ({
@@ -49,6 +50,7 @@ function PlanosPage() {
   const [checkout, setCheckout] = useState<Plano | null>(null);
   const [carregando, setCarregando] = useState(false);
   const [ciclo, setCiclo] = useState<Ciclo>("mensal");
+  const [telaCartao, setTelaCartao] = useState(false);
 
   const asaasCheckout = useServerFn(createAsaasCheckout);
 
@@ -139,6 +141,14 @@ function PlanosPage() {
           <div className="flex justify-center py-16">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
+        ) : checkout && checkoutCfg && telaCartao ? (
+          <CartaoPagamento
+            plano={checkout}
+            ciclo={ciclo}
+            precoLabel={formatarReais(precoCicloCentavos(checkoutCfg, ciclo))}
+            onSucesso={() => router.navigate({ to: "/" })}
+            onCancelar={() => setTelaCartao(false)}
+          />
         ) : checkout && checkoutCfg ? (
           <Card className="mx-auto mt-8 max-w-md border-border/60 bg-card p-6">
             <div className="mb-1 flex items-center justify-between">
@@ -179,7 +189,7 @@ function PlanosPage() {
                 variant="outline"
                 className="w-full font-semibold"
                 disabled={carregando}
-                onClick={() => pagar("cartao")}
+                onClick={() => setTelaCartao(true)}
               >
                 Crédito / Débito
               </Button>
@@ -221,7 +231,7 @@ function PlanosPage() {
                     className="mt-6 w-full font-semibold"
                     variant={p === "pro" ? "default" : "outline"}
                     disabled={atual}
-                    onClick={() => setCheckout(p)}
+                    onClick={() => { setTelaCartao(false); setCheckout(p); }}
                   >
                     {atual ? "Plano atual" : "Assinar"}
                   </Button>
