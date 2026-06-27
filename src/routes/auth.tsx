@@ -134,6 +134,7 @@ function AuthPage() {
             data: {
               nome: nome.trim(),
               cpf: cpf.replace(/\D/g, ""),
+              telefone: telefone.replace(/\D/g, ""),
               data_nascimento: nascimento,
             },
           },
