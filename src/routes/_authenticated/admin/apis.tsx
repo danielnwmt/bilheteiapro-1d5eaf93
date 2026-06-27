@@ -36,6 +36,18 @@ const CHAVES_PAGAMENTO = [
     chave: "INFINITEPAY_HANDLE",
     descricao: "Sua InfiniteTag da InfinitePay (handle, sem o $). Ex: minhaloja",
   },
+  {
+    chave: "ASAAS_API_KEY",
+    descricao: "Chave de API da sua conta Asaas (Configurações → Integrações → API).",
+  },
+  {
+    chave: "ASAAS_ENV",
+    descricao: "Ambiente do Asaas: producao (padrão) ou sandbox.",
+  },
+  {
+    chave: "ASAAS_WEBHOOK_TOKEN",
+    descricao: "(Opcional) Token para validar o webhook (cabeçalho asaas-access-token).",
+  },
 ];
 
 type ConfigRow = { chave: string; valor: string | null; descricao: string | null };
@@ -266,6 +278,39 @@ function ApisPage() {
                   );
                 })}
               </div>
+
+              {/* URL do webhook para colar no painel do Asaas */}
+              <Card className="mt-4 border-primary/30 bg-card p-4">
+                <Label className="text-sm font-semibold">
+                  URL de webhook (confirmação de pagamento)
+                </Label>
+                <p className="mb-2 text-xs text-muted-foreground">
+                  Cole esta URL em Asaas → Integrações → Webhooks para liberar o plano
+                  automaticamente após o pagamento.
+                </p>
+                <div className="flex gap-2">
+                  <Input
+                    type="text"
+                    readOnly
+                    value={
+                      typeof window !== "undefined"
+                        ? `${window.location.origin}/api/public/payments/asaas`
+                        : "/api/public/payments/asaas"
+                    }
+                    className="bg-input/40"
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      const url = `${window.location.origin}/api/public/payments/asaas`;
+                      navigator.clipboard?.writeText(url);
+                      toast.success("URL copiada");
+                    }}
+                  >
+                    Copiar
+                  </Button>
+                </div>
+              </Card>
             </div>
           </div>
         )}

@@ -21,6 +21,7 @@ import { Route as AuthenticatedAdminUsuariosRouteImport } from './routes/_authen
 import { Route as AuthenticatedAdminConfiguracoesRouteImport } from './routes/_authenticated/admin/configuracoes'
 import { Route as AuthenticatedAdminApisRouteImport } from './routes/_authenticated/admin/apis'
 import { Route as ApiPublicPaymentsInfinitepayRouteImport } from './routes/api/public/payments/infinitepay'
+import { Route as ApiPublicPaymentsAsaasRouteImport } from './routes/api/public/payments/asaas'
 import { Route as ApiPublicHooksSyncOddsDiarioRouteImport } from './routes/api/public/hooks/sync-odds-diario'
 import { Route as ApiPublicHooksSyncFootballRouteImport } from './routes/api/public/hooks/sync-football'
 import { Route as ApiPublicHooksGerarBilhetesRouteImport } from './routes/api/public/hooks/gerar-bilhetes'
@@ -87,6 +88,11 @@ const ApiPublicPaymentsInfinitepayRoute =
     path: '/api/public/payments/infinitepay',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicPaymentsAsaasRoute = ApiPublicPaymentsAsaasRouteImport.update({
+  id: '/api/public/payments/asaas',
+  path: '/api/public/payments/asaas',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicHooksSyncOddsDiarioRoute =
   ApiPublicHooksSyncOddsDiarioRouteImport.update({
     id: '/api/public/hooks/sync-odds-diario',
@@ -120,6 +126,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/gerar-bilhetes': typeof ApiPublicHooksGerarBilhetesRoute
   '/api/public/hooks/sync-football': typeof ApiPublicHooksSyncFootballRoute
   '/api/public/hooks/sync-odds-diario': typeof ApiPublicHooksSyncOddsDiarioRoute
+  '/api/public/payments/asaas': typeof ApiPublicPaymentsAsaasRoute
   '/api/public/payments/infinitepay': typeof ApiPublicPaymentsInfinitepayRoute
 }
 export interface FileRoutesByTo {
@@ -135,6 +142,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/gerar-bilhetes': typeof ApiPublicHooksGerarBilhetesRoute
   '/api/public/hooks/sync-football': typeof ApiPublicHooksSyncFootballRoute
   '/api/public/hooks/sync-odds-diario': typeof ApiPublicHooksSyncOddsDiarioRoute
+  '/api/public/payments/asaas': typeof ApiPublicPaymentsAsaasRoute
   '/api/public/payments/infinitepay': typeof ApiPublicPaymentsInfinitepayRoute
 }
 export interface FileRoutesById {
@@ -153,6 +161,7 @@ export interface FileRoutesById {
   '/api/public/hooks/gerar-bilhetes': typeof ApiPublicHooksGerarBilhetesRoute
   '/api/public/hooks/sync-football': typeof ApiPublicHooksSyncFootballRoute
   '/api/public/hooks/sync-odds-diario': typeof ApiPublicHooksSyncOddsDiarioRoute
+  '/api/public/payments/asaas': typeof ApiPublicPaymentsAsaasRoute
   '/api/public/payments/infinitepay': typeof ApiPublicPaymentsInfinitepayRoute
 }
 export interface FileRouteTypes {
@@ -171,6 +180,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/gerar-bilhetes'
     | '/api/public/hooks/sync-football'
     | '/api/public/hooks/sync-odds-diario'
+    | '/api/public/payments/asaas'
     | '/api/public/payments/infinitepay'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -186,6 +196,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/gerar-bilhetes'
     | '/api/public/hooks/sync-football'
     | '/api/public/hooks/sync-odds-diario'
+    | '/api/public/payments/asaas'
     | '/api/public/payments/infinitepay'
   id:
     | '__root__'
@@ -203,6 +214,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/gerar-bilhetes'
     | '/api/public/hooks/sync-football'
     | '/api/public/hooks/sync-odds-diario'
+    | '/api/public/payments/asaas'
     | '/api/public/payments/infinitepay'
   fileRoutesById: FileRoutesById
 }
@@ -213,6 +225,7 @@ export interface RootRouteChildren {
   ApiPublicHooksGerarBilhetesRoute: typeof ApiPublicHooksGerarBilhetesRoute
   ApiPublicHooksSyncFootballRoute: typeof ApiPublicHooksSyncFootballRoute
   ApiPublicHooksSyncOddsDiarioRoute: typeof ApiPublicHooksSyncOddsDiarioRoute
+  ApiPublicPaymentsAsaasRoute: typeof ApiPublicPaymentsAsaasRoute
   ApiPublicPaymentsInfinitepayRoute: typeof ApiPublicPaymentsInfinitepayRoute
 }
 
@@ -302,6 +315,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPaymentsInfinitepayRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/payments/asaas': {
+      id: '/api/public/payments/asaas'
+      path: '/api/public/payments/asaas'
+      fullPath: '/api/public/payments/asaas'
+      preLoaderRoute: typeof ApiPublicPaymentsAsaasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/sync-odds-diario': {
       id: '/api/public/hooks/sync-odds-diario'
       path: '/api/public/hooks/sync-odds-diario'
@@ -370,6 +390,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksGerarBilhetesRoute: ApiPublicHooksGerarBilhetesRoute,
   ApiPublicHooksSyncFootballRoute: ApiPublicHooksSyncFootballRoute,
   ApiPublicHooksSyncOddsDiarioRoute: ApiPublicHooksSyncOddsDiarioRoute,
+  ApiPublicPaymentsAsaasRoute: ApiPublicPaymentsAsaasRoute,
   ApiPublicPaymentsInfinitepayRoute: ApiPublicPaymentsInfinitepayRoute,
 }
 export const routeTree = rootRouteImport
