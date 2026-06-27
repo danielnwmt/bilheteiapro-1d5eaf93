@@ -146,7 +146,21 @@ install_ssl() {
 
   if [ $code -eq 0 ]; then
     echo "ok: SSL instalado para $dominio $(date)" > "$SSL_STATUS_FILE"
-  else
+    # Atualiza a URL pública para HTTPS e reconstrói o app. Sem isso o site
+    # abre em https://dominio mas o bundle ainda chama http://IP → o navegador
+    # bloqueia (mixed content) e o login dá "Failed to fetch".
+    {
+      echo ">> [$(date)] Ajustando URL pública para https://$dominio e reconstruindo..."
+      ENV_FILE="$APP_DIR/.env"
+      touch "$ENV_FILE"
+      if grep -q '^SUPABASE_PUBLIC_URL=' "$ENV_FILE"; then
+        sed -i "s#^SUPABASE_PUBLIC_URL=.*#SUPABASE_PUBLIC_URL=https://$dominio#" "$ENV_FILE"
+      else
+        echo "SUPABASE_PUBLIC_URL=https://$dominio" >> "$ENV_FILE"
+      fi
+      (cd "$APP_DIR" && bash deploy.sh) || echo ">> ERRO ao reconstruir o app."
+    } >> "$SSL_LOG_FILE" 2>&1
+
     echo "falha ao instalar SSL para $dominio $(date) — veja $SSL_LOG_FILE" > "$SSL_STATUS_FILE"
   fi
   chmod 666 "$SSL_LOG_FILE" "$SSL_STATUS_FILE" 2>/dev/null || true
