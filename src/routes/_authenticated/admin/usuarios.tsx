@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Loader2, KeyRound, Settings, Pencil, UserPlus, ShieldPlus } from "lucide-react";
+import { ArrowLeft, Loader2, KeyRound, Settings, Pencil, UserPlus, ShieldPlus, Gift } from "lucide-react";
 import { PLANOS, type Plano } from "@/lib/planos";
 import { usePlanos } from "@/hooks/usePlanos";
 import { toast } from "sonner";
@@ -28,7 +28,7 @@ function UsuariosPage() {
   const salvarPerfil = useServerFn(updateClienteProfile);
   const salvarSenha = useServerFn(setClientePassword);
   const criarCliente = useServerFn(createCliente);
-  const [edit, setEdit] = useState<Record<string, { plano: Plano; status: "ativo" | "inativo" }>>({});
+  const [edit, setEdit] = useState<Record<string, { plano: Plano; status: "ativo" | "inativo" | "cortesia"; periodo_fim: string }>>({});
   const [perfil, setPerfil] = useState<
     Record<string, { nome: string; email: string; cpf: string; telefone: string; data_nascimento: string }>
   >({});
@@ -99,7 +99,7 @@ function UsuariosPage() {
   }, []);
 
   const mut = useMutation({
-    mutationFn: (v: { clienteId: string; plano: Plano; status: "ativo" | "inativo" }) =>
+    mutationFn: (v: { clienteId: string; plano: Plano; status: "ativo" | "inativo" | "cortesia"; periodo_fim: string | null }) =>
       salvar({ data: v }),
     onSuccess: () => {
       toast.success("Cliente atualizado");
@@ -158,7 +158,10 @@ function UsuariosPage() {
     onError: (e: any) => toast.error(traduzErro(e, "Erro ao criar usuário")),
   });
 
-  const handleSalvar = (c: any, cur: { plano: Plano; status: "ativo" | "inativo" }) => {
+  const handleSalvar = (
+    c: any,
+    cur: { plano: Plano; status: "ativo" | "inativo" | "cortesia"; periodo_fim: string },
+  ) => {
     const p = perfil[c.id] ?? {
       nome: c.nome ?? "",
       email: c.email ?? "",
@@ -174,7 +177,19 @@ function UsuariosPage() {
       telefone: p.telefone,
       data_nascimento: p.data_nascimento || null,
     });
-    mut.mutate({ clienteId: c.id, plano: cur.plano, status: cur.status });
+    mut.mutate({
+      clienteId: c.id,
+      plano: cur.plano,
+      status: cur.status,
+      periodo_fim: cur.periodo_fim ? new Date(cur.periodo_fim).toISOString() : null,
+    });
+  };
+
+  const diasRestantes = (periodoFim: string | null | undefined) => {
+    if (!periodoFim) return null;
+    const fim = new Date(periodoFim).getTime();
+    if (Number.isNaN(fim)) return null;
+    return Math.ceil((fim - Date.now()) / 86_400_000);
   };
 
   return (
@@ -302,8 +317,10 @@ function UsuariosPage() {
               const renderCard = (c: any) => {
               const cur = edit[c.id] ?? {
                 plano: (c.plano as Plano) ?? "start",
-                status: (c.status as "ativo" | "inativo") ?? "inativo",
+                status: (c.status as "ativo" | "inativo" | "cortesia") ?? "inativo",
+                periodo_fim: c.periodo_fim ? String(c.periodo_fim).slice(0, 10) : "",
               };
+              const dias = diasRestantes(c.periodo_fim);
               const pf = perfil[c.id] ?? {
                 nome: c.nome ?? "",
                 email: c.email ?? "",
@@ -343,20 +360,37 @@ function UsuariosPage() {
                             onChange={(e) =>
                               setEdit((s) => ({
                                 ...s,
-                                [c.id]: { ...cur, status: e.target.value as "ativo" | "inativo" },
+                                [c.id]: { ...cur, status: e.target.value as "ativo" | "inativo" | "cortesia" },
                               }))
                             }
                             className="rounded-md border border-border bg-input/40 px-2 py-1 text-sm"
                           >
                             <option value="ativo">ativo</option>
                             <option value="inativo">inativo</option>
+                            <option value="cortesia">cortesia</option>
                           </select>
                         </>
                       ) : (
                         <>
-                          <div className="text-right text-sm">
+                          <div className="flex flex-col items-end gap-1 text-right text-sm">
                             <p className="font-medium">{byPlano[(c.plano as Plano)]?.nome ?? "Sem plano"}</p>
-                            <p className="text-xs text-muted-foreground">{c.status}</p>
+                            <div className="flex flex-wrap items-center justify-end gap-1">
+                              {c.status === "cortesia" ? (
+                                <Badge className="bg-emerald-600 text-[10px] text-white hover:bg-emerald-600">
+                                  Cortesia
+                                </Badge>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">{c.status}</span>
+                              )}
+                              {dias !== null && (
+                                <Badge
+                                  variant={dias <= 0 ? "destructive" : "secondary"}
+                                  className="text-[10px]"
+                                >
+                                  {dias <= 0 ? "Vencido" : `Renova em ${dias}d`}
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                           <Button variant="outline" size="sm" onClick={() => setOpenId(c.id)}>
                             <Pencil className="mr-2 h-4 w-4" /> Editar
@@ -417,6 +451,47 @@ function UsuariosPage() {
                           />
                         </div>
                       </div>
+
+                      <div className="mt-4 border-t border-border/60 pt-4">
+                        <Label className="text-xs">Assinatura</Label>
+                        <div className="mt-2 flex flex-wrap items-end gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-[11px] text-muted-foreground">
+                              Renovação / vencimento
+                            </Label>
+                            <Input
+                              type="date"
+                              value={cur.periodo_fim}
+                              onChange={(e) =>
+                                setEdit((s) => ({ ...s, [c.id]: { ...cur, periodo_fim: e.target.value } }))
+                              }
+                              className="max-w-[180px]"
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            variant={cur.status === "cortesia" ? "default" : "outline"}
+                            size="sm"
+                            onClick={() =>
+                              setEdit((s) => ({
+                                ...s,
+                                [c.id]: {
+                                  ...cur,
+                                  status: cur.status === "cortesia" ? "ativo" : "cortesia",
+                                },
+                              }))
+                            }
+                          >
+                            <Gift className="mr-2 h-4 w-4" />
+                            {cur.status === "cortesia" ? "Cortesia ativada" : "Ativar cortesia"}
+                          </Button>
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          No modo cortesia o cliente tem acesso liberado sem cobrança. Defina a data
+                          para mostrar quantos dias faltam para renovar.
+                        </p>
+                      </div>
+
 
                       <div className="mt-4 border-t border-border/60 pt-4">
                         <Label className="text-xs">Nova senha</Label>

@@ -393,7 +393,7 @@ export const getMyAccess = createServerFn({ method: "GET" })
     if (isAdmin && !roles.includes("admin")) roles = [...roles, "admin"];
 
     const ativo =
-      sub?.status === "ativo" &&
+      (sub?.status === "ativo" || sub?.status === "cortesia") &&
       (!sub?.periodo_fim || new Date(sub.periodo_fim) > new Date());
 
     const plano: "start" | "pro" | "elite" | null = isStaff
@@ -652,6 +652,7 @@ export const listClientes = createServerFn({ method: "GET" })
           : roleMap.get(p.id) ?? [],
       plano: normalizeEmail(p.email) === ADMIN_EMAIL ? "elite" : subMap.get(p.id)?.plano ?? null,
       status: normalizeEmail(p.email) === ADMIN_EMAIL ? "ativo" : subMap.get(p.id)?.status ?? "inativo",
+      periodo_fim: normalizeEmail(p.email) === ADMIN_EMAIL ? null : subMap.get(p.id)?.periodo_fim ?? null,
     }));
   });
 
@@ -727,7 +728,12 @@ export const setClientePassword = createServerFn({ method: "POST" })
 export const setClientePlano = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
-    (d: { clienteId: string; plano: string; status: "ativo" | "inativo" }) => d,
+    (d: {
+      clienteId: string;
+      plano: string;
+      status: "ativo" | "inativo" | "cortesia";
+      periodo_fim?: string | null;
+    }) => d,
   )
   .handler(async ({ data, context }) => {
     const { userId, claims } = context;
@@ -741,6 +747,7 @@ export const setClientePlano = createServerFn({ method: "POST" })
         user_id: data.clienteId,
         plano: data.plano,
         status: data.status,
+        periodo_fim: data.periodo_fim ?? null,
         updated_at: new Date().toISOString(),
       },
       "user_id",
