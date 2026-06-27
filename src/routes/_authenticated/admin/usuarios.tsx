@@ -317,8 +317,10 @@ function UsuariosPage() {
               const renderCard = (c: any) => {
               const cur = edit[c.id] ?? {
                 plano: (c.plano as Plano) ?? "start",
-                status: (c.status as "ativo" | "inativo") ?? "inativo",
+                status: (c.status as "ativo" | "inativo" | "cortesia") ?? "inativo",
+                periodo_fim: c.periodo_fim ? String(c.periodo_fim).slice(0, 10) : "",
               };
+              const dias = diasRestantes(c.periodo_fim);
               const pf = perfil[c.id] ?? {
                 nome: c.nome ?? "",
                 email: c.email ?? "",
