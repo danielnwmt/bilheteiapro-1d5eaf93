@@ -57,6 +57,10 @@ function triggerDir() {
   return triggerFile.replace(/\/request$/, "");
 }
 
+async function wait(ms: number) {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 // Solicita ao watcher do host a instalação/renovação do certificado SSL.
 export const requestSsl = createServerFn({ method: "POST" })
   .inputValidator((data) =>
@@ -86,7 +90,7 @@ export const requestSsl = createServerFn({ method: "POST" })
         const last = Number(String(raw).trim());
         if (!Number.isFinite(last)) return false;
         const age = Math.floor(Date.now() / 1000) - last;
-        return age >= 0 && age < 60;
+        return age >= 0 && age < 180;
       } catch {
         return false;
       }
@@ -99,7 +103,11 @@ export const requestSsl = createServerFn({ method: "POST" })
       "utf8",
     );
 
-    const alive = await watcherIsAlive();
+    let alive = await watcherIsAlive();
+    if (!alive) {
+      await wait(7000);
+      alive = await watcherIsAlive();
+    }
     return { ok: true, watcher: alive, dominio: data.dominio };
   });
 
