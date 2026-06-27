@@ -372,9 +372,25 @@ function UsuariosPage() {
                         </>
                       ) : (
                         <>
-                          <div className="text-right text-sm">
+                          <div className="flex flex-col items-end gap-1 text-right text-sm">
                             <p className="font-medium">{byPlano[(c.plano as Plano)]?.nome ?? "Sem plano"}</p>
-                            <p className="text-xs text-muted-foreground">{c.status}</p>
+                            <div className="flex flex-wrap items-center justify-end gap-1">
+                              {c.status === "cortesia" ? (
+                                <Badge className="bg-emerald-600 text-[10px] text-white hover:bg-emerald-600">
+                                  Cortesia
+                                </Badge>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">{c.status}</span>
+                              )}
+                              {dias !== null && (
+                                <Badge
+                                  variant={dias <= 0 ? "destructive" : "secondary"}
+                                  className="text-[10px]"
+                                >
+                                  {dias <= 0 ? "Vencido" : `Renova em ${dias}d`}
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                           <Button variant="outline" size="sm" onClick={() => setOpenId(c.id)}>
                             <Pencil className="mr-2 h-4 w-4" /> Editar
