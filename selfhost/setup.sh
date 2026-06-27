@@ -402,6 +402,10 @@ else
   "${PSQL[@]}" -f /tmp/schema.sql >/dev/null
 fi
 
+echo ">> Reparando schema local e listagem de usuários..."
+$DC cp repair.sql db:/tmp/repair.sql
+"${PSQL[@]}" -f /tmp/repair.sql >/dev/null
+
 # ---------- 4) Sobe Data API + gateway (necessários para a API do Auth) ----------
 echo ">> Subindo Data API e gateway..."
 $DC up -d rest kong

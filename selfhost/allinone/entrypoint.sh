@@ -88,6 +88,9 @@ else
   psql -v ON_ERROR_STOP=1 -f "$SELF/schema.sql"
 fi
 
+echo ">> Reparando schema local e listagem de usuários..."
+psql -v ON_ERROR_STOP=1 -f "$SELF/repair.sql"
+
 echo ">> Garantindo admin padrão..."
 psql -v ON_ERROR_STOP=1 -v admin_email="$ADMIN_EMAIL" -v admin_password="$ADMIN_PASSWORD" -f "$SELF/direct-admin.sql"
 psql -v ON_ERROR_STOP=1 -v admin_email="$ADMIN_EMAIL" -f "$SELF/admin.sql"
