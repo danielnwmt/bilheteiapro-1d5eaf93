@@ -399,16 +399,48 @@ export const listClientes = createServerFn({ method: "GET" })
       requesterRoles = Array.from(new Set([...requesterRoles, "admin"]));
     }
 
-    const [profiles, roles, subs] = await Promise.all([
-      restSelect<any>(base, "profiles", { select: "*" }, "profiles (listClientes)"),
-      restSelect<any>(base, "user_roles", { select: "user_id, role" }, "user_roles (listClientes)"),
-      restSelect<any>(
-        base,
-        "subscriptions",
-        { select: "user_id, plano, status, periodo_fim" },
-        "subscriptions (listClientes)",
-      ),
+    // Leitura primária via cliente autenticado (RLS de admin permite ver tudo).
+    // Funciona no Lovable Cloud e no self-host independente do formato da
+    // SERVICE_ROLE_KEY. Caso falhe/volte vazio, faz fallback para o REST com
+    // a service role.
+    const readViaAuth = async (
+      table: "profiles" | "user_roles" | "subscriptions",
+      select: string,
+    ): Promise<any[]> => {
+      try {
+        const { data, error } = await context.supabase.from(table).select(select);
+        if (error) {
+          console.error(`listClientes: ${table} via auth falhou`, error.message);
+          return [];
+        }
+        return Array.isArray(data) ? data : [];
+      } catch (err) {
+        console.error(`listClientes: ${table} via auth lançou`, err);
+        return [];
+      }
+    };
+
+    let [profiles, roles, subs] = await Promise.all([
+      readViaAuth("profiles", "*"),
+      readViaAuth("user_roles", "user_id, role"),
+      readViaAuth("subscriptions", "user_id, plano, status, periodo_fim"),
     ]);
+
+    if (profiles.length === 0 || roles.length === 0) {
+      const [p2, r2, s2] = await Promise.all([
+        restSelect<any>(base, "profiles", { select: "*" }, "profiles (listClientes)"),
+        restSelect<any>(base, "user_roles", { select: "user_id, role" }, "user_roles (listClientes)"),
+        restSelect<any>(
+          base,
+          "subscriptions",
+          { select: "user_id, plano, status, periodo_fim" },
+          "subscriptions (listClientes)",
+        ),
+      ]);
+      if (profiles.length === 0) profiles = p2;
+      if (roles.length === 0) roles = r2;
+      if (subs.length === 0) subs = s2;
+    }
 
     const roleMap = new Map<string, string[]>();
     for (const r of roles) {
