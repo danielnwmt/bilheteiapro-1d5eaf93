@@ -56,10 +56,74 @@ function BackupPage() {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [restoreOpen, setRestoreOpen] = useState(false);
+  const [clientId, setClientId] = useState("");
+  const [clientSecret, setClientSecret] = useState("");
 
   const doBackup = useServerFn(createBackup);
   const doDrive = useServerFn(backupToDrive);
   const doRestore = useServerFn(restoreBackup);
+  const doStatus = useServerFn(getDriveStatus);
+  const doSaveCreds = useServerFn(saveDriveCredentials);
+  const doAuthUrl = useServerFn(getDriveAuthUrl);
+  const doExchange = useServerFn(exchangeDriveCode);
+  const doDisconnect = useServerFn(disconnectDrive);
+
+  const redirectUri =
+    typeof window !== "undefined" ? `${window.location.origin}/admin/backup` : "";
+
+  const statusQuery = useQuery({
+    queryKey: ["drive-status"],
+    queryFn: () => doStatus(),
+  });
+  const status = statusQuery.data;
+
+  const mutSaveCreds = useMutation({
+    mutationFn: () => doSaveCreds({ data: { clientId, clientSecret } }),
+    onSuccess: () => {
+      toast.success("Credenciais salvas.");
+      setClientSecret("");
+      statusQuery.refetch();
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar credenciais"),
+  });
+
+  const mutConnect = useMutation({
+    mutationFn: () => doAuthUrl({ data: { redirectUri } }),
+    onSuccess: (r: any) => {
+      window.location.href = r.url;
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao iniciar conexão"),
+  });
+
+  const mutExchange = useMutation({
+    mutationFn: (code: string) => doExchange({ data: { code, redirectUri } }),
+    onSuccess: () => {
+      toast.success("Google Drive conectado!");
+      statusQuery.refetch();
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao conectar", { duration: 10000 }),
+  });
+
+  const mutDisconnect = useMutation({
+    mutationFn: () => doDisconnect(),
+    onSuccess: () => {
+      toast.success("Google Drive desconectado.");
+      statusQuery.refetch();
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao desconectar"),
+  });
+
+  // Captura o ?code= retornado pelo Google após o consentimento.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    if (code) {
+      window.history.replaceState({}, "", "/admin/backup");
+      mutExchange.mutate(code);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
 
   const mutBaixar = useMutation({
     mutationFn: () => doBackup(),
