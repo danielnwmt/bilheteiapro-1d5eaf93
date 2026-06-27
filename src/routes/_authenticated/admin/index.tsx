@@ -97,7 +97,11 @@ function AdminDashboard() {
   });
 
   const planoLabel = (p: string) =>
-    p === "sem" ? "Sem plano" : byPlano?.[p as "start" | "pro" | "elite"]?.nome ?? p;
+    p === "sem"
+      ? "Sem plano"
+      : p === "cortesia"
+        ? "Cortesia"
+        : byPlano?.[p as "start" | "pro" | "elite"]?.nome ?? p;
 
   const pieData = stats
     ? Object.entries(stats.porPlano)
