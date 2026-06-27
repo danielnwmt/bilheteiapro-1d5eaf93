@@ -154,9 +154,8 @@ function Index() {
 
   const { byPlano } = usePlanos();
   const roles = access?.roles ?? [];
-  const isDefaultAdmin = currentEmail === ADMIN_EMAIL;
-  const isAdmin = roles.includes("admin") || isDefaultAdmin;
-  const isStaff = isAdmin || roles.includes("operador");
+  const isAdmin = access?.isAdmin ?? (roles.includes("admin") || currentEmail === ADMIN_EMAIL);
+  const isStaff = access?.isStaff ?? (isAdmin || roles.includes("operador"));
   const plano = access?.plano ?? null;
   const planoCfg = plano ? byPlano?.[plano] ?? null : null;
   const temAcesso = isStaff || !!plano;
