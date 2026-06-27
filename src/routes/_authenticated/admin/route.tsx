@@ -6,10 +6,10 @@ const ADMIN_EMAIL = "contato@protenexus.com";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   beforeLoad: async () => {
-    const { data: userData } = await supabase.auth.getUser();
-    const uid = userData.user?.id;
+    const { data: userData } = await supabase.auth.getSession();
+    const uid = userData.session?.user?.id;
     if (!uid) throw redirect({ to: "/auth" });
-    const isDefaultAdmin = String(userData.user?.email ?? "").trim().toLowerCase() === ADMIN_EMAIL;
+    const isDefaultAdmin = String(userData.session?.user?.email ?? "").trim().toLowerCase() === ADMIN_EMAIL;
     const { data: roles } = await supabase
       .from("user_roles")
       .select("role")
