@@ -505,6 +505,38 @@ export const listClientes = createServerFn({ method: "GET" })
       requesterRoles = Array.from(new Set([...requesterRoles, "admin"]));
     }
 
+    // Caminho primário e mais confiável: RPC SECURITY DEFINER chamada com a
+    // sessão autenticada do admin. Funciona igual no Cloud e no self-host porque
+    // usa o JWT válido do usuário logado e ignora RLS dentro da função. Se trouxer
+    // linhas, já vem tudo pronto (perfil + papéis + assinatura).
+    try {
+      const { data: rpcRows, error: rpcErr } = await context.supabase.rpc("admin_list_users");
+      if (rpcErr) {
+        console.error("listClientes: admin_list_users falhou", rpcErr.message);
+      } else if (Array.isArray(rpcRows) && rpcRows.length > 0) {
+        return rpcRows.map((r: any) => {
+          const isAdminEmail = normalizeEmail(r.email) === ADMIN_EMAIL;
+          return {
+            id: r.id,
+            nome: isAdminEmail ? "Administrador" : r.nome,
+            email: isAdminEmail ? ADMIN_EMAIL : r.email,
+            cpf: r.cpf ?? null,
+            data_nascimento: r.data_nascimento ?? null,
+            telefone: r.telefone ?? null,
+            created_at: r.created_at,
+            roles: isAdminEmail
+              ? Array.from(new Set([...(r.roles ?? []), "admin"]))
+              : r.roles ?? [],
+            plano: isAdminEmail ? "elite" : r.plano ?? null,
+            status: isAdminEmail ? "ativo" : r.status ?? "inativo",
+            periodo_fim: isAdminEmail ? null : r.periodo_fim ?? null,
+          };
+        });
+      }
+    } catch (err) {
+      console.error("listClientes: admin_list_users lançou", err);
+    }
+
     // Leitura primária via cliente autenticado (RLS de admin permite ver tudo).
     // Funciona no Lovable Cloud e no self-host independente do formato da
     // SERVICE_ROLE_KEY. Caso falhe/volte vazio, faz fallback para o REST com
