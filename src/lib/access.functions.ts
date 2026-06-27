@@ -1010,16 +1010,21 @@ export const getClientStats = createServerFn({ method: "GET" })
     const clientes = profiles.filter((p) => !staffIds.has(p.id));
 
     const now = new Date();
-    const isAtivo = (s: any) =>
-      s?.status === "ativo" && (!s?.periodo_fim || new Date(s.periodo_fim) > now);
+    const naoExpirou = (s: any) => !s?.periodo_fim || new Date(s.periodo_fim) > now;
 
-    const porPlano: Record<string, number> = { start: 0, pro: 0, elite: 0, sem: 0 };
+    const porPlano: Record<string, number> = { start: 0, pro: 0, elite: 0, cortesia: 0, sem: 0 };
     let ativos = 0;
+    let cortesias = 0;
     for (const c of clientes) {
       const s = subMap.get(c.id);
-      if (s && isAtivo(s)) {
+      if (s && s.status === "ativo" && naoExpirou(s)) {
         ativos += 1;
         porPlano[s.plano] = (porPlano[s.plano] ?? 0) + 1;
+      } else if (s && s.status === "cortesia" && naoExpirou(s)) {
+        // Cortesia tem acesso liberado, mas NÃO é plano pago nem gera receita
+        ativos += 1;
+        cortesias += 1;
+        porPlano.cortesia += 1;
       } else {
         porPlano.sem += 1;
       }
