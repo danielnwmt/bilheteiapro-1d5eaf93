@@ -195,6 +195,91 @@ function BackupPage() {
         </Card>
 
         <Card className="mb-6 p-6">
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <h2 className="font-semibold">Conexão com o Google Drive</h2>
+            {status?.connected ? (
+              <span className="flex items-center gap-1 text-sm text-primary">
+                <CheckCircle2 className="h-4 w-4" /> Conectado
+              </span>
+            ) : (
+              <span className="text-sm text-muted-foreground">Não conectado</span>
+            )}
+          </div>
+          <p className="mb-4 text-sm text-muted-foreground">
+            Conecte sua conta Google para enviar os backups (funciona em instalação
+            local). Crie credenciais OAuth no Google Cloud e use esta URL de redirecionamento:
+          </p>
+          <code className="mb-4 block break-all rounded bg-muted px-3 py-2 text-xs">
+            {redirectUri}
+          </code>
+
+          {status?.connected ? (
+            <Button
+              variant="outline"
+              disabled={mutDisconnect.isPending}
+              onClick={() => mutDisconnect.mutate()}
+            >
+              {mutDisconnect.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Unlink className="mr-2 h-4 w-4" />
+              )}
+              Desconectar
+            </Button>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="gdrive-id">Client ID</Label>
+                  <Input
+                    id="gdrive-id"
+                    value={clientId}
+                    onChange={(e) => setClientId(e.target.value)}
+                    placeholder="xxxxx.apps.googleusercontent.com"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="gdrive-secret">Client Secret</Label>
+                  <Input
+                    id="gdrive-secret"
+                    type="password"
+                    value={clientSecret}
+                    onChange={(e) => setClientSecret(e.target.value)}
+                    placeholder={status?.hasCredentials ? "•••••• (salvo)" : "GOCSPX-..."}
+                  />
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  variant="outline"
+                  disabled={mutSaveCreds.isPending || !clientId || !clientSecret}
+                  onClick={() => mutSaveCreds.mutate()}
+                >
+                  {mutSaveCreds.isPending ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <KeyRound className="mr-2 h-4 w-4" />
+                  )}
+                  Salvar credenciais
+                </Button>
+                <Button
+                  disabled={mutConnect.isPending || mutExchange.isPending || !status?.hasCredentials}
+                  onClick={() => mutConnect.mutate()}
+                >
+                  {mutConnect.isPending || mutExchange.isPending ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Link2 className="mr-2 h-4 w-4" />
+                  )}
+                  Conectar Google Drive
+                </Button>
+              </div>
+            </div>
+          )}
+        </Card>
+
+
+        <Card className="mb-6 p-6">
           <h2 className="mb-1 font-semibold">Fazer backup</h2>
           <p className="mb-4 text-sm text-muted-foreground">
             Envie para o Google Drive ou baixe o arquivo para guardar.
