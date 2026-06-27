@@ -51,16 +51,18 @@ function PlanosPage() {
   const [ciclo, setCiclo] = useState<Ciclo>("mensal");
 
   const infinitePayCheckout = useServerFn(createInfinitePayCheckout);
+  const asaasCheckout = useServerFn(createAsaasCheckout);
 
   const planoAtual = access?.plano ?? null;
   const checkoutCfg = checkout ? byPlano[checkout] : null;
 
-  async function pagar() {
+  async function pagar(gateway: "infinitepay" | "asaas") {
     if (!checkout) return;
     setCarregando(true);
     try {
       const returnUrl = `${window.location.origin}/?checkout=success`;
-      const result = await infinitePayCheckout({ data: { plano: checkout, ciclo, returnUrl } });
+      const fn = gateway === "asaas" ? asaasCheckout : infinitePayCheckout;
+      const result = await fn({ data: { plano: checkout, ciclo, returnUrl } });
       if ("error" in result) {
         toast.error(result.error);
         return;
