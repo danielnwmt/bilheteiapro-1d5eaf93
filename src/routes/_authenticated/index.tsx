@@ -153,8 +153,8 @@ function Index() {
 
   // Volta do checkout: atualiza o plano.
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setCurrentEmail(String(data.user?.email ?? "").trim().toLowerCase());
+    supabase.auth.getSession().then(({ data }) => {
+      setCurrentEmail(String(data.session?.user?.email ?? "").trim().toLowerCase());
     });
 
     if (typeof window === "undefined") return;

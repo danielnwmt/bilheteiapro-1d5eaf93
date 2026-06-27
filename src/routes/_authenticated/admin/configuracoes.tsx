@@ -56,8 +56,8 @@ function ConfiguracoesPage() {
   const [draft, setDraft] = useState<Record<Plano, PlanoConfig>>({} as Record<Plano, PlanoConfig>);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setCurrentEmail(String(data.user?.email ?? "").trim().toLowerCase());
+    supabase.auth.getSession().then(({ data }) => {
+      setCurrentEmail(String(data.session?.user?.email ?? "").trim().toLowerCase());
     });
   }, []);
 
