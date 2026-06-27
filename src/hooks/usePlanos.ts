@@ -31,7 +31,9 @@ export function usePlanos() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("plano_config")
-        .select("*")
+        .select(
+          "plano, nome, preco, descricao, nivel, historico_dias, ligas, recursos, created_at, updated_at, desconto_semestral, desconto_anual",
+        )
         .order("nivel", { ascending: true });
       if (error) throw error;
       return (data ?? []).map(mapRow);
