@@ -603,6 +603,7 @@ export const updateClienteProfile = createServerFn({ method: "POST" })
       nome: string;
       email: string;
       cpf: string;
+      telefone?: string;
       data_nascimento: string | null;
     }) => d,
   )
@@ -615,6 +616,7 @@ export const updateClienteProfile = createServerFn({ method: "POST" })
       nome: data.nome.trim() || null,
       email: data.email.trim() || null,
       cpf: data.cpf.replace(/\D/g, "") || null,
+      telefone: (data.telefone ?? "").replace(/\D/g, "") || null,
       data_nascimento: data.data_nascimento || null,
       updated_at: new Date().toISOString(),
     };
@@ -694,6 +696,7 @@ export const createCliente = createServerFn({ method: "POST" })
       email: string;
       senha: string;
       cpf?: string;
+      telefone?: string;
       data_nascimento?: string | null;
       plano: string;
       status: "ativo" | "inativo";
@@ -719,6 +722,7 @@ export const createCliente = createServerFn({ method: "POST" })
         user_metadata: {
           nome: data.nome.trim(),
           cpf: (data.cpf ?? "").replace(/\D/g, ""),
+          telefone: (data.telefone ?? "").replace(/\D/g, ""),
           data_nascimento: data.data_nascimento || "",
         },
       }),
@@ -732,6 +736,7 @@ export const createCliente = createServerFn({ method: "POST" })
     if (!newId) throw new Error("Não foi possível criar o usuário.");
 
     const cpf = (data.cpf ?? "").replace(/\D/g, "") || null;
+    const telefone = (data.telefone ?? "").replace(/\D/g, "") || null;
     try {
       await restUpsert(
         base,
@@ -741,6 +746,7 @@ export const createCliente = createServerFn({ method: "POST" })
           nome: data.nome.trim() || null,
           email: data.email.trim() || null,
           cpf,
+          telefone,
           data_nascimento: data.data_nascimento || null,
           updated_at: new Date().toISOString(),
         },
