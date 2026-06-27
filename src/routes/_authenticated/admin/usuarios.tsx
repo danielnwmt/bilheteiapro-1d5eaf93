@@ -47,6 +47,17 @@ function UsuariosPage() {
     status: "ativo" as "ativo" | "inativo",
   });
 
+  const traduzErro = (e: any, fallback: string) => {
+    const m = String(e?.message ?? "").toLowerCase();
+    if (m.includes("weak") || m.includes("easy to guess") || m.includes("pwned") || m.includes("leaked")) {
+      return "Senha muito fraca ou já vazada. Escolha uma senha mais forte (evite sequências como admin1234).";
+    }
+    if (m.includes("should be at least") || m.includes("at least 6")) {
+      return "A senha deve ter pelo menos 6 caracteres.";
+    }
+    return e?.message ?? fallback;
+  };
+
   const formatCpf = (v: string) =>
     v
       .replace(/\D/g, "")
