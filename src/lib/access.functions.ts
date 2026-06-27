@@ -652,6 +652,7 @@ export const listClientes = createServerFn({ method: "GET" })
           : roleMap.get(p.id) ?? [],
       plano: normalizeEmail(p.email) === ADMIN_EMAIL ? "elite" : subMap.get(p.id)?.plano ?? null,
       status: normalizeEmail(p.email) === ADMIN_EMAIL ? "ativo" : subMap.get(p.id)?.status ?? "inativo",
+      periodo_fim: normalizeEmail(p.email) === ADMIN_EMAIL ? null : subMap.get(p.id)?.periodo_fim ?? null,
     }));
   });
 
