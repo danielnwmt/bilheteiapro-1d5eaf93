@@ -5,15 +5,6 @@ export type AppRole = "admin" | "operador" | "cliente";
 
 export const ADMIN_EMAIL = "contato@protenexus.com";
 
-const EMPTY_STATS = {
-  totalClientes: 0,
-  ativos: 0,
-  inativos: 0,
-  porPlano: { start: 0, pro: 0, elite: 0, sem: 0 },
-  cadastrosPorMes: [] as { mes: string; total: number }[],
-  faturamentoPorMes: [] as { mes: string; total: number }[],
-};
-
 function normalizeEmail(value: unknown) {
   return String(value ?? "").trim().toLowerCase();
 }
