@@ -1078,6 +1078,7 @@ export const getClientStats = createServerFn({ method: "GET" })
     return {
       totalClientes: clientes.length,
       ativos,
+      cortesias,
       inativos: clientes.length - ativos,
       porPlano,
       cadastrosPorMes: meses,
