@@ -272,8 +272,7 @@ CREATE TABLE public.subscriptions (
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   plano text NOT NULL,
   status text NOT NULL DEFAULT 'inativo',
-  stripe_customer_id text,
-  stripe_subscription_id text,
+  external_subscription_id text,
   periodo_fim timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
@@ -415,11 +414,8 @@ ALTER POLICY "Admin gerencia config" ON public.system_config
 
 -- Drop the API-exposed copies
 DROP FUNCTION public.has_role(uuid, public.app_role);
-DROP FUNCTION public.plano_ativo(uuid);-- Hide raw Stripe identifiers from the user-facing Data API.
--- Only the service-role (server-side) keeps access to these columns.
-REVOKE SELECT (stripe_customer_id, stripe_subscription_id) ON public.subscriptions FROM authenticated;
-REVOKE SELECT (stripe_customer_id, stripe_subscription_id) ON public.subscriptions FROM anon;-- SUBSCRIPTIONS: drop the broad grants and re-grant column-scoped access that
--- excludes the raw Stripe identifiers for the authenticated (Data API) role.
+DROP FUNCTION public.plano_ativo(uuid);
+-- SUBSCRIPTIONS: drop the broad grants and re-grant column-scoped access.
 REVOKE ALL ON public.subscriptions FROM anon;
 REVOKE ALL ON public.subscriptions FROM authenticated;
 
