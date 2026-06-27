@@ -1048,6 +1048,21 @@ export const getClientStats = createServerFn({ method: "GET" })
       faturamentoPorMes.push({ mes: label, total: Math.round(total * 100) / 100 });
     }
 
+    const hojeIni = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    let vendasDia = 0;
+    let faturamentoDia = 0;
+    let recebidos = 0;
+    for (const s of subs) {
+      if (!clienteIds.has(s.user_id)) continue;
+      const preco = precoMap[s.plano] ?? 0;
+      if (s.status === "ativo") recebidos += preco;
+      const criada = s.created_at ? new Date(s.created_at) : null;
+      if (criada && criada >= hojeIni) {
+        vendasDia += 1;
+        faturamentoDia += preco;
+      }
+    }
+
     return {
       totalClientes: clientes.length,
       ativos,
@@ -1055,6 +1070,9 @@ export const getClientStats = createServerFn({ method: "GET" })
       porPlano,
       cadastrosPorMes: meses,
       faturamentoPorMes,
+      vendasDia,
+      faturamentoDia: Math.round(faturamentoDia * 100) / 100,
+      recebidos: Math.round(recebidos * 100) / 100,
     };
   });
 
