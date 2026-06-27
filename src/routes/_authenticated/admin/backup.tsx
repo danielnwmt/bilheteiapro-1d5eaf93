@@ -11,6 +11,8 @@ import {
   getDriveAuthUrl,
   exchangeDriveCode,
   disconnectDrive,
+  getBackupSchedule,
+  saveBackupSchedule,
   type BackupFile,
 } from "@/lib/backup.functions";
 import { Button } from "@/components/ui/button";
@@ -32,6 +34,7 @@ import {
   Link2,
   Unlink,
   CheckCircle2,
+  Clock,
 } from "lucide-react";
 
 
@@ -59,6 +62,12 @@ function BackupPage() {
   const [clientId, setClientId] = useState("");
   const [clientSecret, setClientSecret] = useState("");
 
+  // Agendamento do backup automático.
+  const [autoEnabled, setAutoEnabled] = useState(false);
+  const [autoTime, setAutoTime] = useState("03:00");
+  const [autoFreq, setAutoFreq] = useState<"daily" | "weekly">("daily");
+  const [autoWeekday, setAutoWeekday] = useState(0);
+
   const doBackup = useServerFn(createBackup);
   const doDrive = useServerFn(backupToDrive);
   const doRestore = useServerFn(restoreBackup);
@@ -67,6 +76,8 @@ function BackupPage() {
   const doAuthUrl = useServerFn(getDriveAuthUrl);
   const doExchange = useServerFn(exchangeDriveCode);
   const doDisconnect = useServerFn(disconnectDrive);
+  const doGetSchedule = useServerFn(getBackupSchedule);
+  const doSaveSchedule = useServerFn(saveBackupSchedule);
 
   const redirectUri =
     typeof window !== "undefined" ? `${window.location.origin}/admin/backup` : "";
@@ -76,6 +87,34 @@ function BackupPage() {
     queryFn: () => doStatus(),
   });
   const status = statusQuery.data;
+
+  const scheduleQuery = useQuery({
+    queryKey: ["backup-schedule"],
+    queryFn: () => doGetSchedule(),
+  });
+  useEffect(() => {
+    const s = scheduleQuery.data;
+    if (s) {
+      setAutoEnabled(s.enabled);
+      setAutoTime(s.time);
+      setAutoFreq(s.freq);
+      setAutoWeekday(s.weekday);
+    }
+  }, [scheduleQuery.data]);
+
+  const mutSchedule = useMutation({
+    mutationFn: () =>
+      doSaveSchedule({
+        data: { enabled: autoEnabled, time: autoTime, freq: autoFreq, weekday: autoWeekday },
+      }),
+    onSuccess: () => {
+      toast.success("Agendamento salvo.");
+      scheduleQuery.refetch();
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar agendamento"),
+  });
+
+
 
   const mutSaveCreds = useMutation({
     mutationFn: () => doSaveCreds({ data: { clientId, clientSecret } }),
@@ -303,6 +342,86 @@ function BackupPage() {
             </Button>
           </div>
         </Card>
+
+        <Card className="mb-6 p-6">
+          <div className="mb-1 flex items-center gap-2">
+            <Clock className="h-4 w-4" />
+            <h2 className="font-semibold">Backup automático</h2>
+          </div>
+          <p className="mb-4 text-sm text-muted-foreground">
+            Define o horário (horário de Brasília) em que o sistema gera e envia o backup ao Google
+            Drive automaticamente.
+          </p>
+
+          <label className="mb-4 flex items-center gap-3">
+            <input
+              type="checkbox"
+              className="h-4 w-4"
+              checked={autoEnabled}
+              onChange={(e) => setAutoEnabled(e.target.checked)}
+            />
+            <span className="text-sm">Ativar backup automático</span>
+          </label>
+
+          <div className="mb-4 grid gap-4 sm:grid-cols-3">
+            <div>
+              <Label className="mb-1 block text-xs">Horário</Label>
+              <Input
+                type="time"
+                value={autoTime}
+                onChange={(e) => setAutoTime(e.target.value)}
+                disabled={!autoEnabled}
+              />
+            </div>
+            <div>
+              <Label className="mb-1 block text-xs">Frequência</Label>
+              <select
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                value={autoFreq}
+                onChange={(e) => setAutoFreq(e.target.value as "daily" | "weekly")}
+                disabled={!autoEnabled}
+              >
+                <option value="daily">Todos os dias</option>
+                <option value="weekly">Semanal</option>
+              </select>
+            </div>
+            <div>
+              <Label className="mb-1 block text-xs">Dia da semana</Label>
+              <select
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                value={autoWeekday}
+                onChange={(e) => setAutoWeekday(Number(e.target.value))}
+                disabled={!autoEnabled || autoFreq !== "weekly"}
+              >
+                {["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"].map(
+                  (d, i) => (
+                    <option key={i} value={i}>
+                      {d}
+                    </option>
+                  ),
+                )}
+              </select>
+            </div>
+          </div>
+
+          {scheduleQuery.data?.lastRun && (
+            <p className="mb-3 text-xs text-muted-foreground">
+              Último backup automático:{" "}
+              {new Date(scheduleQuery.data.lastRun).toLocaleString("pt-BR")}
+            </p>
+          )}
+
+          <Button disabled={mutSchedule.isPending} onClick={() => mutSchedule.mutate()}>
+            {mutSchedule.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <CheckCircle2 className="mr-2 h-4 w-4" />
+            )}
+            Salvar agendamento
+          </Button>
+        </Card>
+
+
 
         <Card className="p-6">
           <h2 className="mb-1 font-semibold">Restaurar backup</h2>

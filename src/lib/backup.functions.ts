@@ -343,62 +343,154 @@ export const restoreBackup = createServerFn({ method: "POST" })
   });
 
 // ---- Enviar backup para o Google Drive -------------------------------------
+// Executa o backup e envia ao Drive (OAuth próprio ou conector Lovable).
+async function performDriveBackup(base: { url: string; key: string }) {
+  const backup = await montarBackup(base);
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const filename = `bilheteia-backup-${stamp}.json`;
+  const content = JSON.stringify(backup, null, 2);
+
+  // 1) OAuth próprio (self-host / 100% local)
+  const accessToken = await getDriveAccessToken(base);
+  if (accessToken) {
+    const out = await uploadToDriveOAuth(accessToken, filename, content);
+    return { ok: true, fileId: out.id, filename: out.name ?? filename, via: "oauth" };
+  }
+
+  // 2) Conector da Lovable (fallback)
+  const lovableKey = process.env.LOVABLE_API_KEY;
+  const driveKey = process.env.GOOGLE_DRIVE_API_KEY;
+  if (!lovableKey || !driveKey) {
+    throw new Error(
+      "Google Drive não está conectado. Conecte sua conta Google ou use 'Baixar backup'.",
+    );
+  }
+
+  const boundary = "----bilheteia" + Math.random().toString(16).slice(2);
+  const metadata = { name: filename, mimeType: "application/json" };
+  const body =
+    `--${boundary}\r\n` +
+    `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
+    `${JSON.stringify(metadata)}\r\n` +
+    `--${boundary}\r\n` +
+    `Content-Type: application/json\r\n\r\n` +
+    `${content}\r\n` +
+    `--${boundary}--`;
+
+  const res = await fetch(
+    "https://connector-gateway.lovable.dev/google_drive/upload/drive/v3/files?uploadType=multipart",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${lovableKey}`,
+        "X-Connection-Api-Key": driveKey,
+        "Content-Type": `multipart/related; boundary=${boundary}`,
+      },
+      body,
+    },
+  );
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Falha ao enviar para o Drive: ${text || res.status}`);
+  }
+  const out = (await res.json()) as { id?: string; name?: string };
+  return { ok: true, fileId: out.id, filename: out.name ?? filename, via: "lovable" };
+}
+
+// ---- Enviar backup para o Google Drive (manual) ----------------------------
 export const backupToDrive = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { userId, claims } = context;
     const base = restBase();
     await assertAdmin(base, userId, getAuthEmail(claims));
-
-    const backup = await montarBackup(base);
-    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const filename = `bilheteia-backup-${stamp}.json`;
-    const content = JSON.stringify(backup, null, 2);
-
-    // 1) OAuth próprio (self-host / 100% local)
-    const accessToken = await getDriveAccessToken(base);
-    if (accessToken) {
-      const out = await uploadToDriveOAuth(accessToken, filename, content);
-      return { ok: true, fileId: out.id, filename: out.name ?? filename, via: "oauth" };
-    }
-
-    // 2) Conector da Lovable (fallback)
-    const lovableKey = process.env.LOVABLE_API_KEY;
-    const driveKey = process.env.GOOGLE_DRIVE_API_KEY;
-    if (!lovableKey || !driveKey) {
-      throw new Error(
-        "Google Drive não está conectado. Conecte sua conta Google ou use 'Baixar backup'.",
-      );
-    }
-
-    const boundary = "----bilheteia" + Math.random().toString(16).slice(2);
-    const metadata = { name: filename, mimeType: "application/json" };
-    const body =
-      `--${boundary}\r\n` +
-      `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
-      `${JSON.stringify(metadata)}\r\n` +
-      `--${boundary}\r\n` +
-      `Content-Type: application/json\r\n\r\n` +
-      `${content}\r\n` +
-      `--${boundary}--`;
-
-    const res = await fetch(
-      "https://connector-gateway.lovable.dev/google_drive/upload/drive/v3/files?uploadType=multipart",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${lovableKey}`,
-          "X-Connection-Api-Key": driveKey,
-          "Content-Type": `multipart/related; boundary=${boundary}`,
-        },
-        body,
-      },
-    );
-
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      throw new Error(`Falha ao enviar para o Drive: ${text || res.status}`);
-    }
-    const out = (await res.json()) as { id?: string; name?: string };
-    return { ok: true, fileId: out.id, filename: out.name ?? filename, via: "lovable" };
+    return performDriveBackup(base);
   });
+
+// ============================================================================
+// Backup automático agendado
+// ============================================================================
+const CFG_AUTO_ENABLED = "backup_auto_enabled";
+const CFG_AUTO_TIME = "backup_auto_time"; // "HH:MM" no horário de Brasília
+const CFG_AUTO_FREQ = "backup_auto_freq"; // "daily" | "weekly"
+const CFG_AUTO_WEEKDAY = "backup_auto_weekday"; // 0 (dom) .. 6 (sáb)
+const CFG_AUTO_LAST = "backup_auto_last"; // ISO do último envio automático
+
+export type BackupSchedule = {
+  enabled: boolean;
+  time: string;
+  freq: "daily" | "weekly";
+  weekday: number;
+  lastRun: string | null;
+};
+
+// Horário atual em Brasília (UTC-3, sem horário de verão).
+function brasiliaNow() {
+  const now = new Date();
+  const br = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+  return {
+    hour: br.getUTCHours(),
+    minute: br.getUTCMinutes(),
+    weekday: br.getUTCDay(),
+    dateKey: br.toISOString().slice(0, 10),
+    iso: now.toISOString(),
+  };
+}
+
+export const getBackupSchedule = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<BackupSchedule> => {
+    const { userId, claims } = context;
+    const base = restBase();
+    await assertAdmin(base, userId, getAuthEmail(claims));
+    return {
+      enabled: (await cfgGet(base, CFG_AUTO_ENABLED)) === "1",
+      time: (await cfgGet(base, CFG_AUTO_TIME)) ?? "03:00",
+      freq: ((await cfgGet(base, CFG_AUTO_FREQ)) as "daily" | "weekly") ?? "daily",
+      weekday: Number((await cfgGet(base, CFG_AUTO_WEEKDAY)) ?? "0"),
+      lastRun: await cfgGet(base, CFG_AUTO_LAST),
+    };
+  });
+
+export const saveBackupSchedule = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (d: { enabled: boolean; time: string; freq: "daily" | "weekly"; weekday: number }) => d,
+  )
+  .handler(async ({ data, context }) => {
+    const { userId, claims } = context;
+    const base = restBase();
+    await assertAdmin(base, userId, getAuthEmail(claims));
+
+    if (!/^\d{2}:\d{2}$/.test(data.time)) throw new Error("Horário inválido.");
+    await cfgSet(base, CFG_AUTO_ENABLED, data.enabled ? "1" : "0");
+    await cfgSet(base, CFG_AUTO_TIME, data.time);
+    await cfgSet(base, CFG_AUTO_FREQ, data.freq === "weekly" ? "weekly" : "daily");
+    await cfgSet(base, CFG_AUTO_WEEKDAY, String(data.weekday ?? 0));
+    return { ok: true };
+  });
+
+// Chamado pelo cron (endpoint público). Verifica o horário e dispara o envio.
+// Não exige auth de usuário — roda com a service role no servidor.
+export async function runScheduledBackup(): Promise<{ ran: boolean; reason?: string; result?: any }> {
+  const base = restBase();
+  if ((await cfgGet(base, CFG_AUTO_ENABLED)) !== "1") return { ran: false, reason: "desativado" };
+
+  const time = (await cfgGet(base, CFG_AUTO_TIME)) ?? "03:00";
+  const freq = (await cfgGet(base, CFG_AUTO_FREQ)) ?? "daily";
+  const weekday = Number((await cfgGet(base, CFG_AUTO_WEEKDAY)) ?? "0");
+  const [h] = time.split(":").map(Number);
+
+  const now = brasiliaNow();
+  if (now.hour !== h) return { ran: false, reason: "fora do horário" };
+  if (freq === "weekly" && now.weekday !== weekday) return { ran: false, reason: "outro dia" };
+
+  // Evita rodar mais de uma vez no mesmo dia.
+  const last = await cfgGet(base, CFG_AUTO_LAST);
+  if (last && last.slice(0, 10) === now.dateKey) return { ran: false, reason: "já executado hoje" };
+
+  const result = await performDriveBackup(base);
+  await cfgSet(base, CFG_AUTO_LAST, now.iso);
+  return { ran: true, result };
+}
