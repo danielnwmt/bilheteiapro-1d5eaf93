@@ -85,5 +85,16 @@ while true; do
       fi
     fi
   fi
+
+  # Pedido de instalação de SSL vindo do painel.
+  if [ -f "$SSL_REQUEST_FILE" ]; then
+    CUR_SSL="$(cat "$SSL_REQUEST_FILE" 2>/dev/null || true)"
+    if [ -n "$CUR_SSL" ] && [ "$CUR_SSL" != "$LAST_SSL" ]; then
+      LAST_SSL="$CUR_SSL"
+      echo ">> [$(date)] SSL solicitado pelo painel."
+      install_ssl "$CUR_SSL"
+    fi
+  fi
+
   sleep 5
 done
