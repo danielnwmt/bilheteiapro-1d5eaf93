@@ -106,6 +106,11 @@ GRANT ALL ON public.sync_state TO service_role;
 
 ALTER TABLE public.sync_state ENABLE ROW LEVEL SECURITY;
 
+CREATE POLICY "Auth sync state access" ON public.sync_state
+FOR ALL TO authenticated
+USING (true)
+WITH CHECK (true);
+
 -- Sem políticas públicas: apenas service_role (cron/worker) acessa.
 
 INSERT INTO public.sync_state (id, last_sync_at) VALUES ('football', NULL)
@@ -491,6 +496,7 @@ CREATE TABLE public.banca_entradas (
   user_id UUID NOT NULL REFERENCES auth.users ON DELETE CASCADE,
   data DATE NOT NULL DEFAULT current_date,
   descricao TEXT NOT NULL,
+  esporte TEXT NOT NULL DEFAULT 'futebol',
   valor NUMERIC(12,2) NOT NULL DEFAULT 0,
   odd NUMERIC(8,2) NOT NULL DEFAULT 1,
   resultado TEXT NOT NULL DEFAULT 'pendente',
@@ -513,6 +519,32 @@ BEFORE UPDATE ON public.banca_entradas
 FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 CREATE INDEX idx_banca_entradas_user ON public.banca_entradas (user_id, data DESC);
+
+CREATE TABLE public.banca_depositos (
+  id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES auth.users ON DELETE CASCADE,
+  data DATE NOT NULL DEFAULT current_date,
+  descricao TEXT NOT NULL DEFAULT 'Aporte',
+  valor NUMERIC(12,2) NOT NULL DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.banca_depositos TO authenticated;
+GRANT ALL ON public.banca_depositos TO service_role;
+
+ALTER TABLE public.banca_depositos ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users manage own banca deposits"
+ON public.banca_depositos FOR ALL
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
+
+CREATE TRIGGER update_banca_depositos_updated_at
+BEFORE UPDATE ON public.banca_depositos
+FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+CREATE INDEX idx_banca_depositos_user ON public.banca_depositos (user_id, data DESC);
 
 CREATE OR REPLACE FUNCTION public.handle_new_user()
  RETURNS trigger
