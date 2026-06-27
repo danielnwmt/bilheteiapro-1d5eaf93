@@ -54,6 +54,15 @@ type Ticket = {
   observacoes: string;
 };
 
+type JogoDia = {
+  id: string;
+  liga: string | null;
+  time_casa: string;
+  time_fora: string;
+  inicio: string;
+  status: string;
+};
+
 const CASAS = [
   {
     id: "bet365",
