@@ -23,8 +23,54 @@ mkdir -p "$TRIGGER_DIR"
 chmod 777 "$TRIGGER_DIR" 2>/dev/null || true
 LAST=""
 [ -f "$TRIGGER_FILE" ] && LAST="$(cat "$TRIGGER_FILE" 2>/dev/null || true)"
+# Não marque o pedido SSL existente como processado no boot. Se o usuário clicou
+# enquanto o serviço estava parado, o watcher precisa executar assim que subir.
 LAST_SSL=""
-[ -f "$SSL_REQUEST_FILE" ] && LAST_SSL="$(cat "$SSL_REQUEST_FILE" 2>/dev/null || true)"
+
+app_port() {
+  local port="${APP_PORT:-${PORT:-3000}}"
+  if [ -f "$APP_DIR/.env" ]; then
+    port="$(grep -E '^(APP_PORT|PORT)=' "$APP_DIR/.env" | tail -n1 | cut -d= -f2- | tr -d '"' || true)"
+    [ -z "$port" ] && port="3000"
+  fi
+  echo "$port"
+}
+
+ensure_host_nginx_proxy() {
+  local dominio="$1"
+  local port
+  port="$(app_port)"
+
+  if ! command -v nginx >/dev/null 2>&1; then
+    echo ">> Instalando nginx no host..."
+    apt-get update -y
+    apt-get install -y nginx
+  fi
+
+  mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
+  cat > "/etc/nginx/sites-available/bilheteia-$dominio.conf" <<EOF
+server {
+    listen 80;
+    server_name $dominio;
+
+    location / {
+        proxy_pass http://127.0.0.1:$port;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+EOF
+  ln -sf "/etc/nginx/sites-available/bilheteia-$dominio.conf" "/etc/nginx/sites-enabled/bilheteia-$dominio.conf"
+  rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
+  nginx -t
+  systemctl enable --now nginx 2>/dev/null || true
+  systemctl reload nginx 2>/dev/null || nginx -s reload 2>/dev/null || true
+}
 
 # Instala/renova o certificado SSL via certbot a partir do pedido do painel.
 install_ssl() {
@@ -38,6 +84,8 @@ install_ssl() {
   fi
 
   echo "instalando SSL para $dominio $(date)" > "$SSL_STATUS_FILE"
+  date +%s > "$HEARTBEAT_FILE" 2>/dev/null || true
+  set +e
   {
     echo ">> [$(date)] Instalando SSL para $dominio ($email)"
     if ! command -v certbot >/dev/null 2>&1; then
@@ -46,24 +94,39 @@ install_ssl() {
         (command -v snap >/dev/null 2>&1 && snap install --classic certbot) || true
     fi
 
-    if command -v nginx >/dev/null 2>&1; then
-      certbot --nginx --non-interactive --agree-tos -m "$email" -d "$dominio" --redirect
-    else
-      # Sem nginx no host: emite em modo standalone (porta 80 precisa estar livre).
-      certbot certonly --standalone --non-interactive --agree-tos -m "$email" -d "$dominio"
+    if ! command -v certbot >/dev/null 2>&1; then
+      echo ">> ERRO: certbot não foi instalado."
+      exit 1
     fi
-  } >> "$SSL_LOG_FILE" 2>&1
 
-  if [ $? -eq 0 ]; then
+    ensure_host_nginx_proxy "$dominio"
+    certbot --nginx --non-interactive --agree-tos -m "$email" -d "$dominio" --redirect
+  } >> "$SSL_LOG_FILE" 2>&1
+  local code=$?
+  set -e
+
+  if [ $code -eq 0 ]; then
     echo "ok: SSL instalado para $dominio $(date)" > "$SSL_STATUS_FILE"
   else
     echo "falha ao instalar SSL para $dominio $(date) — veja $SSL_LOG_FILE" > "$SSL_STATUS_FILE"
   fi
+  date +%s > "$HEARTBEAT_FILE" 2>/dev/null || true
 }
 
 echo ">> Watcher de atualização ativo. Monitorando $TRIGGER_FILE"
 # Sinaliza imediatamente que o watcher está vivo (o painel checa este arquivo).
 date +%s > "$HEARTBEAT_FILE" 2>/dev/null || true
+
+# Mantém o pulso vivo mesmo enquanto deploy.sh/certbot estão rodando.
+heartbeat_loop() {
+  while true; do
+    date +%s > "$HEARTBEAT_FILE" 2>/dev/null || true
+    sleep 10
+  done
+}
+heartbeat_loop &
+HEARTBEAT_PID=$!
+trap 'kill "$HEARTBEAT_PID" 2>/dev/null || true' EXIT
 
 while true; do
   # Pulso de vida: o botão "Atualizar sistema" usa isto para saber que o
