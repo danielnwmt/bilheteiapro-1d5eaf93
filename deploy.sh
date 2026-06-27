@@ -29,6 +29,91 @@ cd "$APP_DIR"
 if [ "${BILHETEIA_CLOUD:-0}" != "1" ] && [ -f "$APP_DIR/docker-compose.yml" ]; then
   echo ">> Modo local (tudo-em-um) detectado: Postgres + Auth + API + app num só container..."
 
+  # Helpers para manter o backend 100% local com chaves válidas.
+  b64() { openssl base64 -A | tr '+/' '-_' | tr -d '='; }
+  make_jwt() {
+    local role="$1" secret="$2"
+    local now exp header payload h p sig
+    now=$(date +%s); exp=$((now + 60*60*24*365*10))
+    header='{"alg":"HS256","typ":"JWT"}'
+    payload="{\"role\":\"$role\",\"iss\":\"supabase\",\"iat\":$now,\"exp\":$exp}"
+    h=$(printf '%s' "$header" | b64)
+    p=$(printf '%s' "$payload" | b64)
+    sig=$(printf '%s' "$h.$p" | openssl dgst -binary -sha256 -hmac "$secret" | b64)
+    echo "$h.$p.$sig"
+  }
+  rand() { openssl rand -hex "${1:-24}"; }
+
+  save_env_value() {
+    local key="$1" value="$2"
+    if grep -q "^${key}=" "$APP_DIR/.env" 2>/dev/null; then
+      sed -i.bak "s|^${key}=.*|${key}=${value}|" "$APP_DIR/.env"
+    else
+      printf '%s=%s\n' "$key" "$value" >> "$APP_DIR/.env"
+    fi
+  }
+
+  env_value() {
+    local key="$1"
+    grep -E "^${key}=" "$APP_DIR/.env" 2>/dev/null | tail -n1 | cut -d= -f2- || true
+  }
+
+  ensure_local_env() {
+    touch "$APP_DIR/.env"
+    chmod 600 "$APP_DIR/.env" 2>/dev/null || true
+
+    local jwt anon service pgpass ingest admin_email admin_password app_port public_url hostaddr ip4 ip6
+    jwt="$(env_value JWT_SECRET)"
+    [ -n "$jwt" ] || jwt="$(rand 32)"
+    save_env_value JWT_SECRET "$jwt"
+
+    pgpass="$(env_value POSTGRES_PASSWORD)"
+    [ -n "$pgpass" ] || pgpass="$(rand 16)"
+    save_env_value POSTGRES_PASSWORD "$pgpass"
+
+    ingest="$(env_value INGEST_SECRET)"
+    [ -n "$ingest" ] || ingest="$(rand 24)"
+    save_env_value INGEST_SECRET "$ingest"
+
+    admin_email="$(env_value ADMIN_EMAIL)"
+    [ -n "$admin_email" ] || admin_email="contato@protenexus.com"
+    save_env_value ADMIN_EMAIL "$admin_email"
+
+    admin_password="$(env_value ADMIN_PASSWORD)"
+    [ -n "$admin_password" ] || admin_password="admin.1234"
+    save_env_value ADMIN_PASSWORD "$admin_password"
+
+    app_port="$(env_value APP_PORT)"
+    [ -n "$app_port" ] || app_port="$PORT"
+    save_env_value APP_PORT "$app_port"
+
+    public_url="$(env_value SUPABASE_PUBLIC_URL)"
+    if [ -z "$public_url" ]; then
+      ip4=$(curl -4 -s --max-time 5 https://api.ipify.org 2>/dev/null || curl -4 -s --max-time 5 https://ifconfig.me 2>/dev/null || true)
+      if [ -n "$ip4" ]; then
+        hostaddr="$ip4"
+      else
+        ip6=$(curl -6 -s --max-time 5 https://api6.ipify.org 2>/dev/null || true)
+        [ -n "$ip6" ] && hostaddr="[$ip6]" || hostaddr="localhost"
+      fi
+      public_url="http://${hostaddr}:${app_port}"
+      echo ">> URL pública detectada: $public_url"
+    fi
+    save_env_value SUPABASE_PUBLIC_URL "$public_url"
+    # Mantém os nomes que o app e os testes usam apontando para o backend local.
+    save_env_value SUPABASE_URL "$public_url"
+
+    anon="$(make_jwt anon "$jwt")"
+    service="$(make_jwt service_role "$jwt")"
+    save_env_value ANON_KEY "$anon"
+    save_env_value SERVICE_ROLE_KEY "$service"
+    save_env_value SUPABASE_PUBLISHABLE_KEY "$anon"
+    save_env_value SUPABASE_SERVICE_ROLE_KEY "$service"
+    save_env_value SUPABASE_PROJECT_ID "local"
+    chmod 600 "$APP_DIR/.env" 2>/dev/null || true
+    echo ">> .env local conferido: chaves locais geradas e alinhadas."
+  }
+
   # Garante Docker + Compose instalados (instala automaticamente se faltar).
   ensure_docker() {
     if docker compose version >/dev/null 2>&1; then
@@ -64,19 +149,7 @@ if [ "${BILHETEIA_CLOUD:-0}" != "1" ] && [ -f "$APP_DIR/docker-compose.yml" ]; t
     git pull || true
   fi
 
-  # Detecta a URL pública (IPv4, depois IPv6) só se ainda não estiver no .env.
-  touch "$APP_DIR/.env"
-  if [ -z "${SUPABASE_PUBLIC_URL:-}" ] && ! grep -q "^SUPABASE_PUBLIC_URL=." "$APP_DIR/.env"; then
-    IP4=$(curl -4 -s --max-time 5 https://api.ipify.org 2>/dev/null || curl -4 -s --max-time 5 https://ifconfig.me 2>/dev/null || true)
-    if [ -n "$IP4" ]; then
-      HOSTADDR="$IP4"
-    else
-      IP6=$(curl -6 -s --max-time 5 https://api6.ipify.org 2>/dev/null || true)
-      [ -n "$IP6" ] && HOSTADDR="[$IP6]" || HOSTADDR="localhost"
-    fi
-    echo "SUPABASE_PUBLIC_URL=http://${HOSTADDR}:${PORT}" >> "$APP_DIR/.env"
-    echo ">> URL pública detectada: http://${HOSTADDR}:${PORT}"
-  fi
+  ensure_local_env
 
   # Limpa serviços antigos da arquitetura anterior (db/auth/rest/kong separados).
   if [ -f "$APP_DIR/selfhost/docker-compose.yml" ]; then

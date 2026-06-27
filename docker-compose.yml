@@ -13,6 +13,8 @@ services:
         # Depois do SSL, o watcher troca SUPABASE_PUBLIC_URL para https://dominio
         # e o deploy reconstrói com essa URL, evitando "Failed to fetch".
         VITE_SUPABASE_URL: ${SUPABASE_PUBLIC_URL:-http://localhost:8000}
+        VITE_SUPABASE_PUBLISHABLE_KEY: ${ANON_KEY}
+        VITE_SUPABASE_PROJECT_ID: local
         SUPABASE_URL: ${SUPABASE_PUBLIC_URL:-http://localhost:8000}
     container_name: bia-app
     restart: always
@@ -23,6 +25,11 @@ services:
       ADMIN_EMAIL: ${ADMIN_EMAIL:-contato@protenexus.com}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin.1234}
       JWT_SECRET: ${JWT_SECRET:-bilheteia-localweb-default-jwt-secret-change-me-2026}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-postgres-password}
+      ANON_KEY: ${ANON_KEY:-}
+      SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY:-}
+      SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY:-}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
       PORT: ${APP_PORT:-3000}
       # Arquivo-gatilho do botão "Atualizar sistema" (compartilhado com o host).
       DEPLOY_TRIGGER_FILE: /opt/app/deploy-trigger/request
