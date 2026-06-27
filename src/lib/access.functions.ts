@@ -5,6 +5,10 @@ export type AppRole = "admin" | "operador" | "cliente";
 
 export const ADMIN_EMAIL = "contato@protenexus.com";
 
+function normalizeEmail(value: unknown) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
 type SupabaseAdmin = Awaited<
   typeof import("@/integrations/supabase/client.server")
 >["supabaseAdmin"];
@@ -17,13 +21,27 @@ async function resolveEmail(
   userId: string,
   hint?: string,
 ): Promise<string> {
-  const fromHint = String(hint ?? "").trim().toLowerCase();
+  const fromHint = normalizeEmail(hint);
   if (fromHint) return fromHint;
   try {
     const { data } = await admin.auth.admin.getUserById(userId);
-    return String(data.user?.email ?? "").trim().toLowerCase();
+    return normalizeEmail(data.user?.email);
   } catch {
     return "";
+  }
+}
+
+async function safeSelectRows<T>(label: string, query: any): Promise<T[]> {
+  try {
+    const { data, error } = await query;
+    if (error) {
+      console.error(`listClientes: falha ao ler ${label}`, error);
+      return [];
+    }
+    return (data ?? []) as T[];
+  } catch (error) {
+    console.error(`listClientes: excecao ao ler ${label}`, error);
+    return [];
   }
 }
 
@@ -90,7 +108,7 @@ export const getMyAccess = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { userId, claims } = context;
-    const emailClaim = String((claims as any)?.email ?? "").trim().toLowerCase();
+    const emailClaim = normalizeEmail((claims as any)?.email);
     const isDefaultAdmin = emailClaim === ADMIN_EMAIL;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -143,7 +161,7 @@ export const getMyAccess = createServerFn({ method: "GET" })
   });
 
 async function assertStaff(userId: string, emailHint?: string) {
-  const email = String(emailHint ?? "").trim().toLowerCase();
+  const email = normalizeEmail(emailHint);
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
   // Admin padrão tem acesso garantido em qualquer ambiente (inclui self-host).
@@ -166,32 +184,56 @@ export const listClientes = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { userId, claims } = context;
-    const currentEmail = String((claims as any)?.email ?? "").trim().toLowerCase();
+    const currentEmail = normalizeEmail((claims as any)?.email);
     await assertStaff(userId, currentEmail);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const [{ data: profiles }, { data: roles }, { data: subs }] = await Promise.all([
-      supabaseAdmin.from("profiles").select("id, nome, email, cpf, data_nascimento, created_at"),
-      supabaseAdmin.from("user_roles").select("user_id, role"),
-      supabaseAdmin.from("subscriptions").select("user_id, plano, status, periodo_fim"),
+    const [profiles, roles, subs] = await Promise.all([
+      // `select("*")` mantém compatibilidade com servidores locais antigos que
+      // ainda não tinham cpf/data_nascimento no profiles.
+      safeSelectRows<any>("profiles", supabaseAdmin.from("profiles").select("*")),
+      safeSelectRows<any>("user_roles", supabaseAdmin.from("user_roles").select("user_id, role")),
+      safeSelectRows<any>("subscriptions", supabaseAdmin.from("subscriptions").select("user_id, plano, status, periodo_fim")),
     ]);
 
     const roleMap = new Map<string, string[]>();
-    for (const r of roles ?? []) {
+    for (const r of roles) {
+      if (!r.user_id) continue;
       const arr = roleMap.get(r.user_id) ?? [];
       arr.push(r.role);
       roleMap.set(r.user_id, arr);
     }
     const subMap = new Map<string, any>();
-    for (const s of subs ?? []) subMap.set(s.user_id, s);
+    for (const s of subs) if (s.user_id) subMap.set(s.user_id, s);
 
     // Indexa os perfis existentes.
     const byId = new Map<string, any>();
-    for (const p of profiles ?? []) byId.set(p.id, p);
+    for (const p of profiles) if (p.id) byId.set(p.id, p);
+
+    const ensureUserRow = (id: string, fallback: Partial<any> = {}) => {
+      if (!id || byId.has(id)) return;
+      byId.set(id, {
+        id,
+        nome: fallback.nome ?? null,
+        email: fallback.email ?? null,
+        cpf: fallback.cpf ?? null,
+        data_nascimento: fallback.data_nascimento ?? null,
+        created_at: fallback.created_at ?? new Date().toISOString(),
+      });
+    };
+
+    // Mesmo que profiles ou Auth Admin falhem no self-host, qualquer usuário com
+    // papel ou assinatura ainda aparece no painel.
+    ensureUserRow(userId, {
+      nome: currentEmail === ADMIN_EMAIL ? "Administrador" : null,
+      email: currentEmail || null,
+    });
+    for (const id of roleMap.keys()) ensureUserRow(id);
+    for (const id of subMap.keys()) ensureUserRow(id);
 
     const ensureDefaultAdminVisible = () => {
       const existing = Array.from(byId.values()).find(
-        (p) => String(p.email ?? "").trim().toLowerCase() === ADMIN_EMAIL,
+        (p) => normalizeEmail(p.email) === ADMIN_EMAIL,
       );
       if (existing) {
         roleMap.set(existing.id, Array.from(new Set([...(roleMap.get(existing.id) ?? []), "admin"])));
@@ -247,7 +289,7 @@ export const listClientes = createServerFn({ method: "GET" })
           data_nascimento: u.user_metadata?.data_nascimento ?? null,
           created_at: u.created_at ?? new Date().toISOString(),
         });
-        if (String(u.email ?? "").trim().toLowerCase() === ADMIN_EMAIL) {
+        if (normalizeEmail(u.email) === ADMIN_EMAIL) {
           roleMap.set(u.id, Array.from(new Set([...(roleMap.get(u.id) ?? []), "admin"])));
         }
       }
@@ -259,17 +301,17 @@ export const listClientes = createServerFn({ method: "GET" })
 
     return Array.from(byId.values()).map((p) => ({
       id: p.id,
-      nome: String(p.email ?? "").trim().toLowerCase() === ADMIN_EMAIL ? "Administrador" : p.nome,
-      email: String(p.email ?? "").trim().toLowerCase() === ADMIN_EMAIL ? ADMIN_EMAIL : p.email,
+      nome: normalizeEmail(p.email) === ADMIN_EMAIL ? "Administrador" : p.nome,
+      email: normalizeEmail(p.email) === ADMIN_EMAIL ? ADMIN_EMAIL : p.email,
       cpf: (p as any).cpf ?? null,
       data_nascimento: (p as any).data_nascimento ?? null,
       created_at: p.created_at,
       roles:
-        String(p.email ?? "").trim().toLowerCase() === ADMIN_EMAIL
+        normalizeEmail(p.email) === ADMIN_EMAIL
           ? Array.from(new Set([...(roleMap.get(p.id) ?? []), "admin"]))
           : roleMap.get(p.id) ?? [],
-      plano: String(p.email ?? "").trim().toLowerCase() === ADMIN_EMAIL ? "elite" : subMap.get(p.id)?.plano ?? null,
-      status: String(p.email ?? "").trim().toLowerCase() === ADMIN_EMAIL ? "ativo" : subMap.get(p.id)?.status ?? "inativo",
+      plano: normalizeEmail(p.email) === ADMIN_EMAIL ? "elite" : subMap.get(p.id)?.plano ?? null,
+      status: normalizeEmail(p.email) === ADMIN_EMAIL ? "ativo" : subMap.get(p.id)?.status ?? "inativo",
     }));
   });
 
@@ -290,7 +332,7 @@ export const updateClienteProfile = createServerFn({ method: "POST" })
     await assertStaff(userId, (claims as any)?.email);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { error } = await supabaseAdmin
+    let { error } = await supabaseAdmin
       .from("profiles")
       .update({
         nome: data.nome.trim() || null,
@@ -300,6 +342,18 @@ export const updateClienteProfile = createServerFn({ method: "POST" })
         updated_at: new Date().toISOString(),
       })
       .eq("id", data.clienteId);
+    if (error) {
+      console.error("updateClienteProfile: retry sem campos novos", error);
+      const retry = await supabaseAdmin
+        .from("profiles")
+        .update({
+          nome: data.nome.trim() || null,
+          email: data.email.trim() || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", data.clienteId);
+      error = retry.error;
+    }
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -381,7 +435,7 @@ export const createCliente = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     const newId = created.user!.id;
 
-    await supabaseAdmin.from("profiles").upsert(
+    const profilePayload =
       {
         id: newId,
         nome: data.nome.trim() || null,
@@ -389,16 +443,33 @@ export const createCliente = createServerFn({ method: "POST" })
         cpf: (data.cpf ?? "").replace(/\D/g, "") || null,
         data_nascimento: data.data_nascimento || null,
         updated_at: new Date().toISOString(),
-      },
-      { onConflict: "id" },
-    );
+      };
+    let profileResult = await supabaseAdmin.from("profiles").upsert(profilePayload, { onConflict: "id" });
+    if (profileResult.error) {
+      console.error("createCliente: retry perfil sem campos novos", profileResult.error);
+      profileResult = await supabaseAdmin.from("profiles").upsert(
+        {
+          id: newId,
+          nome: data.nome.trim() || null,
+          email: data.email.trim() || null,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "id" },
+      );
+    }
+    if (profileResult.error) console.error("createCliente: falha ao criar perfil", profileResult.error);
 
     if (data.isAdmin) {
       await supabaseAdmin.from("user_roles").upsert(
         { user_id: newId, role: "admin" },
         { onConflict: "user_id,role" },
       );
+      await supabaseAdmin.from("user_roles").delete().eq("user_id", newId).eq("role", "cliente");
     } else {
+      await supabaseAdmin.from("user_roles").upsert(
+        { user_id: newId, role: "cliente" },
+        { onConflict: "user_id,role" },
+      );
       await supabaseAdmin.from("subscriptions").upsert(
         {
           user_id: newId,
