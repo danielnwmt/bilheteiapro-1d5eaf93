@@ -240,6 +240,10 @@ function UsuariosPage() {
                 <Input value={formatCpf(novo.cpf)} onChange={(e) => setNovo((s) => ({ ...s, cpf: e.target.value }))} />
               </div>
               <div className="space-y-1">
+                <Label className="text-xs">Telefone</Label>
+                <Input value={formatTelefone(novo.telefone)} onChange={(e) => setNovo((s) => ({ ...s, telefone: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
                 <Label className="text-xs">Data de nascimento</Label>
                 <Input type="date" value={novo.data_nascimento} onChange={(e) => setNovo((s) => ({ ...s, data_nascimento: e.target.value }))} />
               </div>
@@ -304,6 +308,7 @@ function UsuariosPage() {
                 nome: c.nome ?? "",
                 email: c.email ?? "",
                 cpf: c.cpf ?? "",
+                telefone: c.telefone ?? "",
                 data_nascimento: c.data_nascimento ?? "",
               };
               const isOpen = openId === c.id;
@@ -399,6 +404,15 @@ function UsuariosPage() {
                             value={pf.data_nascimento ?? ""}
                             onChange={(e) =>
                               setPerfil((s) => ({ ...s, [c.id]: { ...pf, data_nascimento: e.target.value } }))
+                            }
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Telefone</Label>
+                          <Input
+                            value={formatTelefone(pf.telefone ?? "")}
+                            onChange={(e) =>
+                              setPerfil((s) => ({ ...s, [c.id]: { ...pf, telefone: e.target.value } }))
                             }
                           />
                         </div>
