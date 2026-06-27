@@ -232,18 +232,15 @@ function AdminDashboard() {
                 </h2>
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={stats?.faturamentoPorMes ?? []}>
-                      <defs>
-                        <linearGradient id="fatGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.5} />
-                          <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                      <XAxis dataKey="mes" stroke="var(--muted-foreground)" fontSize={12} />
+                    <LineChart data={stats?.faturamentoPorMes ?? []} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                      <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.6} />
+                      <XAxis dataKey="mes" stroke="var(--muted-foreground)" fontSize={12} tickLine={false} axisLine={false} />
                       <YAxis
                         stroke="var(--muted-foreground)"
                         fontSize={12}
+                        tickLine={false}
+                        axisLine={false}
+                        width={56}
                         tickFormatter={(v) => `R$ ${v}`}
                       />
                       <Tooltip
@@ -257,14 +254,16 @@ function AdminDashboard() {
                           color: "var(--foreground)",
                         }}
                       />
-                      <Area
+                      <Line
                         type="monotone"
                         dataKey="total"
+                        name="Faturamento"
                         stroke="var(--primary)"
-                        strokeWidth={2}
-                        fill="url(#fatGrad)"
+                        strokeWidth={2.5}
+                        dot={{ r: 3, fill: "var(--card)", stroke: "var(--primary)", strokeWidth: 2 }}
+                        activeDot={{ r: 5 }}
                       />
-                    </AreaChart>
+                    </LineChart>
                   </ResponsiveContainer>
                 </div>
               </Card>
