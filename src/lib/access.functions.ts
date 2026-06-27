@@ -45,6 +45,37 @@ async function safeSelectRows<T>(label: string, query: any): Promise<T[]> {
   }
 }
 
+async function listAuthUsersDirectly(): Promise<any[]> {
+  const baseUrl = process.env.SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!baseUrl || !serviceKey) return [];
+
+  const users: any[] = [];
+  for (let page = 1; page <= 20; page++) {
+    try {
+      const url = new URL("/auth/v1/admin/users", baseUrl);
+      url.searchParams.set("page", String(page));
+      url.searchParams.set("per_page", "1000");
+      const res = await fetch(url, {
+        headers: {
+          apikey: serviceKey,
+          Authorization: `Bearer ${serviceKey}`,
+          "Content-Type": "application/json",
+        },
+      });
+      if (!res.ok) break;
+      const json = await res.json();
+      const pageUsers = Array.isArray(json?.users) ? json.users : Array.isArray(json) ? json : [];
+      users.push(...pageUsers);
+      if (pageUsers.length < 1000) break;
+    } catch (error) {
+      console.error("listClientes: fallback direto no Auth falhou", error);
+      break;
+    }
+  }
+  return users;
+}
+
 /**
  * Fonte única de verdade para os papéis do usuário.
  * Garante (auto-reparo) que o admin padrão — ou o primeiro usuário de uma
@@ -167,7 +198,8 @@ async function assertStaff(userId: string, emailHint?: string) {
   // Admin padrão tem acesso garantido em qualquer ambiente (inclui self-host).
   if (email === ADMIN_EMAIL) {
     try {
-      return await resolveRoles(supabaseAdmin, userId, email);
+      const roles = await resolveRoles(supabaseAdmin, userId, email);
+      return Array.from(new Set([...roles, "admin"])) as AppRole[];
     } catch {
       return ["admin"] as AppRole[];
     }
@@ -264,14 +296,16 @@ export const listClientes = createServerFn({ method: "GET" })
     try {
       const authUsers: any[] = [];
       for (let page = 1; page <= 20; page++) {
-        const { data: authList } = await supabaseAdmin.auth.admin.listUsers({
+        const { data: authList, error } = await supabaseAdmin.auth.admin.listUsers({
           page,
           perPage: 1000,
         });
+        if (error) throw error;
         const users = authList?.users ?? [];
         authUsers.push(...users);
         if (users.length < 1000) break;
       }
+      if (authUsers.length === 0) authUsers.push(...(await listAuthUsersDirectly()));
       for (const u of authUsers) {
         const existing = byId.get(u.id);
         if (existing) {
