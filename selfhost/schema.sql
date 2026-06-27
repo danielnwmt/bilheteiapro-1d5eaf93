@@ -436,7 +436,6 @@ CREATE TABLE public.plano_config (
   preco text NOT NULL,
   descricao text NOT NULL,
   nivel integer NOT NULL,
-  price_id text NOT NULL DEFAULT '',
   historico_dias integer NOT NULL DEFAULT 15,
   ligas jsonb NOT NULL DEFAULT '[]'::jsonb,
   recursos jsonb NOT NULL DEFAULT '{}'::jsonb,
