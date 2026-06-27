@@ -19,7 +19,7 @@ import {
   type Plano,
 } from "@/lib/planos";
 import { usePlanos } from "@/hooks/usePlanos";
-import { createInfinitePayCheckout, createAsaasCheckout } from "@/lib/payments.functions";
+import { createAsaasCheckout } from "@/lib/payments.functions";
 import { useAccess } from "@/hooks/useAccess";
 
 export const Route = createFileRoute("/_authenticated/planos")({
@@ -50,19 +50,17 @@ function PlanosPage() {
   const [carregando, setCarregando] = useState(false);
   const [ciclo, setCiclo] = useState<Ciclo>("mensal");
 
-  const infinitePayCheckout = useServerFn(createInfinitePayCheckout);
   const asaasCheckout = useServerFn(createAsaasCheckout);
 
   const planoAtual = access?.plano ?? null;
   const checkoutCfg = checkout ? byPlano[checkout] : null;
 
-  async function pagar(gateway: "infinitepay" | "asaas") {
+  async function pagar(metodo: "pix" | "cartao") {
     if (!checkout) return;
     setCarregando(true);
     try {
       const returnUrl = `${window.location.origin}/?checkout=success`;
-      const fn = gateway === "asaas" ? asaasCheckout : infinitePayCheckout;
-      const result = await fn({ data: { plano: checkout, ciclo, returnUrl } });
+      const result = await asaasCheckout({ data: { plano: checkout, ciclo, returnUrl, metodo } });
       if ("error" in result) {
         toast.error(result.error);
         return;
@@ -166,24 +164,24 @@ function PlanosPage() {
               </p>
             )}
             <p className="mt-4 mb-3 text-sm text-muted-foreground">
-              Escolha a forma de pagamento (Pix, Boleto ou Cartão).
+              Escolha a forma de pagamento.
             </p>
             <div className="space-y-3">
               <Button
                 className="w-full font-semibold"
                 disabled={carregando}
-                onClick={() => pagar("asaas")}
+                onClick={() => pagar("pix")}
               >
                 {carregando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Pagar com Asaas (Pix/Boleto/Cartão)
+                Pagar com Pix
               </Button>
               <Button
                 variant="outline"
                 className="w-full font-semibold"
                 disabled={carregando}
-                onClick={() => pagar("infinitepay")}
+                onClick={() => pagar("cartao")}
               >
-                Pagar com InfinitePay (Pix/Cartão)
+                Crédito / Débito
               </Button>
             </div>
           </Card>
