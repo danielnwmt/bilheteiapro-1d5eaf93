@@ -16,7 +16,6 @@ function mapRow(row: any): PlanoConfig {
     preco: row.preco,
     descricao: row.descricao,
     nivel: row.nivel,
-    priceId: "",
     historicoDias: row.historico_dias,
     ligas: Array.isArray(row.ligas) ? (row.ligas as string[]) : [],
     recursos,

@@ -158,7 +158,6 @@ export const createPlanoConfig = createServerFn({ method: "POST" })
         preco: data.preco,
         descricao: data.descricao ?? "",
         nivel,
-        price_id: "",
         historico_dias: data.historicoDias ?? 15,
         ligas: data.ligas ?? [],
         recursos: data.recursos ?? {},

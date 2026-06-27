@@ -53,7 +53,7 @@ export type PlanoConfig = {
   preco: string;
   descricao: string;
   nivel: number;
-  priceId: string;
+  
   historicoDias: number;
   ligas: string[];
   recursos: Record<Recurso, boolean>;

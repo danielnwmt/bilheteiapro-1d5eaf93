@@ -336,7 +336,6 @@ export type Database = {
           nome: string
           plano: string
           preco: string
-          price_id: string
           recursos: Json
           updated_at: string
         }
@@ -351,7 +350,6 @@ export type Database = {
           nome: string
           plano: string
           preco: string
-          price_id?: string
           recursos?: Json
           updated_at?: string
         }
@@ -366,7 +364,6 @@ export type Database = {
           nome?: string
           plano?: string
           preco?: string
-          price_id?: string
           recursos?: Json
           updated_at?: string
         }
@@ -408,34 +405,31 @@ export type Database = {
       subscriptions: {
         Row: {
           created_at: string
+          external_subscription_id: string | null
           id: string
           periodo_fim: string | null
           plano: string
           status: string
-          stripe_customer_id: string | null
-          stripe_subscription_id: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
+          external_subscription_id?: string | null
           id?: string
           periodo_fim?: string | null
           plano: string
           status?: string
-          stripe_customer_id?: string | null
-          stripe_subscription_id?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
+          external_subscription_id?: string | null
           id?: string
           periodo_fim?: string | null
           plano?: string
           status?: string
-          stripe_customer_id?: string | null
-          stripe_subscription_id?: string | null
           updated_at?: string
           user_id?: string
         }

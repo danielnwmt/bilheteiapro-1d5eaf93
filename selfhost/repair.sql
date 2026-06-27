@@ -19,9 +19,16 @@ BEGIN
   END IF;
   IF to_regclass('public.plano_config') IS NOT NULL THEN
     ALTER TABLE public.plano_config ALTER COLUMN plano TYPE text USING plano::text;
-    ALTER TABLE public.plano_config ALTER COLUMN price_id SET DEFAULT '';
+    ALTER TABLE public.plano_config DROP COLUMN IF EXISTS price_id;
     ALTER TABLE public.plano_config ADD COLUMN IF NOT EXISTS desconto_semestral integer NOT NULL DEFAULT 0;
     ALTER TABLE public.plano_config ADD COLUMN IF NOT EXISTS desconto_anual integer NOT NULL DEFAULT 0;
+  END IF;
+  IF to_regclass('public.subscriptions') IS NOT NULL THEN
+    -- Remove tudo relacionado a Stripe das assinaturas
+    ALTER TABLE public.subscriptions DROP COLUMN IF EXISTS stripe_customer_id;
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='subscriptions' AND column_name='stripe_subscription_id') THEN
+      ALTER TABLE public.subscriptions RENAME COLUMN stripe_subscription_id TO external_subscription_id;
+    END IF;
   END IF;
 END $$;
 
@@ -337,7 +344,6 @@ GRANT EXECUTE ON FUNCTION public.admin_list_users() TO service_role;
 
 -- ============================================================
 --  Endurecimento de acesso (idempotente):
---  - Oculta price_id de anon/authenticated em plano_config.
 --  - Restringe edicao direta de perfis a admin (operador so via server fn).
 -- ============================================================
 DO $$

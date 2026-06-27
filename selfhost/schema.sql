@@ -272,8 +272,7 @@ CREATE TABLE public.subscriptions (
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   plano text NOT NULL,
   status text NOT NULL DEFAULT 'inativo',
-  stripe_customer_id text,
-  stripe_subscription_id text,
+  external_subscription_id text,
   periodo_fim timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
@@ -415,11 +414,8 @@ ALTER POLICY "Admin gerencia config" ON public.system_config
 
 -- Drop the API-exposed copies
 DROP FUNCTION public.has_role(uuid, public.app_role);
-DROP FUNCTION public.plano_ativo(uuid);-- Hide raw Stripe identifiers from the user-facing Data API.
--- Only the service-role (server-side) keeps access to these columns.
-REVOKE SELECT (stripe_customer_id, stripe_subscription_id) ON public.subscriptions FROM authenticated;
-REVOKE SELECT (stripe_customer_id, stripe_subscription_id) ON public.subscriptions FROM anon;-- SUBSCRIPTIONS: drop the broad grants and re-grant column-scoped access that
--- excludes the raw Stripe identifiers for the authenticated (Data API) role.
+DROP FUNCTION public.plano_ativo(uuid);
+-- SUBSCRIPTIONS: drop the broad grants and re-grant column-scoped access.
 REVOKE ALL ON public.subscriptions FROM anon;
 REVOKE ALL ON public.subscriptions FROM authenticated;
 
@@ -440,7 +436,6 @@ CREATE TABLE public.plano_config (
   preco text NOT NULL,
   descricao text NOT NULL,
   nivel integer NOT NULL,
-  price_id text NOT NULL DEFAULT '',
   historico_dias integer NOT NULL DEFAULT 15,
   ligas jsonb NOT NULL DEFAULT '[]'::jsonb,
   recursos jsonb NOT NULL DEFAULT '{}'::jsonb,
@@ -450,7 +445,6 @@ CREATE TABLE public.plano_config (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
--- price_id fica oculto de anon/authenticated (apenas servidor/service_role le).
 GRANT SELECT (plano, nome, preco, descricao, nivel, historico_dias, ligas, recursos, desconto_semestral, desconto_anual, created_at, updated_at) ON public.plano_config TO authenticated, anon;
 GRANT INSERT, UPDATE, DELETE ON public.plano_config TO authenticated;
 GRANT ALL ON public.plano_config TO service_role;
@@ -470,19 +464,19 @@ CREATE TRIGGER update_plano_config_updated_at
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 -- Seed com os valores atuais
-INSERT INTO public.plano_config (plano, nome, preco, descricao, nivel, price_id, historico_dias, ligas, recursos) VALUES
+INSERT INTO public.plano_config (plano, nome, preco, descricao, nivel, historico_dias, ligas, recursos) VALUES
 (
-  'start', 'BilheteIA Start', 'R$ 29,90', 'Para quem busca múltiplas inteligentes com IA.', 1, 'start_monthly', 15,
+  'start', 'BilheteIA Start', 'R$ 29,90', 'Para quem busca múltiplas inteligentes com IA.', 1, 15,
   '["Brasileirão Série A","Brasileirão Série B","Premier League"]'::jsonb,
   '{"bilhetesIlimitados":true,"oddPersonalizada":true,"planilhaBanca":false,"favoritos":false,"estatisticasAvancadas":false,"tempoReal":false,"alertasInteligentes":false,"suportePrioritario":false}'::jsonb
 ),
 (
-  'pro', 'BilheteIA Pro', 'R$ 49,90', 'Todas as ligas mundiais e ferramentas de gestão.', 2, 'pro_monthly', 30,
+  'pro', 'BilheteIA Pro', 'R$ 49,90', 'Todas as ligas mundiais e ferramentas de gestão.', 2, 30,
   '["Brasileirão Série A","Brasileirão Série B","Premier League","Copa do Brasil","Libertadores","Sul-Americana","La Liga","Serie A (Itália)","Bundesliga","Ligue 1","Champions League","Europa League","Conference League","Copa do Mundo"]'::jsonb,
   '{"bilhetesIlimitados":true,"oddPersonalizada":true,"planilhaBanca":true,"favoritos":true,"estatisticasAvancadas":true,"tempoReal":false,"alertasInteligentes":false,"suportePrioritario":false}'::jsonb
 ),
 (
-  'elite', 'BilheteIA Elite', 'R$ 79,90', 'Tudo, em tempo real e com suporte prioritário.', 3, 'elite_monthly', 60,
+  'elite', 'BilheteIA Elite', 'R$ 79,90', 'Tudo, em tempo real e com suporte prioritário.', 3, 60,
   '["Brasileirão Série A","Brasileirão Série B","Premier League","Copa do Brasil","Libertadores","Sul-Americana","La Liga","Serie A (Itália)","Bundesliga","Ligue 1","Champions League","Europa League","Conference League","Copa do Mundo"]'::jsonb,
   '{"bilhetesIlimitados":true,"oddPersonalizada":true,"planilhaBanca":true,"favoritos":true,"estatisticasAvancadas":true,"tempoReal":true,"alertasInteligentes":true,"suportePrioritario":true}'::jsonb
 );
