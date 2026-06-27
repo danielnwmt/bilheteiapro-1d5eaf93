@@ -58,8 +58,9 @@ const PIE_COLORS = [
 const EMPTY_STATS = {
   totalClientes: 0,
   ativos: 0,
+  cortesias: 0,
   inativos: 0,
-  porPlano: { start: 0, pro: 0, elite: 0, sem: 0 },
+  porPlano: { start: 0, pro: 0, elite: 0, cortesia: 0, sem: 0 },
   cadastrosPorMes: [],
   faturamentoPorMes: [],
   vendasDia: 0,
@@ -96,7 +97,11 @@ function AdminDashboard() {
   });
 
   const planoLabel = (p: string) =>
-    p === "sem" ? "Sem plano" : byPlano?.[p as "start" | "pro" | "elite"]?.nome ?? p;
+    p === "sem"
+      ? "Sem plano"
+      : p === "cortesia"
+        ? "Cortesia"
+        : byPlano?.[p as "start" | "pro" | "elite"]?.nome ?? p;
 
   const pieData = stats
     ? Object.entries(stats.porPlano)
