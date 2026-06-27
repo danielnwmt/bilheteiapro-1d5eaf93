@@ -505,6 +505,38 @@ export const listClientes = createServerFn({ method: "GET" })
       requesterRoles = Array.from(new Set([...requesterRoles, "admin"]));
     }
 
+    // Caminho primário e mais confiável: RPC SECURITY DEFINER chamada com a
+    // sessão autenticada do admin. Funciona igual no Cloud e no self-host porque
+    // usa o JWT válido do usuário logado e ignora RLS dentro da função. Se trouxer
+    // linhas, já vem tudo pronto (perfil + papéis + assinatura).
+    try {
+      const { data: rpcRows, error: rpcErr } = await context.supabase.rpc("admin_list_users");
+      if (rpcErr) {
+        console.error("listClientes: admin_list_users falhou", rpcErr.message);
+      } else if (Array.isArray(rpcRows) && rpcRows.length > 0) {
+        return rpcRows.map((r: any) => {
+          const isAdminEmail = normalizeEmail(r.email) === ADMIN_EMAIL;
+          return {
+            id: r.id,
+            nome: isAdminEmail ? "Administrador" : r.nome,
+            email: isAdminEmail ? ADMIN_EMAIL : r.email,
+            cpf: r.cpf ?? null,
+            data_nascimento: r.data_nascimento ?? null,
+            telefone: r.telefone ?? null,
+            created_at: r.created_at,
+            roles: isAdminEmail
+              ? Array.from(new Set([...(r.roles ?? []), "admin"]))
+              : r.roles ?? [],
+            plano: isAdminEmail ? "elite" : r.plano ?? null,
+            status: isAdminEmail ? "ativo" : r.status ?? "inativo",
+            periodo_fim: isAdminEmail ? null : r.periodo_fim ?? null,
+          };
+        });
+      }
+    } catch (err) {
+      console.error("listClientes: admin_list_users lançou", err);
+    }
+
     // Leitura primária via cliente autenticado (RLS de admin permite ver tudo).
     // Funciona no Lovable Cloud e no self-host independente do formato da
     // SERVICE_ROLE_KEY. Caso falhe/volte vazio, faz fallback para o REST com
@@ -962,10 +994,45 @@ export const getClientStats = createServerFn({ method: "GET" })
       ]),
     ]);
 
+    // RPC SECURITY DEFINER: fonte mais confiável (Cloud e self-host). Converte
+    // as linhas no mesmo formato das tabelas para entrar no merge abaixo.
+    let rpcProfiles: any[] = [];
+    let rpcRoles: any[] = [];
+    let rpcSubs: any[] = [];
+    try {
+      const { data: rpcRows } = await context.supabase.rpc("admin_list_users");
+      if (Array.isArray(rpcRows)) {
+        for (const r of rpcRows as any[]) {
+          if (!r?.id) continue;
+          rpcProfiles.push({ id: r.id, created_at: r.created_at });
+          for (const role of r.roles ?? []) rpcRoles.push({ user_id: r.id, role });
+          if (r.plano || r.status) {
+            rpcSubs.push({
+              user_id: r.id,
+              plano: r.plano ?? null,
+              status: r.status ?? null,
+              periodo_fim: r.periodo_fim ?? null,
+              created_at: r.created_at,
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.error("getClientStats: admin_list_users lançou", err);
+    }
+
     const localSnapshot = await readLocalDbSnapshot();
-    let profiles = mergeById(mergeById(pa, pr, (x) => x.id), localSnapshot?.profiles ?? [], (x) => x.id);
-    let roles = mergeRoleRows(mergeRoleRows(ra, rr), localSnapshot?.roles ?? []);
-    const subs = mergeById(mergeById(sa, sr, (x) => x.user_id), localSnapshot?.subs ?? [], (x) => x.user_id);
+    let profiles = mergeById(
+      mergeById(mergeById(pa, pr, (x) => x.id), rpcProfiles, (x) => x.id),
+      localSnapshot?.profiles ?? [],
+      (x) => x.id,
+    );
+    let roles = mergeRoleRows(mergeRoleRows(mergeRoleRows(ra, rr), rpcRoles), localSnapshot?.roles ?? []);
+    const subs = mergeById(
+      mergeById(mergeById(sa, sr, (x) => x.user_id), rpcSubs, (x) => x.user_id),
+      localSnapshot?.subs ?? [],
+      (x) => x.user_id,
+    );
     const planoCfg = mergeById(ca, cr, (x) => x.plano);
 
     const profileMap = new Map<string, any>();
