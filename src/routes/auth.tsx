@@ -212,6 +212,19 @@ function AuthPage() {
                   />
                 </div>
                 <div>
+                  <Label htmlFor="telefone" className="mb-2 block text-sm">Telefone</Label>
+                  <Input
+                    id="telefone"
+                    type="tel"
+                    inputMode="numeric"
+                    autoComplete="tel"
+                    placeholder="(00) 00000-0000"
+                    value={telefone}
+                    onChange={(e) => setTelefone(formatTelefone(e.target.value))}
+                    className="bg-input/40"
+                  />
+                </div>
+                <div>
                   <Label htmlFor="nascimento" className="mb-2 block text-sm">Data de nascimento</Label>
                   <Input
                     id="nascimento"
