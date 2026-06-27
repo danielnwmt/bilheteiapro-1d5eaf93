@@ -141,6 +141,14 @@ function PlanosPage() {
           <div className="flex justify-center py-16">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
+        ) : checkout && checkoutCfg && telaCartao ? (
+          <CartaoPagamento
+            plano={checkout}
+            ciclo={ciclo}
+            precoLabel={formatarReais(precoCicloCentavos(checkoutCfg, ciclo))}
+            onSucesso={() => router.navigate({ to: "/" })}
+            onCancelar={() => setTelaCartao(false)}
+          />
         ) : checkout && checkoutCfg ? (
           <Card className="mx-auto mt-8 max-w-md border-border/60 bg-card p-6">
             <div className="mb-1 flex items-center justify-between">
@@ -181,7 +189,7 @@ function PlanosPage() {
                 variant="outline"
                 className="w-full font-semibold"
                 disabled={carregando}
-                onClick={() => pagar("cartao")}
+                onClick={() => setTelaCartao(true)}
               >
                 Crédito / Débito
               </Button>
