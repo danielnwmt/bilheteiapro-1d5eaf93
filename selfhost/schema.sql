@@ -242,7 +242,7 @@ CREATE TRIGGER on_auth_user_created
 CREATE TABLE public.subscriptions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  plano plano_tipo NOT NULL,
+  plano text NOT NULL,
   status text NOT NULL DEFAULT 'inativo',
   stripe_customer_id text,
   stripe_subscription_id text,
