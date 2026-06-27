@@ -270,37 +270,33 @@ function ApisPage() {
 
               {/* URL do webhook para colar no painel do Asaas */}
               <Card className="mt-4 border-primary/30 bg-card p-4">
-                <Label className="text-sm font-semibold">
-                  URL de webhook (confirmação de pagamento)
-                </Label>
+                <Label className="text-sm font-semibold">URL do Webhook</Label>
                 <p className="mb-2 text-xs text-muted-foreground">
-                  Cole esta URL em Asaas → Integrações → Webhooks para liberar o plano
-                  automaticamente após o pagamento.
+                  Configure esta URL no painel do provedor para receber confirmações de pagamento.
                 </p>
                 <div className="flex gap-2">
                   <Input
                     type="text"
                     readOnly
-                    value={
-                      typeof window !== "undefined"
-                        ? `${window.location.origin}/api/public/payments/asaas`
-                        : "/api/public/payments/asaas"
-                    }
-                    className="bg-input/40"
+                    value={webhookUrl}
+                    className="bg-input/40 font-mono text-xs"
                   />
                   <Button
                     variant="outline"
                     onClick={() => {
-                      const url = `${window.location.origin}/api/public/payments/asaas`;
-                      navigator.clipboard?.writeText(url);
+                      navigator.clipboard?.writeText(webhookUrl);
                       toast.success("URL copiada");
                     }}
                   >
                     Copiar
                   </Button>
                 </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Token de validação: <span className="font-mono">{webhookToken || "—"}</span>
+                </p>
               </Card>
             </div>
+
           </div>
         )}
       </div>
