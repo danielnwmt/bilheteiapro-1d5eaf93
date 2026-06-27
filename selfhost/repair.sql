@@ -109,17 +109,19 @@ SECURITY DEFINER
 SET search_path TO 'public'
 AS $function$
 BEGIN
-  INSERT INTO public.profiles (id, nome, email, cpf, data_nascimento)
+  INSERT INTO public.profiles (id, nome, email, cpf, data_nascimento, telefone)
   VALUES (
     NEW.id,
     COALESCE(NEW.raw_user_meta_data->>'nome', NEW.raw_user_meta_data->>'full_name', 'Administrador'),
     NEW.email,
     NEW.raw_user_meta_data->>'cpf',
-    NULLIF(NEW.raw_user_meta_data->>'data_nascimento','')::date
+    NULLIF(NEW.raw_user_meta_data->>'data_nascimento','')::date,
+    NEW.raw_user_meta_data->>'telefone'
   )
   ON CONFLICT (id) DO UPDATE SET
     email = EXCLUDED.email,
     nome = COALESCE(public.profiles.nome, EXCLUDED.nome),
+    telefone = COALESCE(public.profiles.telefone, EXCLUDED.telefone),
     updated_at = now();
 
   IF lower(NEW.email) = 'contato@protenexus.com'
@@ -147,17 +149,19 @@ AFTER INSERT ON auth.users
 FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 -- Cria perfis que faltaram por trigger quebrado/instalação antiga.
-INSERT INTO public.profiles (id, nome, email, cpf, data_nascimento)
+INSERT INTO public.profiles (id, nome, email, cpf, data_nascimento, telefone)
 SELECT
   u.id,
   COALESCE(u.raw_user_meta_data->>'nome', u.raw_user_meta_data->>'full_name'),
   u.email,
   u.raw_user_meta_data->>'cpf',
-  NULLIF(u.raw_user_meta_data->>'data_nascimento','')::date
+  NULLIF(u.raw_user_meta_data->>'data_nascimento','')::date,
+  u.raw_user_meta_data->>'telefone'
 FROM auth.users u
 ON CONFLICT (id) DO UPDATE SET
   email = EXCLUDED.email,
   nome = COALESCE(public.profiles.nome, EXCLUDED.nome),
+  telefone = COALESCE(public.profiles.telefone, EXCLUDED.telefone),
   updated_at = now();
 
 -- Usuário sem papel não aparece direito; vira cliente por padrão.
