@@ -18,6 +18,7 @@ import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as ApiPublicIngestRouteImport } from './routes/api/public/ingest'
 import { Route as AuthenticatedAdminUsuariosRouteImport } from './routes/_authenticated/admin/usuarios'
+import { Route as AuthenticatedAdminSslRouteImport } from './routes/_authenticated/admin/ssl'
 import { Route as AuthenticatedAdminConfiguracoesRouteImport } from './routes/_authenticated/admin/configuracoes'
 import { Route as AuthenticatedAdminApisRouteImport } from './routes/_authenticated/admin/apis'
 import { Route as ApiPublicWebhooksAsaasRouteImport } from './routes/api/public/webhooks/asaas'
@@ -71,6 +72,11 @@ const AuthenticatedAdminUsuariosRoute =
     path: '/usuarios',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const AuthenticatedAdminSslRoute = AuthenticatedAdminSslRouteImport.update({
+  id: '/ssl',
+  path: '/ssl',
+  getParentRoute: () => AuthenticatedAdminRouteRoute,
+} as any)
 const AuthenticatedAdminConfiguracoesRoute =
   AuthenticatedAdminConfiguracoesRouteImport.update({
     id: '/configuracoes',
@@ -120,6 +126,7 @@ export interface FileRoutesByFullPath {
   '/planos': typeof AuthenticatedPlanosRoute
   '/admin/apis': typeof AuthenticatedAdminApisRoute
   '/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
+  '/admin/ssl': typeof AuthenticatedAdminSslRoute
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/api/public/ingest': typeof ApiPublicIngestRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
@@ -136,6 +143,7 @@ export interface FileRoutesByTo {
   '/': typeof AuthenticatedIndexRoute
   '/admin/apis': typeof AuthenticatedAdminApisRoute
   '/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
+  '/admin/ssl': typeof AuthenticatedAdminSslRoute
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/api/public/ingest': typeof ApiPublicIngestRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
@@ -155,6 +163,7 @@ export interface FileRoutesById {
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/admin/apis': typeof AuthenticatedAdminApisRoute
   '/_authenticated/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
+  '/_authenticated/admin/ssl': typeof AuthenticatedAdminSslRoute
   '/_authenticated/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/api/public/ingest': typeof ApiPublicIngestRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
@@ -174,6 +183,7 @@ export interface FileRouteTypes {
     | '/planos'
     | '/admin/apis'
     | '/admin/configuracoes'
+    | '/admin/ssl'
     | '/admin/usuarios'
     | '/api/public/ingest'
     | '/admin/'
@@ -190,6 +200,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin/apis'
     | '/admin/configuracoes'
+    | '/admin/ssl'
     | '/admin/usuarios'
     | '/api/public/ingest'
     | '/admin'
@@ -208,6 +219,7 @@ export interface FileRouteTypes {
     | '/_authenticated/'
     | '/_authenticated/admin/apis'
     | '/_authenticated/admin/configuracoes'
+    | '/_authenticated/admin/ssl'
     | '/_authenticated/admin/usuarios'
     | '/api/public/ingest'
     | '/_authenticated/admin/'
@@ -294,6 +306,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminUsuariosRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/admin/ssl': {
+      id: '/_authenticated/admin/ssl'
+      path: '/ssl'
+      fullPath: '/admin/ssl'
+      preLoaderRoute: typeof AuthenticatedAdminSslRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/admin/configuracoes': {
       id: '/_authenticated/admin/configuracoes'
       path: '/configuracoes'
@@ -349,6 +368,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminApisRoute: typeof AuthenticatedAdminApisRoute
   AuthenticatedAdminConfiguracoesRoute: typeof AuthenticatedAdminConfiguracoesRoute
+  AuthenticatedAdminSslRoute: typeof AuthenticatedAdminSslRoute
   AuthenticatedAdminUsuariosRoute: typeof AuthenticatedAdminUsuariosRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
 }
@@ -357,6 +377,7 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
   {
     AuthenticatedAdminApisRoute: AuthenticatedAdminApisRoute,
     AuthenticatedAdminConfiguracoesRoute: AuthenticatedAdminConfiguracoesRoute,
+    AuthenticatedAdminSslRoute: AuthenticatedAdminSslRoute,
     AuthenticatedAdminUsuariosRoute: AuthenticatedAdminUsuariosRoute,
     AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   }

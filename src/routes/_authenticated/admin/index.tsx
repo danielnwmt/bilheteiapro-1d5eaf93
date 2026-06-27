@@ -16,6 +16,7 @@ import {
   LayoutDashboard,
   LogOut,
   RefreshCw,
+  ShieldCheck,
 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { deploySystem } from "@/lib/deploy.functions";
