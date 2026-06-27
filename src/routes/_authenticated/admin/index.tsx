@@ -151,10 +151,10 @@ function AdminDashboard() {
                 </h2>
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={stats?.cadastrosPorMes ?? []}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                      <XAxis dataKey="mes" stroke="var(--muted-foreground)" fontSize={12} />
-                      <YAxis allowDecimals={false} stroke="var(--muted-foreground)" fontSize={12} />
+                    <LineChart data={stats?.cadastrosPorMes ?? []} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                      <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.6} />
+                      <XAxis dataKey="mes" stroke="var(--muted-foreground)" fontSize={12} tickLine={false} axisLine={false} />
+                      <YAxis allowDecimals={false} stroke="var(--muted-foreground)" fontSize={12} tickLine={false} axisLine={false} width={28} />
                       <Tooltip
                         contentStyle={{
                           background: "var(--card)",
@@ -163,8 +163,16 @@ function AdminDashboard() {
                           color: "var(--foreground)",
                         }}
                       />
-                      <Bar dataKey="total" fill="var(--primary)" radius={[4, 4, 0, 0]} />
-                    </BarChart>
+                      <Line
+                        type="monotone"
+                        dataKey="total"
+                        name="Novos clientes"
+                        stroke="var(--primary)"
+                        strokeWidth={2.5}
+                        dot={{ r: 3, fill: "var(--card)", stroke: "var(--primary)", strokeWidth: 2 }}
+                        activeDot={{ r: 5 }}
+                      />
+                    </LineChart>
                   </ResponsiveContainer>
                 </div>
               </Card>
