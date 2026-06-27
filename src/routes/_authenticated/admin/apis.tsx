@@ -83,7 +83,35 @@ function ApisPage() {
     onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
   });
 
+  // Token de validação do webhook: usa o salvo ou gera um automaticamente.
+  const webhookToken =
+    configRows.find((c) => c.chave === "ASAAS_WEBHOOK_TOKEN")?.valor ?? "";
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const webhookUrl = `${origin}/api/public/webhooks/asaas${
+    webhookToken ? `?token=${webhookToken}` : ""
+  }`;
+
+  useEffect(() => {
+    if (!Array.isArray(config)) return;
+    const existing = config.find((c: ConfigRow) => c.chave === "ASAAS_WEBHOOK_TOKEN")?.valor;
+    if (!existing) {
+      const token =
+        (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}`).replace(/-/g, "") +
+        Math.random().toString(16).slice(2, 10);
+      salvar({
+        data: {
+          chave: "ASAAS_WEBHOOK_TOKEN",
+          valor: token,
+          descricao: "Token de validação do webhook de pagamento (query ?token=).",
+        },
+      })
+        .then(() => qc.invalidateQueries({ queryKey: ["system-config"] }))
+        .catch(() => {});
+    }
+  }, [config, salvar, qc]);
+
   const existentes = new Map(configRows.map((c) => [c.chave, c.descricao]));
+
   const chavesPagamento = new Set(CHAVES_PAGAMENTO.map((c) => c.chave));
   const todasChaves = Array.from(
     new Set([
