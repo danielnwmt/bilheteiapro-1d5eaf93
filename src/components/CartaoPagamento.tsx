@@ -150,11 +150,6 @@ export function CartaoPagamento({
                 <p className="text-sm font-medium">{validade || "MM/AA"}</p>
               </div>
             </div>
-            {bandeira && (
-              <span className="absolute right-6 top-6 text-xs font-bold tracking-wide">
-                {bandeira}
-              </span>
-            )}
           </div>
           {/* verso */}
           <div className="absolute inset-0 flex flex-col rounded-2xl bg-gradient-to-br from-primary/80 to-primary/60 text-primary-foreground shadow-xl [backface-visibility:hidden] [transform:rotateY(180deg)]">
