@@ -129,7 +129,7 @@ LANGUAGE sql
 SECURITY DEFINER
 SET search_path = auth, public
 AS $$
-  SELECT u.id, u.email, u.raw_user_meta_data, u.created_at
+  SELECT u.id, u.email::text, u.raw_user_meta_data, u.created_at
   FROM auth.users u
   ORDER BY u.created_at DESC;
 $$;
