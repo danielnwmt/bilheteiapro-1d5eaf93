@@ -184,7 +184,7 @@ export const pagarComCartao = createServerFn({ method: "POST" })
           user_id: userId,
           plano: data.plano as "start" | "pro" | "elite",
           status: "ativo",
-          stripe_subscription_id: `asaas_card_${Date.now()}`,
+          external_subscription_id: `asaas_card_${Date.now()}`,
           periodo_fim: periodoFim.toISOString(),
           updated_at: new Date().toISOString(),
         },
