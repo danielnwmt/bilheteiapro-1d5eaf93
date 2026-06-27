@@ -13,6 +13,9 @@ export const Route = createFileRoute("/_authenticated/admin")({
     const isDefaultAdmin =
       String(user.email ?? "").trim().toLowerCase() === ADMIN_EMAIL;
 
+    // O admin geral não precisa esperar consulta extra ao servidor para abrir o painel.
+    if (isDefaultAdmin) return { isAdmin: true };
+
     // Fonte única de verdade: getMyAccess já faz o auto-reparo do admin padrão.
     try {
       const access = await getMyAccess();

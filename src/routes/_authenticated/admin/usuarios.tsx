@@ -56,6 +56,8 @@ function UsuariosPage() {
   const { data: clientes, isLoading } = useQuery({
     queryKey: ["clientes"],
     queryFn: () => fetchClientes(),
+    placeholderData: [],
+    staleTime: 60_000,
   });
 
   const mut = useMutation({

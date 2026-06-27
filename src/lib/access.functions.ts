@@ -5,8 +5,44 @@ export type AppRole = "admin" | "operador" | "cliente";
 
 export const ADMIN_EMAIL = "contato@protenexus.com";
 
+const EMPTY_STATS = {
+  totalClientes: 0,
+  ativos: 0,
+  inativos: 0,
+  porPlano: { start: 0, pro: 0, elite: 0, sem: 0 },
+  cadastrosPorMes: [] as { mes: string; total: number }[],
+  faturamentoPorMes: [] as { mes: string; total: number }[],
+};
+
 function normalizeEmail(value: unknown) {
   return String(value ?? "").trim().toLowerCase();
+}
+
+async function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  fallback: T,
+  label: string,
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const guarded = promise.catch((error) => {
+    console.error(`${label}: falhou`, error);
+    return fallback;
+  });
+
+  try {
+    return await Promise.race([
+      guarded,
+      new Promise<T>((resolve) => {
+        timeoutId = setTimeout(() => {
+          console.error(`${label}: tempo limite atingido`);
+          resolve(fallback);
+        }, ms);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
 }
 
 type SupabaseAdmin = Awaited<
@@ -33,7 +69,12 @@ async function resolveEmail(
 
 async function safeSelectRows<T>(label: string, query: any): Promise<T[]> {
   try {
-    const { data, error } = await query;
+    const { data, error } = await withTimeout(
+      Promise.resolve(query),
+      2_500,
+      { data: [], error: null },
+      `leitura ${label}`,
+    );
     if (error) {
       console.error(`listClientes: falha ao ler ${label}`, error);
       return [];
@@ -51,12 +92,15 @@ async function listAuthUsersDirectly(): Promise<any[]> {
   if (!baseUrl || !serviceKey) return [];
 
   const users: any[] = [];
-  for (let page = 1; page <= 20; page++) {
+  for (let page = 1; page <= 3; page++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2_500);
     try {
       const url = new URL("/auth/v1/admin/users", baseUrl);
       url.searchParams.set("page", String(page));
       url.searchParams.set("per_page", "1000");
       const res = await fetch(url, {
+        signal: controller.signal,
         headers: {
           apikey: serviceKey,
           Authorization: `Bearer ${serviceKey}`,
@@ -71,6 +115,8 @@ async function listAuthUsersDirectly(): Promise<any[]> {
     } catch (error) {
       console.error("listClientes: fallback direto no Auth falhou", error);
       break;
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
   return users;
@@ -78,7 +124,12 @@ async function listAuthUsersDirectly(): Promise<any[]> {
 
 async function listAuthUsersViaRpc(admin: SupabaseAdmin): Promise<any[]> {
   try {
-    const { data, error } = await (admin as any).rpc("admin_list_auth_users");
+    const { data, error } = await withTimeout(
+      Promise.resolve((admin as any).rpc("admin_list_auth_users")),
+      2_000,
+      { data: [], error: null },
+      "fallback RPC auth.users",
+    );
     if (error) {
       console.error("listClientes: fallback RPC auth.users falhou", error);
       return [];
@@ -237,7 +288,17 @@ export const listClientes = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { userId, claims } = context;
     const currentEmail = normalizeEmail((claims as any)?.email);
-    await assertStaff(userId, currentEmail);
+    if (currentEmail !== ADMIN_EMAIL) {
+      const roles = await withTimeout(
+        assertStaff(userId, currentEmail),
+        3_000,
+        [] as AppRole[],
+        "validacao staff listClientes",
+      );
+      if (!roles.includes("admin") && !roles.includes("operador")) {
+        throw new Error("Acesso restrito");
+      }
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const [profiles, roles, subs] = await Promise.all([
@@ -309,24 +370,35 @@ export const listClientes = createServerFn({ method: "GET" })
       }
     };
 
-    // Robustez (inclui instalações locais): a fonte de verdade de "quem existe"
-    // é o Auth. Em servidores locais, profiles/user_roles podem não ter linha
-    // para todo mundo (trigger falhou, criação manual, etc.). Então listamos
-    // TODOS os usuários do Auth e completamos com o que existir em profiles.
-    try {
-      const authUsers: any[] = [];
-      for (let page = 1; page <= 20; page++) {
-        const { data: authList, error } = await supabaseAdmin.auth.admin.listUsers({
-          page,
-          perPage: 1000,
-        });
-        if (error) throw error;
-        const users = authList?.users ?? [];
-        authUsers.push(...users);
-        if (users.length < 1000) break;
-      }
-      if (authUsers.length === 0) authUsers.push(...(await listAuthUsersViaRpc(supabaseAdmin)));
-      if (authUsers.length === 0) authUsers.push(...(await listAuthUsersDirectly()));
+    // Robustez sem travar a tela: usa primeiro os dados públicos já rápidos.
+    // Só consulta Auth quando quase não há perfis, com limite curto de tempo.
+    if (byId.size <= 1) {
+      try {
+        const authUsers: any[] = await withTimeout(
+          listAuthUsersViaRpc(supabaseAdmin),
+          2_500,
+          [] as any[],
+          "listar usuários via RPC",
+        );
+        if (authUsers.length === 0) {
+          authUsers.push(
+            ...(await withTimeout(
+              listAuthUsersDirectly(),
+              3_000,
+              [] as any[],
+              "listar usuários direto Auth",
+            )),
+          );
+        }
+        if (authUsers.length === 0) {
+          const authList = await withTimeout(
+            Promise.resolve(supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 })),
+            3_000,
+            { data: { users: [] as any[] }, error: null },
+            "listar usuários Auth Admin",
+          );
+          authUsers.push(...(authList.data?.users ?? []));
+        }
       for (const u of authUsers) {
         const existing = byId.get(u.id);
         if (existing) {
@@ -348,34 +420,8 @@ export const listClientes = createServerFn({ method: "GET" })
           roleMap.set(u.id, Array.from(new Set([...(roleMap.get(u.id) ?? []), "admin"])));
         }
       }
-    } catch (error) {
-      console.error("Falha ao listar usuários no Auth", error);
-      try {
-        const fallbackUsers = [
-          ...(await listAuthUsersViaRpc(supabaseAdmin)),
-          ...(await listAuthUsersDirectly()),
-        ];
-        for (const u of fallbackUsers) {
-          const existing = byId.get(u.id);
-          if (existing) {
-            existing.email = existing.email ?? u.email ?? null;
-            existing.nome = existing.nome ?? u.user_metadata?.nome ?? u.user_metadata?.full_name ?? null;
-          } else {
-            byId.set(u.id, {
-              id: u.id,
-              nome: u.user_metadata?.nome ?? u.user_metadata?.full_name ?? null,
-              email: u.email ?? null,
-              cpf: u.user_metadata?.cpf ?? null,
-              data_nascimento: u.user_metadata?.data_nascimento ?? null,
-              created_at: u.created_at ?? new Date().toISOString(),
-            });
-          }
-          if (normalizeEmail(u.email) === ADMIN_EMAIL) {
-            roleMap.set(u.id, Array.from(new Set([...(roleMap.get(u.id) ?? []), "admin"])));
-          }
-        }
-      } catch (fallbackError) {
-        console.error("Falha no fallback de usuários do Auth", fallbackError);
+      } catch (error) {
+        console.error("Falha ao listar usuários no Auth", error);
       }
     }
 
@@ -571,16 +617,26 @@ export const getClientStats = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { userId, claims } = context;
-    await assertStaff(userId, (claims as any)?.email);
+    const currentEmail = normalizeEmail((claims as any)?.email);
+    if (currentEmail !== ADMIN_EMAIL) {
+      const roles = await withTimeout(
+        assertStaff(userId, currentEmail),
+        3_000,
+        [] as AppRole[],
+        "validacao staff dashboard",
+      );
+      if (!roles.includes("admin") && !roles.includes("operador")) {
+        throw new Error("Acesso restrito");
+      }
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const [{ data: profiles }, { data: roles }, { data: subs }, { data: planoCfg }] =
-      await Promise.all([
-        supabaseAdmin.from("profiles").select("id, created_at"),
-        supabaseAdmin.from("user_roles").select("user_id, role"),
-        supabaseAdmin.from("subscriptions").select("user_id, plano, status, periodo_fim, created_at"),
-        supabaseAdmin.from("plano_config").select("plano, preco"),
-      ]);
+    const [profiles, roles, subs, planoCfg] = await Promise.all([
+      safeSelectRows<any>("profiles stats", supabaseAdmin.from("profiles").select("id, created_at")),
+      safeSelectRows<any>("user_roles stats", supabaseAdmin.from("user_roles").select("user_id, role")),
+      safeSelectRows<any>("subscriptions stats", supabaseAdmin.from("subscriptions").select("user_id, plano, status, periodo_fim, created_at")),
+      safeSelectRows<any>("plano_config stats", supabaseAdmin.from("plano_config").select("plano, preco")),
+    ]);
 
     const parsePreco = (v: string | null | undefined) => {
       if (!v) return 0;
@@ -588,19 +644,19 @@ export const getClientStats = createServerFn({ method: "GET" })
       return parseFloat(n) || 0;
     };
     const precoMap: Record<string, number> = { start: 29.9, pro: 49.9, elite: 79.9 };
-    for (const p of planoCfg ?? []) precoMap[p.plano] = parsePreco(p.preco);
+    for (const p of planoCfg) precoMap[p.plano] = parsePreco(p.preco);
 
     // IDs que são apenas staff (admin/operador) não contam como clientes.
     const staffIds = new Set(
-      (roles ?? [])
+      roles
         .filter((r) => r.role === "admin" || r.role === "operador")
         .map((r) => r.user_id),
     );
 
     const subMap = new Map<string, any>();
-    for (const s of subs ?? []) subMap.set(s.user_id, s);
+    for (const s of subs) subMap.set(s.user_id, s);
 
-    const clientes = (profiles ?? []).filter((p) => !staffIds.has(p.id));
+    const clientes = profiles.filter((p) => !staffIds.has(p.id));
 
     const now = new Date();
     const isAtivo = (s: any) =>
@@ -639,7 +695,7 @@ export const getClientStats = createServerFn({ method: "GET" })
       const fim = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
       const label = ini.toLocaleDateString("pt-BR", { month: "short" });
       let total = 0;
-      for (const s of subs ?? []) {
+      for (const s of subs) {
         if (!clienteIds.has(s.user_id)) continue;
         if (s.status !== "ativo") continue;
         const criada = s.created_at ? new Date(s.created_at) : ini;
