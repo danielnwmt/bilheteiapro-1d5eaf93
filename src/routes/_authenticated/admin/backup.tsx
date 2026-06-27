@@ -62,6 +62,12 @@ function BackupPage() {
   const [clientId, setClientId] = useState("");
   const [clientSecret, setClientSecret] = useState("");
 
+  // Agendamento do backup automático.
+  const [autoEnabled, setAutoEnabled] = useState(false);
+  const [autoTime, setAutoTime] = useState("03:00");
+  const [autoFreq, setAutoFreq] = useState<"daily" | "weekly">("daily");
+  const [autoWeekday, setAutoWeekday] = useState(0);
+
   const doBackup = useServerFn(createBackup);
   const doDrive = useServerFn(backupToDrive);
   const doRestore = useServerFn(restoreBackup);
@@ -70,6 +76,8 @@ function BackupPage() {
   const doAuthUrl = useServerFn(getDriveAuthUrl);
   const doExchange = useServerFn(exchangeDriveCode);
   const doDisconnect = useServerFn(disconnectDrive);
+  const doGetSchedule = useServerFn(getBackupSchedule);
+  const doSaveSchedule = useServerFn(saveBackupSchedule);
 
   const redirectUri =
     typeof window !== "undefined" ? `${window.location.origin}/admin/backup` : "";
@@ -79,6 +87,34 @@ function BackupPage() {
     queryFn: () => doStatus(),
   });
   const status = statusQuery.data;
+
+  const scheduleQuery = useQuery({
+    queryKey: ["backup-schedule"],
+    queryFn: () => doGetSchedule(),
+  });
+  useEffect(() => {
+    const s = scheduleQuery.data;
+    if (s) {
+      setAutoEnabled(s.enabled);
+      setAutoTime(s.time);
+      setAutoFreq(s.freq);
+      setAutoWeekday(s.weekday);
+    }
+  }, [scheduleQuery.data]);
+
+  const mutSchedule = useMutation({
+    mutationFn: () =>
+      doSaveSchedule({
+        data: { enabled: autoEnabled, time: autoTime, freq: autoFreq, weekday: autoWeekday },
+      }),
+    onSuccess: () => {
+      toast.success("Agendamento salvo.");
+      scheduleQuery.refetch();
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar agendamento"),
+  });
+
+
 
   const mutSaveCreds = useMutation({
     mutationFn: () => doSaveCreds({ data: { clientId, clientSecret } }),
