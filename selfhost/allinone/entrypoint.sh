@@ -126,7 +126,7 @@ postgrest &
 cd "$APP_DIR/runtime"
 echo ">> Ajustando URL pública no bundle..."
 find . -type f \( -name "*.js" -o -name "*.mjs" -o -name "*.html" -o -name "*.json" \) \
-  -exec sed -i "s#http://localhost:8000#$PUBLIC_URL#g;s#http://127.0.0.1:8000#$PUBLIC_URL#g;s#$DEFAULT_ANON_KEY#$ANON_KEY#g" {} + 2>/dev/null || true
+  -exec sed -i "s#http://localhost:8000#$PUBLIC_URL#g;s#http://127.0.0.1:8000#$PUBLIC_URL#g;s#__BILHETEIA_PUBLIC_URL__#$PUBLIC_URL#g;s#$DEFAULT_ANON_KEY#$ANON_KEY#g" {} + 2>/dev/null || true
 
 export SUPABASE_URL="http://127.0.0.1:${LISTEN_PORT}"
 export SUPABASE_PUBLISHABLE_KEY="$ANON_KEY"

@@ -8,6 +8,12 @@ services:
   app:
     build:
       context: .
+      args:
+        # A URL da API precisa ser gravada no frontend no build.
+        # Depois do SSL, o watcher troca SUPABASE_PUBLIC_URL para https://dominio
+        # e o deploy reconstrói com essa URL, evitando "Failed to fetch".
+        VITE_SUPABASE_URL: ${SUPABASE_PUBLIC_URL:-http://localhost:8000}
+        SUPABASE_URL: ${SUPABASE_PUBLIC_URL:-http://localhost:8000}
     container_name: bia-app
     restart: always
     environment:
