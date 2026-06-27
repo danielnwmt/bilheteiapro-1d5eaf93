@@ -20,7 +20,7 @@ function PerfilPage() {
   const fetchProfile = useServerFn(getMyProfile);
   const saveName = useServerFn(updateMyName);
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, refetch } = useQuery({
     queryKey: ["my-profile"],
     queryFn: () => fetchProfile(),
     staleTime: 30_000,
@@ -123,11 +123,8 @@ function PerfilPage() {
           Veja seus dados e atualize seu e-mail e senha.
         </p>
 
-        {isLoading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : (
+        {(
+
           <div className="space-y-6">
             <Card className="p-6">
               <div className="mb-4 flex items-center gap-2 font-semibold">
