@@ -311,6 +311,9 @@ function Index() {
                 <Wallet className="mr-2 h-4 w-4" /> Banca
               </Button>
             )}
+            <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/perfil" })}>
+              <UserCircle className="mr-2 h-4 w-4" /> Perfil
+            </Button>
             <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/planos" })}>
               <Crown className="mr-2 h-4 w-4" /> Planos
             </Button>
