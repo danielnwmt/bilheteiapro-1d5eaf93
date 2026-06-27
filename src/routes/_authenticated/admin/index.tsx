@@ -18,6 +18,10 @@ import {
   RefreshCw,
   ShieldCheck,
   Cog,
+  ShoppingCart,
+  DollarSign,
+  Wallet,
+
 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { deploySystem } from "@/lib/deploy.functions";
@@ -58,6 +62,9 @@ const EMPTY_STATS = {
   porPlano: { start: 0, pro: 0, elite: 0, sem: 0 },
   cadastrosPorMes: [],
   faturamentoPorMes: [],
+  vendasDia: 0,
+  faturamentoDia: 0,
+  recebidos: 0,
 };
 
 function AdminDashboard() {
@@ -164,9 +171,29 @@ function AdminDashboard() {
               />
             </div>
 
+            <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <StatCard
+                icon={ShoppingCart}
+                label="Vendas do dia"
+                value={stats?.vendasDia ?? 0}
+                accent
+              />
+              <StatCard
+                icon={DollarSign}
+                label="Faturamento do dia"
+                value={`R$ ${(stats?.faturamentoDia ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+              />
+              <StatCard
+                icon={Wallet}
+                label="Recebidos"
+                value={`R$ ${(stats?.recebidos ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+              />
+            </div>
+
             <div className="mb-6">
               <AccentPicker />
             </div>
+
 
 
 
@@ -310,7 +337,7 @@ function StatCard({
 }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
-  value: number;
+  value: number | string;
   accent?: boolean;
 }) {
   return (
