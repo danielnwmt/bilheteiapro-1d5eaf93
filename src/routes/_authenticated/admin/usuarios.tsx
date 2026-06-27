@@ -144,7 +144,7 @@ function UsuariosPage() {
       setNovo({ nome: "", email: "", senha: "", cpf: "", data_nascimento: "", plano: "start", status: "ativo" });
       qc.invalidateQueries({ queryKey: ["clientes"] });
     },
-    onError: (e: any) => toast.error(e?.message ?? "Erro ao criar usuário"),
+    onError: (e: any) => toast.error(traduzErro(e, "Erro ao criar usuário")),
   });
 
   const handleSalvar = (c: any, cur: { plano: Plano; status: "ativo" | "inativo" }) => {
