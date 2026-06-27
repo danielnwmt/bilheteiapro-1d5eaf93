@@ -185,6 +185,7 @@ function Index() {
         let q = supabase
           .from("partidas")
           .select("id, liga, time_casa, time_fora, inicio, status")
+          .in("liga", CAMPEONATOS)
           .order("inicio", { ascending: true });
 
         if (periodo === "aovivo") {
