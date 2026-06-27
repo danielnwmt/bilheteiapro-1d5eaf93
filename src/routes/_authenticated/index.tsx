@@ -266,6 +266,9 @@ function Index() {
   } as const;
 
   const casaAtual = CASAS.find((c) => c.id === casa)!;
+  const jogosFiltrados = jogos.filter(
+    (j) => campSel.length === 0 || (j.liga ? campSel.includes(j.liga) : false),
+  );
   const premioPotencial = ticket ? (parseFloat(valorAposta) || 0) * ticket.oddTotal : 0;
   const riscoPct =
     ticket && ticket.picks.length
