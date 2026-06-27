@@ -1,3 +1,38 @@
+// Node 20 não possui WebSocket nativo. O cliente do backend cria o módulo de
+// realtime mesmo quando o painel só faz REST/Auth, então em self-host ele
+// quebrava ao salvar. Um stub é suficiente porque o servidor não usa realtime.
+if (typeof globalThis.WebSocket === "undefined") {
+  class ServerNoopWebSocket extends EventTarget {
+    static readonly CONNECTING = 0;
+    static readonly OPEN = 1;
+    static readonly CLOSING = 2;
+    static readonly CLOSED = 3;
+    readonly CONNECTING = 0;
+    readonly OPEN = 1;
+    readonly CLOSING = 2;
+    readonly CLOSED = 3;
+    readonly readyState = ServerNoopWebSocket.CLOSED;
+    readonly protocol = "";
+    readonly extensions = "";
+    readonly bufferedAmount = 0;
+    binaryType: BinaryType = "blob";
+    onopen: ((event: Event) => void) | null = null;
+    onmessage: ((event: MessageEvent) => void) | null = null;
+    onclose: ((event: CloseEvent) => void) | null = null;
+    onerror: ((event: Event) => void) | null = null;
+
+    constructor(readonly url: string | URL, readonly protocols?: string | string[]) {
+      super();
+    }
+
+    close() {}
+    send() {
+      throw new Error("Realtime não está habilitado no servidor local.");
+    }
+  }
+  globalThis.WebSocket = ServerNoopWebSocket as unknown as typeof WebSocket;
+}
+
 import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
