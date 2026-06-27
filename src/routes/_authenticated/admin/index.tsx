@@ -18,6 +18,10 @@ import {
   RefreshCw,
   ShieldCheck,
   Cog,
+  ShoppingCart,
+  DollarSign,
+  Wallet,
+
 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { deploySystem } from "@/lib/deploy.functions";
