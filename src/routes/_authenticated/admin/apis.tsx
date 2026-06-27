@@ -83,7 +83,35 @@ function ApisPage() {
     onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
   });
 
+  // Token de validação do webhook: usa o salvo ou gera um automaticamente.
+  const webhookToken =
+    configRows.find((c) => c.chave === "ASAAS_WEBHOOK_TOKEN")?.valor ?? "";
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const webhookUrl = `${origin}/api/public/webhooks/asaas${
+    webhookToken ? `?token=${webhookToken}` : ""
+  }`;
+
+  useEffect(() => {
+    if (!Array.isArray(config)) return;
+    const existing = config.find((c: ConfigRow) => c.chave === "ASAAS_WEBHOOK_TOKEN")?.valor;
+    if (!existing) {
+      const token =
+        (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}`).replace(/-/g, "") +
+        Math.random().toString(16).slice(2, 10);
+      salvar({
+        data: {
+          chave: "ASAAS_WEBHOOK_TOKEN",
+          valor: token,
+          descricao: "Token de validação do webhook de pagamento (query ?token=).",
+        },
+      })
+        .then(() => qc.invalidateQueries({ queryKey: ["system-config"] }))
+        .catch(() => {});
+    }
+  }, [config, salvar, qc]);
+
   const existentes = new Map(configRows.map((c) => [c.chave, c.descricao]));
+
   const chavesPagamento = new Set(CHAVES_PAGAMENTO.map((c) => c.chave));
   const todasChaves = Array.from(
     new Set([
@@ -270,37 +298,33 @@ function ApisPage() {
 
               {/* URL do webhook para colar no painel do Asaas */}
               <Card className="mt-4 border-primary/30 bg-card p-4">
-                <Label className="text-sm font-semibold">
-                  URL de webhook (confirmação de pagamento)
-                </Label>
+                <Label className="text-sm font-semibold">URL do Webhook</Label>
                 <p className="mb-2 text-xs text-muted-foreground">
-                  Cole esta URL em Asaas → Integrações → Webhooks para liberar o plano
-                  automaticamente após o pagamento.
+                  Configure esta URL no painel do provedor para receber confirmações de pagamento.
                 </p>
                 <div className="flex gap-2">
                   <Input
                     type="text"
                     readOnly
-                    value={
-                      typeof window !== "undefined"
-                        ? `${window.location.origin}/api/public/payments/asaas`
-                        : "/api/public/payments/asaas"
-                    }
-                    className="bg-input/40"
+                    value={webhookUrl}
+                    className="bg-input/40 font-mono text-xs"
                   />
                   <Button
                     variant="outline"
                     onClick={() => {
-                      const url = `${window.location.origin}/api/public/payments/asaas`;
-                      navigator.clipboard?.writeText(url);
+                      navigator.clipboard?.writeText(webhookUrl);
                       toast.success("URL copiada");
                     }}
                   >
                     Copiar
                   </Button>
                 </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Token de validação: <span className="font-mono">{webhookToken || "—"}</span>
+                </p>
               </Card>
             </div>
+
           </div>
         )}
       </div>
