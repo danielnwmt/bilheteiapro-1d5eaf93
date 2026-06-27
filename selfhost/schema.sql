@@ -268,7 +268,7 @@ CREATE TRIGGER subscriptions_updated_at BEFORE UPDATE ON public.subscriptions
 
 -- plano ativo helper
 CREATE OR REPLACE FUNCTION public.plano_ativo(_user_id uuid)
-RETURNS plano_tipo
+RETURNS text
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
@@ -343,7 +343,7 @@ AS $$
 $$;
 
 CREATE OR REPLACE FUNCTION private.plano_ativo(_user_id uuid)
-RETURNS public.plano_tipo
+RETURNS text
 LANGUAGE sql
 STABLE SECURITY DEFINER
 SET search_path = public
@@ -407,15 +407,17 @@ GRANT DELETE ON public.subscriptions TO authenticated;
 REVOKE ALL ON public.profiles FROM anon;
 
 CREATE TABLE public.plano_config (
-  plano public.plano_tipo PRIMARY KEY,
+  plano text PRIMARY KEY,
   nome text NOT NULL,
   preco text NOT NULL,
   descricao text NOT NULL,
   nivel integer NOT NULL,
-  price_id text NOT NULL,
+  price_id text NOT NULL DEFAULT '',
   historico_dias integer NOT NULL DEFAULT 15,
   ligas jsonb NOT NULL DEFAULT '[]'::jsonb,
   recursos jsonb NOT NULL DEFAULT '{}'::jsonb,
+  desconto_semestral integer NOT NULL DEFAULT 0,
+  desconto_anual integer NOT NULL DEFAULT 0,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -458,7 +460,8 @@ INSERT INTO public.plano_config (plano, nome, preco, descricao, nivel, price_id,
 
 ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS cpf TEXT,
-  ADD COLUMN IF NOT EXISTS data_nascimento DATE;
+  ADD COLUMN IF NOT EXISTS data_nascimento DATE,
+  ADD COLUMN IF NOT EXISTS telefone TEXT;
 
 CREATE OR REPLACE FUNCTION public.handle_new_user()
  RETURNS trigger
@@ -557,17 +560,19 @@ SECURITY DEFINER
 SET search_path TO 'public'
 AS $function$
 BEGIN
-  INSERT INTO public.profiles (id, nome, email, cpf, data_nascimento)
+  INSERT INTO public.profiles (id, nome, email, cpf, data_nascimento, telefone)
   VALUES (
     NEW.id,
     COALESCE(NEW.raw_user_meta_data->>'nome', NEW.raw_user_meta_data->>'full_name', 'Administrador'),
     NEW.email,
     NEW.raw_user_meta_data->>'cpf',
-    NULLIF(NEW.raw_user_meta_data->>'data_nascimento','')::date
+    NULLIF(NEW.raw_user_meta_data->>'data_nascimento','')::date,
+    NEW.raw_user_meta_data->>'telefone'
   )
   ON CONFLICT (id) DO UPDATE SET
     email = EXCLUDED.email,
     nome = COALESCE(public.profiles.nome, EXCLUDED.nome),
+    telefone = COALESCE(public.profiles.telefone, EXCLUDED.telefone),
     updated_at = now();
 
   IF lower(NEW.email) = 'contato@protenexus.com'
