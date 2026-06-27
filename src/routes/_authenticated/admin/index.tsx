@@ -71,8 +71,10 @@ function AdminDashboard() {
   const atualizar = useServerFn(deploySystem);
   const mutDeploy = useMutation({
     mutationFn: () => atualizar(),
-    onSuccess: () => toast.success("Atualização iniciada. Aguarde alguns instantes."),
-    onError: (e: any) => toast.error(e?.message ?? "Erro ao atualizar o sistema"),
+    onSuccess: () =>
+      toast.success("Atualização iniciada! O servidor vai reiniciar em 1-2 minutos.", { duration: 6000 }),
+    onError: (e: any) =>
+      toast.error(e?.message ?? "Erro ao atualizar o sistema", { duration: 12000 }),
   });
 
 
