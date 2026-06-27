@@ -37,6 +37,8 @@ const CHAVES_PAGAMENTO = [
   },
 ];
 
+type ConfigRow = { chave: string; valor: string | null; descricao: string | null };
+
 function ApisPage() {
   const router = useRouter();
   const qc = useQueryClient();
@@ -51,10 +53,12 @@ function ApisPage() {
     retry: false,
   });
 
+  const configRows = (Array.isArray(config) ? config : []) as ConfigRow[];
+
   useEffect(() => {
-    if (config) {
+    if (Array.isArray(config)) {
       const m: Record<string, string> = {};
-      for (const c of config) m[c.chave] = c.valor ?? "";
+      for (const c of config as ConfigRow[]) m[c.chave] = c.valor ?? "";
       setVals((v) => ({ ...m, ...v }));
     }
   }, [config]);
@@ -68,12 +72,12 @@ function ApisPage() {
     onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
   });
 
-  const existentes = new Map((config ?? []).map((c) => [c.chave, c.descricao]));
+  const existentes = new Map(configRows.map((c) => [c.chave, c.descricao]));
   const chavesPagamento = new Set(CHAVES_PAGAMENTO.map((c) => c.chave));
   const todasChaves = Array.from(
     new Set([
       ...CHAVES_PADRAO.map((c) => c.chave),
-      ...(config ?? []).map((c) => c.chave),
+      ...configRows.map((c) => c.chave),
     ]),
   ).filter((c) => !chavesPagamento.has(c));
 
