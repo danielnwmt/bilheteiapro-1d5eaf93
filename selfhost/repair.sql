@@ -344,7 +344,6 @@ GRANT EXECUTE ON FUNCTION public.admin_list_users() TO service_role;
 
 -- ============================================================
 --  Endurecimento de acesso (idempotente):
---  - Oculta price_id de anon/authenticated em plano_config.
 --  - Restringe edicao direta de perfis a admin (operador so via server fn).
 -- ============================================================
 DO $$
