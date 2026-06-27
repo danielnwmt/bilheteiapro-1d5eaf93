@@ -177,9 +177,58 @@ function Index() {
     }
   }, [refetchAccess]);
 
+  // Carrega os jogos do período direto do banco.
+  useEffect(() => {
+    let ativo = true;
+    async function carregar() {
+      setLoadingJogos(true);
+      try {
+        let q = supabase
+          .from("partidas")
+          .select("id, liga, time_casa, time_fora, inicio, status")
+          .order("inicio", { ascending: true });
+
+        if (periodo === "aovivo") {
+          q = q.eq("status", "ao_vivo");
+        } else {
+          const spDate = (offset: number) => {
+            const d = new Date();
+            d.setUTCDate(d.getUTCDate() + offset);
+            return new Intl.DateTimeFormat("en-CA", {
+              timeZone: "America/Sao_Paulo",
+              year: "numeric",
+              month: "2-digit",
+              day: "2-digit",
+            }).format(d);
+          };
+          const endOffset = periodo === "semana" ? 7 : periodo === "amanha" ? 1 : 0;
+          const startDate = periodo === "amanha" ? spDate(1) : spDate(0);
+          q = q
+            .gte("inicio", `${startDate}T00:00:00-03:00`)
+            .lte("inicio", `${spDate(endOffset)}T23:59:59-03:00`)
+            .neq("status", "encerrado");
+        }
+
+        const { data, error } = await q.limit(200);
+        if (error) throw error;
+        if (ativo) setJogos((data ?? []) as JogoDia[]);
+      } catch (err) {
+        console.error(err);
+        if (ativo) setJogos([]);
+      } finally {
+        if (ativo) setLoadingJogos(false);
+      }
+    }
+    carregar();
+    return () => {
+      ativo = false;
+    };
+  }, [periodo]);
+
   function podeUsarLiga(c: string) {
     return isStaff || ligaLiberada(planoCfg, c);
   }
+
 
 
   async function handleSignOut() {
