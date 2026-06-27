@@ -123,7 +123,8 @@ BEGIN
   END IF;
 END $$;
 
--- Trigger correto para novos cadastros: admin padrão nunca vira cliente.
+-- Trigger correto para novos cadastros: admin padrão nunca vira cliente e
+-- clientes sempre recebem perfil + papel mesmo em instalações antigas.
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -134,7 +135,11 @@ BEGIN
   INSERT INTO public.profiles (id, nome, email, cpf, data_nascimento, telefone)
   VALUES (
     NEW.id,
-    COALESCE(NEW.raw_user_meta_data->>'nome', NEW.raw_user_meta_data->>'full_name', 'Administrador'),
+    COALESCE(
+      NEW.raw_user_meta_data->>'nome',
+      NEW.raw_user_meta_data->>'full_name',
+      CASE WHEN lower(NEW.email) = 'contato@protenexus.com' THEN 'Administrador' END
+    ),
     NEW.email,
     NEW.raw_user_meta_data->>'cpf',
     NULLIF(NEW.raw_user_meta_data->>'data_nascimento','')::date,
@@ -143,6 +148,8 @@ BEGIN
   ON CONFLICT (id) DO UPDATE SET
     email = EXCLUDED.email,
     nome = COALESCE(public.profiles.nome, EXCLUDED.nome),
+    cpf = COALESCE(public.profiles.cpf, EXCLUDED.cpf),
+    data_nascimento = COALESCE(public.profiles.data_nascimento, EXCLUDED.data_nascimento),
     telefone = COALESCE(public.profiles.telefone, EXCLUDED.telefone),
     updated_at = now();
 
@@ -183,6 +190,8 @@ FROM auth.users u
 ON CONFLICT (id) DO UPDATE SET
   email = EXCLUDED.email,
   nome = COALESCE(public.profiles.nome, EXCLUDED.nome),
+  cpf = COALESCE(public.profiles.cpf, EXCLUDED.cpf),
+  data_nascimento = COALESCE(public.profiles.data_nascimento, EXCLUDED.data_nascimento),
   telefone = COALESCE(public.profiles.telefone, EXCLUDED.telefone),
   updated_at = now();
 
