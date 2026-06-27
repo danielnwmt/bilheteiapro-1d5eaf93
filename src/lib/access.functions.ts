@@ -78,12 +78,13 @@ async function listAuthUsersDirectly(): Promise<any[]> {
 
 async function listAuthUsersViaRpc(admin: SupabaseAdmin): Promise<any[]> {
   try {
-    const { data, error } = await admin.rpc("admin_list_auth_users" as any);
+    const { data, error } = await (admin as any).rpc("admin_list_auth_users");
     if (error) {
       console.error("listClientes: fallback RPC auth.users falhou", error);
       return [];
     }
-    return (data ?? []).map((u: any) => ({
+    const rows = Array.isArray(data) ? data : [];
+    return rows.map((u: any) => ({
       id: u.id,
       email: u.email,
       created_at: u.created_at,
