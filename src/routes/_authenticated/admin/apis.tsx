@@ -38,6 +38,11 @@ const CHAVES_PAGAMENTO = [
   },
 ];
 
+// Provedores (bancos) disponíveis para processar cada forma de pagamento.
+const PROVEDORES_PAGAMENTO = [
+  { value: "asaas", label: "Asaas" },
+];
+
 
 type ConfigRow = { chave: string; valor: string | null; descricao: string | null };
 const ADMIN_EMAIL = "contato@protenexus.com";
