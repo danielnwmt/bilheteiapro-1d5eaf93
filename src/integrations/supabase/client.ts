@@ -30,8 +30,18 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 function createSupabaseClient() {
   // Use import.meta.env for client-side (Vite build-time replacement)
   // Fall back to process.env for SSR (server-side rendering)
-  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+  let SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
   const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
+
+  // Self-host: o backend (Auth + Data API) é servido na MESMA origem do app
+  // (via nginx). No navegador, usar a origem atual faz o sistema funcionar
+  // tanto por IP/HTTP quanto por domínio/HTTPS, sem "mixed content" e sem
+  // precisar reconstruir o bundle depois de instalar o SSL.
+  const IS_SELFHOST =
+    (import.meta.env.VITE_SUPABASE_PROJECT_ID || process.env.SUPABASE_PROJECT_ID) === 'local';
+  if (IS_SELFHOST && typeof window !== 'undefined' && window.location?.origin) {
+    SUPABASE_URL = window.location.origin;
+  }
 
   if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
     const missing = [
