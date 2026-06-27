@@ -142,7 +142,7 @@ function BancaPage() {
   const { data: access } = useAccess();
   const { byPlano } = usePlanos();
   const planoCfg = access?.plano ? byPlano?.[access.plano] : null;
-  const liberado = recursoLiberado(planoCfg, "planilhaBanca");
+  const liberado = !!access?.isStaff || recursoLiberado(planoCfg, "planilhaBanca");
 
   const fetchEntradas = useServerFn(listBancaEntradas);
   const addFn = useServerFn(addBancaEntrada);
