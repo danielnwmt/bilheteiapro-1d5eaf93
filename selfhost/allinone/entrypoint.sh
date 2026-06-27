@@ -105,7 +105,14 @@ else
 fi
 
 echo ">> Reparando schema local e listagem de usuários..."
-psql -v ON_ERROR_STOP=1 -f "$SELF/repair.sql"
+# SEM ON_ERROR_STOP: em bancos já existentes uma migração pontual pode falhar
+# (coluna já no formato certo, etc.). Sem o stop, o psql continua e ainda assim
+# cria admin_list_users + grants no fim, garantindo que os clientes apareçam.
+psql -f "$SELF/repair.sql" || echo ">> repair.sql teve avisos (ignorados)."
+
+# Rede de segurança: garante que a função de listagem exista mesmo que algo
+# acima tenha falhado, aplicando só o trecho crítico isoladamente.
+psql -f "$SELF/list-users.sql" 2>/dev/null || true
 
 echo ">> Garantindo admin padrão..."
 psql -v ON_ERROR_STOP=1 -v admin_email="$ADMIN_EMAIL" -v admin_password="$ADMIN_PASSWORD" -f "$SELF/direct-admin.sql"
