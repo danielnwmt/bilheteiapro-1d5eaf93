@@ -272,6 +272,125 @@ function authUserMeta(user: any) {
   return user?.user_metadata ?? user?.raw_user_meta_data ?? {};
 }
 
+function isSelfHostedRuntime() {
+  const supaUrl = process.env.SUPABASE_URL ?? "";
+  const isCloud = supaUrl.includes("supabase.co") || supaUrl.includes("supabase.in");
+  return process.env.SUPABASE_PROJECT_ID === "local" || !isCloud;
+}
+
+function decodeBase64Url(value: string) {
+  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+  return typeof globalThis.atob === "function"
+    ? globalThis.atob(padded)
+    : Buffer.from(padded, "base64").toString("utf8");
+}
+
+async function verifyLocalRequestJwt(): Promise<{ sub: string; email: string } | null> {
+  if (!isSelfHostedRuntime() || typeof window !== "undefined") return null;
+  const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret) return null;
+
+  const authHeader = getRequestHeader("authorization") ?? getRequestHeader("Authorization") ?? "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+
+  try {
+    const nodeImport = new Function("specifier", "return import(specifier)") as <T = any>(
+      specifier: string,
+    ) => Promise<T>;
+    const { createHmac, timingSafeEqual } = await nodeImport<typeof import("node:crypto")>("node:crypto");
+    const expected = createHmac("sha256", jwtSecret).update(`${parts[0]}.${parts[1]}`).digest("base64url");
+    const actualBuffer = Buffer.from(parts[2]);
+    const expectedBuffer = Buffer.from(expected);
+    if (actualBuffer.length !== expectedBuffer.length || !timingSafeEqual(actualBuffer, expectedBuffer)) return null;
+
+    const payload = JSON.parse(decodeBase64Url(parts[1]));
+    if (!payload?.sub) return null;
+    if (payload.exp && Number(payload.exp) * 1000 < Date.now()) return null;
+    return { sub: String(payload.sub), email: normalizeEmail(payload.email ?? payload.user_email) };
+  } catch (error) {
+    console.error("verifyLocalRequestJwt: falhou", error);
+    return null;
+  }
+}
+
+async function listClientesFromLocalSnapshot(): Promise<any[] | null> {
+  const verified = await verifyLocalRequestJwt();
+  if (!verified?.sub) return null;
+
+  const snapshot = await readLocalDbSnapshot();
+  if (!snapshot) return null;
+
+  const roleMap = new Map<string, string[]>();
+  for (const r of snapshot.roles) {
+    if (!r?.user_id || !r?.role) continue;
+    roleMap.set(r.user_id, Array.from(new Set([...(roleMap.get(r.user_id) ?? []), r.role])));
+  }
+
+  const requesterRoles = roleMap.get(verified.sub) ?? [];
+  const requesterAuthUser = snapshot.authUsers.find((u) => u?.id === verified.sub);
+  const requesterEmail = verified.email || normalizeEmail(requesterAuthUser?.email);
+  const requesterIsStaff =
+    requesterEmail === ADMIN_EMAIL || requesterRoles.includes("admin") || requesterRoles.includes("operador");
+  if (!requesterIsStaff) throw new Error("Acesso restrito");
+
+  const byId = new Map<string, any>();
+  for (const p of snapshot.profiles) {
+    if (p?.id) byId.set(p.id, { ...p });
+  }
+
+  for (const u of snapshot.authUsers) {
+    if (!u?.id) continue;
+    const meta = authUserMeta(u);
+    const existing = byId.get(u.id) ?? { id: u.id };
+    byId.set(u.id, {
+      ...existing,
+      email: existing.email ?? u.email ?? null,
+      nome: existing.nome ?? meta?.nome ?? meta?.full_name ?? null,
+      cpf: existing.cpf ?? meta?.cpf ?? null,
+      telefone: existing.telefone ?? meta?.telefone ?? null,
+      data_nascimento: existing.data_nascimento ?? meta?.data_nascimento ?? null,
+      created_at: existing.created_at ?? u.created_at ?? new Date().toISOString(),
+    });
+    if (!(roleMap.get(u.id) ?? []).length) {
+      roleMap.set(u.id, [normalizeEmail(u.email) === ADMIN_EMAIL ? "admin" : "cliente"]);
+    }
+  }
+
+  for (const id of roleMap.keys()) {
+    if (!byId.has(id)) byId.set(id, { id, created_at: new Date().toISOString() });
+  }
+
+  const subMap = new Map<string, any>();
+  for (const s of snapshot.subs) {
+    if (s?.user_id && !subMap.has(s.user_id)) subMap.set(s.user_id, s);
+  }
+
+  return Array.from(byId.values())
+    .map((p) => {
+      const email = normalizeEmail(p.email);
+      const isAdminEmail = email === ADMIN_EMAIL;
+      const roles = Array.from(new Set([...(roleMap.get(p.id) ?? []), ...(isAdminEmail ? ["admin"] : [])]));
+      const sub = subMap.get(p.id);
+      return {
+        id: p.id,
+        nome: isAdminEmail ? "Administrador" : p.nome,
+        email: isAdminEmail ? ADMIN_EMAIL : p.email ?? null,
+        cpf: p.cpf ?? null,
+        data_nascimento: p.data_nascimento ?? null,
+        telefone: p.telefone ?? null,
+        created_at: p.created_at,
+        roles,
+        plano: isAdminEmail ? "elite" : sub?.plano ?? null,
+        status: isAdminEmail ? "ativo" : sub?.status ?? "inativo",
+        periodo_fim: isAdminEmail ? null : sub?.periodo_fim ?? null,
+      };
+    })
+    .sort((a, b) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime());
+}
+
 // ---- helpers de e-mail / claims -------------------------------------------
 
 function decodeJwtPayload() {
@@ -519,6 +638,9 @@ export const updateMyName = createServerFn({ method: "POST" })
 export const listClientes = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    const localRows = await listClientesFromLocalSnapshot();
+    if (localRows?.length) return localRows;
+
     const { userId, claims } = context;
     const base = restBase();
     let currentEmail = getAuthEmail(claims);
@@ -753,6 +875,12 @@ export const listClientes = createServerFn({ method: "GET" })
       periodo_fim: normalizeEmail(p.email) === ADMIN_EMAIL ? null : subMap.get(p.id)?.periodo_fim ?? null,
     }));
   });
+
+export const listClientesLocalFallback = createServerFn({ method: "GET" }).handler(async () => {
+  const rows = await listClientesFromLocalSnapshot();
+  if (!rows) throw new Error("Listagem local indisponível");
+  return rows;
+});
 
 export const updateClienteProfile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
