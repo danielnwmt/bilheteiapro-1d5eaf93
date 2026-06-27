@@ -65,9 +65,32 @@ function PlanosPage() {
   const [telaCartao, setTelaCartao] = useState(false);
 
   const asaasCheckout = useServerFn(createAsaasCheckout);
+  const cancelar = useServerFn(cancelarAssinatura);
+  const queryClient = useQueryClient();
+  const [cancelando, setCancelando] = useState(false);
 
   const planoAtual = access?.plano ?? null;
   const checkoutCfg = checkout ? byPlano[checkout] : null;
+  const isStaff = !!access?.isStaff;
+  const nivelAtual = planoAtual ? byPlano[planoAtual]?.nivel ?? null : null;
+
+  async function cancelarPlano() {
+    setCancelando(true);
+    try {
+      const res = await cancelar();
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      await queryClient.invalidateQueries({ queryKey: ["my-access"] });
+      toast.success("Assinatura cancelada.");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Não foi possível cancelar");
+    } finally {
+      setCancelando(false);
+    }
+  }
+
 
   async function pagar(metodo: "pix" | "cartao") {
     if (!checkout) return;
