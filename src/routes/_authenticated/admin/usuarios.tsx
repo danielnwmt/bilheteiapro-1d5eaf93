@@ -158,7 +158,10 @@ function UsuariosPage() {
     onError: (e: any) => toast.error(traduzErro(e, "Erro ao criar usuário")),
   });
 
-  const handleSalvar = (c: any, cur: { plano: Plano; status: "ativo" | "inativo" }) => {
+  const handleSalvar = (
+    c: any,
+    cur: { plano: Plano; status: "ativo" | "inativo" | "cortesia"; periodo_fim: string },
+  ) => {
     const p = perfil[c.id] ?? {
       nome: c.nome ?? "",
       email: c.email ?? "",
@@ -174,7 +177,19 @@ function UsuariosPage() {
       telefone: p.telefone,
       data_nascimento: p.data_nascimento || null,
     });
-    mut.mutate({ clienteId: c.id, plano: cur.plano, status: cur.status });
+    mut.mutate({
+      clienteId: c.id,
+      plano: cur.plano,
+      status: cur.status,
+      periodo_fim: cur.periodo_fim ? new Date(cur.periodo_fim).toISOString() : null,
+    });
+  };
+
+  const diasRestantes = (periodoFim: string | null | undefined) => {
+    if (!periodoFim) return null;
+    const fim = new Date(periodoFim).getTime();
+    if (Number.isNaN(fim)) return null;
+    return Math.ceil((fim - Date.now()) / 86_400_000);
   };
 
   return (
