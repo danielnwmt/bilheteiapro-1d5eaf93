@@ -90,21 +90,37 @@ export const getMyAccess = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { userId, claims } = context;
+    const emailClaim = String((claims as any)?.email ?? "").trim().toLowerCase();
+    const isDefaultAdmin = emailClaim === ADMIN_EMAIL;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const [roles, { data: sub }] = await Promise.all([
-      resolveRoles(supabaseAdmin, userId, (claims as any)?.email),
-      supabaseAdmin
+    // Papéis do banco (best-effort). Em servidores locais a leitura/escrita pode
+    // falhar; por isso o e-mail do admin padrão é a fonte de verdade definitiva.
+    let roles: AppRole[] = [];
+    try {
+      roles = await resolveRoles(supabaseAdmin, userId, emailClaim);
+    } catch (err) {
+      console.error("getMyAccess: falha ao resolver papéis", err);
+    }
+
+    let sub: { plano: string; status: string; periodo_fim: string | null } | null = null;
+    try {
+      const res = await supabaseAdmin
         .from("subscriptions")
         .select("plano, status, periodo_fim")
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(1)
-        .maybeSingle(),
-    ]);
+        .maybeSingle();
+      sub = (res.data as any) ?? null;
+    } catch (err) {
+      console.error("getMyAccess: falha ao ler assinatura", err);
+    }
 
-    const isAdmin = roles.includes("admin");
+    // O admin padrão é SEMPRE admin, mesmo que o banco não tenha o papel.
+    const isAdmin = roles.includes("admin") || isDefaultAdmin;
     const isStaff = isAdmin || roles.includes("operador");
+    if (isAdmin && !roles.includes("admin")) roles = [...roles, "admin"];
 
     const ativo =
       sub?.status === "ativo" &&
@@ -127,7 +143,18 @@ export const getMyAccess = createServerFn({ method: "GET" })
   });
 
 async function assertStaff(userId: string, emailHint?: string) {
+  const email = String(emailHint ?? "").trim().toLowerCase();
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  // Admin padrão tem acesso garantido em qualquer ambiente (inclui self-host).
+  if (email === ADMIN_EMAIL) {
+    try {
+      return await resolveRoles(supabaseAdmin, userId, email);
+    } catch {
+      return ["admin"] as AppRole[];
+    }
+  }
+
   const roles = await resolveRoles(supabaseAdmin, userId, emailHint);
   if (!roles.includes("admin") && !roles.includes("operador")) {
     throw new Error("Acesso restrito");
