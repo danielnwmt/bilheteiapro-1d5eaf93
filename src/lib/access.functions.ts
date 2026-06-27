@@ -420,27 +420,51 @@ export const listClientes = createServerFn({ method: "GET" })
       }
     };
 
-    let [profiles, roles, subs] = await Promise.all([
+    // Lê SEMPRE pelas duas vias e MESCLA por id. No Lovable Cloud a via
+    // autenticada (RLS de admin) traz tudo; no self-host, quando a RLS/has_role
+    // não está completa, o admin só enxerga o próprio perfil — então o REST com
+    // service role (que ignora RLS) é quem traz os demais clientes. Mesclando
+    // sempre, funciona nos dois ambientes mesmo que uma das vias venha incompleta.
+    const [pa, ra, sa] = await Promise.all([
       readViaAuth("profiles", "*"),
       readViaAuth("user_roles", "user_id, role"),
       readViaAuth("subscriptions", "user_id, plano, status, periodo_fim"),
     ]);
+    const [pr, rr, sr] = await Promise.all([
+      restSelect<any>(base, "profiles", { select: "*" }, "profiles (listClientes)"),
+      restSelect<any>(base, "user_roles", { select: "user_id, role" }, "user_roles (listClientes)"),
+      restSelect<any>(
+        base,
+        "subscriptions",
+        { select: "user_id, plano, status, periodo_fim" },
+        "subscriptions (listClientes)",
+      ),
+    ]);
 
-    if (profiles.length === 0 || roles.length === 0) {
-      const [p2, r2, s2] = await Promise.all([
-        restSelect<any>(base, "profiles", { select: "*" }, "profiles (listClientes)"),
-        restSelect<any>(base, "user_roles", { select: "user_id, role" }, "user_roles (listClientes)"),
-        restSelect<any>(
-          base,
-          "subscriptions",
-          { select: "user_id, plano, status, periodo_fim" },
-          "subscriptions (listClientes)",
-        ),
-      ]);
-      if (profiles.length === 0) profiles = p2;
-      if (roles.length === 0) roles = r2;
-      if (subs.length === 0) subs = s2;
-    }
+    const mergeById = (a: any[], b: any[], keyOf: (x: any) => string) => {
+      const map = new Map<string, any>();
+      for (const x of [...a, ...b]) {
+        const k = keyOf(x);
+        if (!k) continue;
+        map.set(k, { ...(map.get(k) ?? {}), ...x });
+      }
+      return Array.from(map.values());
+    };
+    const mergeRows = (a: any[], b: any[]) => {
+      const seen = new Set<string>();
+      const out: any[] = [];
+      for (const x of [...a, ...b]) {
+        const k = `${x.user_id ?? ""}|${x.role ?? ""}`;
+        if (seen.has(k)) continue;
+        seen.add(k);
+        out.push(x);
+      }
+      return out;
+    };
+
+    let profiles = mergeById(pa, pr, (x) => x.id);
+    let roles = mergeRows(ra, rr);
+    let subs = mergeById(sa, sr, (x) => x.user_id);
 
     const roleMap = new Map<string, string[]>();
     for (const r of roles) {
