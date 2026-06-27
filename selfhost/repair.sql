@@ -25,6 +25,28 @@ BEGIN
   END IF;
 END $$;
 
+-- sync_state tinha RLS sem policy em algumas versões locais.
+DO $$
+BEGIN
+  IF to_regclass('public.sync_state') IS NOT NULL THEN
+    ALTER TABLE public.sync_state ENABLE ROW LEVEL SECURITY;
+    IF NOT EXISTS (
+      SELECT 1
+      FROM pg_policy p
+      JOIN pg_class c ON c.oid = p.polrelid
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public'
+        AND c.relname = 'sync_state'
+        AND p.polname = 'Auth sync state access'
+    ) THEN
+      CREATE POLICY "Auth sync state access" ON public.sync_state
+      FOR ALL TO authenticated
+      USING (true)
+      WITH CHECK (true);
+    END IF;
+  END IF;
+END $$;
+
 -- Depósitos da gestão de banca (foi adicionado depois do schema inicial).
 CREATE TABLE IF NOT EXISTS public.banca_entradas (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
