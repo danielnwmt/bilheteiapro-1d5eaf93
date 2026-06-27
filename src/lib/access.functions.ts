@@ -391,8 +391,8 @@ export const listClientes = createServerFn({ method: "GET" })
           );
         }
         if (authUsers.length === 0) {
-          const authList = await withTimeout(
-            Promise.resolve(supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 })),
+          const authList = await withTimeout<any>(
+            Promise.resolve(supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 })) as Promise<any>,
             3_000,
             { data: { users: [] as any[] }, error: null },
             "listar usuários Auth Admin",
