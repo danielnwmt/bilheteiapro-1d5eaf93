@@ -80,6 +80,7 @@ type CriarCobrancaParams = {
   valorReais: number; // ex.: 29.9
   externalReference: string; // userId|plano|ciclo
   vencimentoDias?: number;
+  metodo?: "pix" | "cartao"; // forma de pagamento escolhida pelo cliente
   customer?: { name?: string; email?: string; cpfCnpj?: string };
 };
 
@@ -92,11 +93,15 @@ export async function criarCobranca(
   due.setDate(due.getDate() + (params.vencimentoDias ?? 3));
   const dueDate = due.toISOString().slice(0, 10);
 
+  // Mapeia a escolha do cliente para o billingType do Asaas.
+  // "cartao" cobre crédito e débito; o cliente escolhe na fatura.
+  const billingType = params.metodo === "cartao" ? "CREDIT_CARD" : "PIX";
+
   const payment = await asaasFetch("/payments", {
     method: "POST",
     body: JSON.stringify({
       customer: customerId,
-      billingType: "UNDEFINED", // cliente escolhe Pix/Boleto/Cartão
+      billingType,
       value: Number(params.valorReais.toFixed(2)),
       dueDate,
       description: params.descricao,
