@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getRequestHeader } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export type AppRole = "admin" | "operador" | "cliente";
@@ -7,6 +8,25 @@ export const ADMIN_EMAIL = "contato@protenexus.com";
 
 function normalizeEmail(value: unknown) {
   return String(value ?? "").trim().toLowerCase();
+}
+
+function decodeJwtEmail() {
+  try {
+    const authHeader = getRequestHeader("authorization") ?? getRequestHeader("Authorization") ?? "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+    const payload = token.split(".")[1];
+    if (!payload) return "";
+    const padded = payload.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(payload.length / 4) * 4, "=");
+    const claims = JSON.parse(globalThis.atob(padded));
+    return normalizeEmail(claims?.email ?? claims?.user_email);
+  } catch {
+    return "";
+  }
+}
+
+function getAuthEmail(claims: unknown) {
+  const direct = normalizeEmail((claims as any)?.email ?? (claims as any)?.user_email);
+  return direct || decodeJwtEmail();
 }
 
 async function withTimeout<T>(
@@ -201,7 +221,7 @@ export const getMyAccess = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { userId, claims } = context;
-    const emailClaim = normalizeEmail((claims as any)?.email);
+    const emailClaim = getAuthEmail(claims);
     const isDefaultAdmin = emailClaim === ADMIN_EMAIL;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -278,7 +298,7 @@ export const listClientes = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { userId, claims } = context;
-    const currentEmail = normalizeEmail((claims as any)?.email);
+    const currentEmail = getAuthEmail(claims);
     if (currentEmail !== ADMIN_EMAIL) {
       const roles = await withTimeout(
         assertStaff(userId, currentEmail),
@@ -434,7 +454,7 @@ export const updateClienteProfile = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { userId, claims } = context;
-    await assertStaff(userId, (claims as any)?.email);
+    await assertStaff(userId, getAuthEmail(claims));
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     let { error } = await supabaseAdmin
@@ -468,7 +488,7 @@ export const setClientePassword = createServerFn({ method: "POST" })
   .inputValidator((d: { clienteId: string; senha: string }) => d)
   .handler(async ({ data, context }) => {
     const { userId, claims } = context;
-    const roles = await assertStaff(userId, (claims as any)?.email);
+    const roles = await assertStaff(userId, getAuthEmail(claims));
     if (!roles.includes("admin")) throw new Error("Apenas admin pode alterar senha");
     if (!data.senha || data.senha.length < 6)
       throw new Error("A senha deve ter ao menos 6 caracteres");
@@ -488,7 +508,7 @@ export const setClientePlano = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { userId, claims } = context;
-    await assertStaff(userId, (claims as any)?.email);
+    await assertStaff(userId, getAuthEmail(claims));
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { error } = await supabaseAdmin.from("subscriptions").upsert(
@@ -520,7 +540,7 @@ export const createCliente = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { userId, claims } = context;
-    const roles = await assertStaff(userId, (claims as any)?.email);
+    const roles = await assertStaff(userId, getAuthEmail(claims));
     if (!roles.includes("admin")) throw new Error("Apenas admin pode criar usuários");
     if (!data.email.trim()) throw new Error("Informe um e-mail");
     if (!data.senha || data.senha.length < 6)
@@ -594,7 +614,7 @@ export const getClientStats = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { userId, claims } = context;
-    const currentEmail = normalizeEmail((claims as any)?.email);
+    const currentEmail = getAuthEmail(claims);
     if (currentEmail !== ADMIN_EMAIL) {
       const roles = await withTimeout(
         assertStaff(userId, currentEmail),
@@ -698,15 +718,22 @@ export const getSystemConfig = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { userId, claims } = context;
-    const roles = await assertStaff(userId, (claims as any)?.email);
+    const roles = await assertStaff(userId, getAuthEmail(claims));
     if (!roles.includes("admin")) throw new Error("Acesso restrito");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data, error } = await supabaseAdmin
-      .from("system_config")
-      .select("chave, valor, descricao")
-      .order("chave");
-    if (error) throw new Error(error.message);
+    const { data, error } = await withTimeout<any>(
+      Promise.resolve(
+        supabaseAdmin.from("system_config").select("chave, valor, descricao").order("chave"),
+      ),
+      2_500,
+      { data: [], error: null },
+      "leitura system_config",
+    );
+    if (error) {
+      console.error("getSystemConfig: falha ao ler configurações", error);
+      return [];
+    }
     return data ?? [];
   });
 
@@ -715,7 +742,7 @@ export const setSystemConfig = createServerFn({ method: "POST" })
   .inputValidator((d: { chave: string; valor: string; descricao?: string }) => d)
   .handler(async ({ data, context }) => {
     const { userId, claims } = context;
-    const roles = await assertStaff(userId, (claims as any)?.email);
+    const roles = await assertStaff(userId, getAuthEmail(claims));
     if (!roles.includes("admin")) throw new Error("Acesso restrito");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getSystemConfig, setSystemConfig } from "@/lib/access.functions";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -37,6 +38,9 @@ const CHAVES_PAGAMENTO = [
   },
 ];
 
+type ConfigRow = { chave: string; valor: string | null; descricao: string | null };
+const ADMIN_EMAIL = "contato@protenexus.com";
+
 function ApisPage() {
   const router = useRouter();
   const qc = useQueryClient();
@@ -44,6 +48,7 @@ function ApisPage() {
   const salvar = useServerFn(setSystemConfig);
   const [vals, setVals] = useState<Record<string, string>>({});
   const [novaChave, setNovaChave] = useState("");
+  const [currentEmail, setCurrentEmail] = useState<string | null>(null);
 
   const { data: config, isLoading, error } = useQuery({
     queryKey: ["system-config"],
@@ -51,10 +56,19 @@ function ApisPage() {
     retry: false,
   });
 
+  const configRows = (Array.isArray(config) ? config : []) as ConfigRow[];
+
   useEffect(() => {
-    if (config) {
+    supabase.auth
+      .getSession()
+      .then(({ data }) => setCurrentEmail((data.session?.user.email ?? "").trim().toLowerCase()))
+      .catch(() => setCurrentEmail(""));
+  }, []);
+
+  useEffect(() => {
+    if (Array.isArray(config)) {
       const m: Record<string, string> = {};
-      for (const c of config) m[c.chave] = c.valor ?? "";
+      for (const c of config as ConfigRow[]) m[c.chave] = c.valor ?? "";
       setVals((v) => ({ ...m, ...v }));
     }
   }, [config]);
@@ -68,16 +82,23 @@ function ApisPage() {
     onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
   });
 
-  const existentes = new Map((config ?? []).map((c) => [c.chave, c.descricao]));
+  const existentes = new Map(configRows.map((c) => [c.chave, c.descricao]));
   const chavesPagamento = new Set(CHAVES_PAGAMENTO.map((c) => c.chave));
   const todasChaves = Array.from(
     new Set([
       ...CHAVES_PADRAO.map((c) => c.chave),
-      ...(config ?? []).map((c) => c.chave),
+      ...configRows.map((c) => c.chave),
     ]),
   ).filter((c) => !chavesPagamento.has(c));
 
-  if (error) {
+  if (error && currentEmail !== ADMIN_EMAIL) {
+    if (currentEmail === null) {
+      return (
+        <main className="flex min-h-screen items-center justify-center bg-background px-4">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </main>
+      );
+    }
     return (
       <main className="flex min-h-screen items-center justify-center bg-background px-4">
         <Card className="max-w-md border-border/60 bg-card p-8 text-center">
