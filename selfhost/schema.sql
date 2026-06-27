@@ -646,23 +646,10 @@ STABLE
 SECURITY DEFINER
 SET search_path = public, auth
 AS $$
-DECLARE
-  v_uid uuid := auth.uid();
-  v_email text := lower(coalesce((SELECT u.email FROM auth.users u WHERE u.id = v_uid), ''));
-  v_is_staff boolean := false;
 BEGIN
-  IF v_uid IS NULL THEN
-    RAISE EXCEPTION 'not authenticated';
-  END IF;
+  -- Só executável por service_role (servidor). A autorização do solicitante
+  -- (admin/operador) é validada na server function auditada antes de chamar.
 
-  SELECT EXISTS(
-    SELECT 1 FROM public.user_roles r
-    WHERE r.user_id = v_uid AND r.role IN ('admin'::public.app_role, 'operador'::public.app_role)
-  ) INTO v_is_staff;
-
-  IF NOT v_is_staff AND v_email <> 'contato@protenexus.com' THEN
-    RAISE EXCEPTION 'forbidden';
-  END IF;
 
   RETURN QUERY
   SELECT
