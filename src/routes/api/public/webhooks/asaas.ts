@@ -9,18 +9,20 @@ const STATUS_PAGOS = ["RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH"];
 const EVENTOS_PAGOS = ["PAYMENT_RECEIVED", "PAYMENT_CONFIRMED"];
 
 // Webhook do Asaas: chamado quando uma cobrança muda de status.
-// Payload: { event, payment: { externalReference, status, id, ... } }
-// Configure este endpoint em Asaas → Integrações → Webhooks.
-// (opcional) defina ASAAS_WEBHOOK_TOKEN para validar o cabeçalho asaas-access-token.
-export const Route = createFileRoute("/api/public/payments/asaas")({
+// Padrão de URL: /api/public/webhooks/asaas?token=<TOKEN>
+// O token é validado contra ASAAS_WEBHOOK_TOKEN (também aceita o cabeçalho asaas-access-token).
+export const Route = createFileRoute("/api/public/webhooks/asaas")({
   server: {
     handlers: {
       POST: async ({ request }) => {
         try {
-          // Validação opcional do token do webhook.
+          // Validação do token (query string ?token= ou cabeçalho asaas-access-token).
           const expectedToken = await getConfigKey("ASAAS_WEBHOOK_TOKEN");
           if (expectedToken) {
-            const received = request.headers.get("asaas-access-token");
+            const url = new URL(request.url);
+            const received =
+              url.searchParams.get("token") ??
+              request.headers.get("asaas-access-token");
             if (received !== expectedToken) {
               return new Response("Unauthorized", { status: 401 });
             }
