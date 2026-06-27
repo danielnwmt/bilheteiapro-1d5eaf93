@@ -118,12 +118,13 @@ export const createAsaasCheckout = createServerFn({ method: "POST" })
 type CartaoInput = {
   plano: Plano;
   ciclo?: Ciclo;
+  parcelas?: number;
   cartao: { holderName: string; number: string; expiryMonth: string; expiryYear: string; ccv: string };
-  cep: string;
-  numeroEndereco: string;
 };
 
 type CartaoResult = { ok: true; status: string } | { ok: false; error: string };
+
+const MAX_PARCELAS: Record<Ciclo, number> = { mensal: 1, semestral: 6, anual: 12 };
 
 export const pagarComCartao = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -134,8 +135,9 @@ export const pagarComCartao = createServerFn({ method: "POST" })
     if (!c?.number || !c?.holderName || !c?.expiryMonth || !c?.expiryYear || !c?.ccv) {
       throw new Error("Preencha todos os dados do cartão");
     }
-    if (!data.cep || !data.numeroEndereco) throw new Error("Informe CEP e número do endereço");
-    return { plano: data.plano, ciclo, cartao: c, cep: data.cep, numeroEndereco: data.numeroEndereco };
+    const max = MAX_PARCELAS[ciclo];
+    const parcelas = Math.min(Math.max(1, Math.round(Number(data.parcelas) || 1)), max);
+    return { plano: data.plano, ciclo, parcelas, cartao: c };
   })
   .handler(async ({ data, context }): Promise<CartaoResult> => {
     try {
