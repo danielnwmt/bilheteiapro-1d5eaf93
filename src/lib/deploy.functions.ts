@@ -23,12 +23,41 @@ export const deploySystem = createServerFn({ method: "POST" })
     const fs = await import("fs/promises");
     const path = await import("path");
     const triggerFile = process.env.DEPLOY_TRIGGER_FILE || "/opt/app/deploy-trigger/request";
+    const triggerDir = path.dirname(triggerFile);
+    const heartbeatFile = path.join(triggerDir, "watcher-alive");
+
+    // Verifica se o watcher do host está vivo (pulso atualizado nos últimos 60s).
+    async function watcherIsAlive(): Promise<boolean> {
+      try {
+        const raw = await fs.readFile(heartbeatFile, "utf8");
+        const last = Number(String(raw).trim());
+        if (!Number.isFinite(last)) return false;
+        const ageSeconds = Math.floor(Date.now() / 1000) - last;
+        return ageSeconds >= 0 && ageSeconds < 60;
+      } catch {
+        return false;
+      }
+    }
 
     try {
-      await fs.mkdir(path.dirname(triggerFile), { recursive: true });
+      await fs.mkdir(triggerDir, { recursive: true });
       await fs.writeFile(triggerFile, `${Date.now()}\n`, "utf8");
-      return { ok: true, mode: "trigger" as const };
-    } catch (err) {
+
+      const alive = await watcherIsAlive();
+      if (!alive) {
+        // O gatilho foi gravado, mas nada vai rodá-lo: o watcher não está ativo no host.
+        throw new Error(
+          "O pedido foi registrado, mas o atualizador automático não está rodando na VPS. " +
+            "Conecte no servidor e rode UMA vez: cd ~/app && bash deploy.sh (isso instala e liga o atualizador). " +
+            "Depois o botão passa a funcionar sozinho.",
+        );
+      }
+
+      return { ok: true, mode: "trigger" as const, watcher: true };
+    } catch (err: any) {
+      // Se já é a mensagem amigável acima, repassa.
+      if (err?.message?.includes("atualizador automático")) throw err;
+
       // Fallback para instalações fora de container (Node direto na VPS):
       // tenta achar e rodar deploy.sh diretamente.
       try {
@@ -39,10 +68,10 @@ export const deploySystem = createServerFn({ method: "POST" })
           'cd "$DIR" && bash deploy.sh > deploy.log 2>&1';
         const child = spawn("bash", ["-lc", cmd], { detached: true, stdio: "ignore" });
         child.unref();
-        return { ok: true, mode: "spawn" as const };
+        return { ok: true, mode: "spawn" as const, watcher: false };
       } catch {
         throw new Error(
-          "Não foi possível iniciar a atualização. Verifique se o watcher de atualização está ativo na VPS (rode 'bash deploy.sh' uma vez para instalar).",
+          "Não foi possível iniciar a atualização. Conecte na VPS e rode uma vez: cd ~/app && bash deploy.sh",
         );
       }
     }
