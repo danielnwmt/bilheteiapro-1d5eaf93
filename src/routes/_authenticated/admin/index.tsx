@@ -23,8 +23,8 @@ import { toast } from "sonner";
 import { usePlanos } from "@/hooks/usePlanos";
 import { AccentPicker } from "@/components/AccentPicker";
 import {
-  BarChart,
-  Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -34,8 +34,6 @@ import {
   Pie,
   Cell,
   Legend,
-  AreaChart,
-  Area,
 } from "recharts";
 
 export const Route = createFileRoute("/_authenticated/admin/")({
