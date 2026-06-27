@@ -533,9 +533,10 @@ export const listClientes = createServerFn({ method: "GET" })
       return out;
     };
 
-    let profiles = mergeById(pa, pr, (x) => x.id);
-    let roles = mergeRows(ra, rr);
-    let subs = mergeById(sa, sr, (x) => x.user_id);
+    const localSnapshot = await readLocalDbSnapshot();
+    let profiles = mergeById(mergeById(pa, pr, (x) => x.id), localSnapshot?.profiles ?? [], (x) => x.id);
+    let roles = mergeRows(mergeRows(ra, rr), localSnapshot?.roles ?? []);
+    let subs = mergeById(mergeById(sa, sr, (x) => x.user_id), localSnapshot?.subs ?? [], (x) => x.user_id);
 
     const roleMap = new Map<string, string[]>();
     for (const r of roles) {
@@ -574,7 +575,7 @@ export const listClientes = createServerFn({ method: "GET" })
 
     // Completa quem tem conta no Auth mas perdeu o profile/role (self-host).
     try {
-      const authUsers = await collectAuthUsers(base);
+      const authUsers = mergeById(await collectAuthUsers(base), localSnapshot?.authUsers ?? [], (x) => x.id);
       for (const u of authUsers) {
         if (!u?.id) continue;
         const existing = byId.get(u.id);
