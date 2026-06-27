@@ -129,8 +129,19 @@ function AuthPage() {
         setMode("login");
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Erro ao autenticar.";
+      const raw = err instanceof Error ? err.message : "";
+      let msg = "Erro ao autenticar.";
+      if (/already registered|already exists|user already/i.test(raw)) {
+        msg = "Este e-mail já está cadastrado. Faça login.";
+      } else if (/invalid login credentials/i.test(raw)) {
+        msg = "E-mail ou senha incorretos.";
+      } else if (/password|6 characters|at least/i.test(raw)) {
+        msg = "A senha deve ter pelo menos 6 caracteres.";
+      } else if (raw) {
+        msg = raw;
+      }
       toast.error(msg);
+
     } finally {
       setLoading(false);
     }
