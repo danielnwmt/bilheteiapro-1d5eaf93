@@ -453,6 +453,47 @@ function UsuariosPage() {
                       </div>
 
                       <div className="mt-4 border-t border-border/60 pt-4">
+                        <Label className="text-xs">Assinatura</Label>
+                        <div className="mt-2 flex flex-wrap items-end gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-[11px] text-muted-foreground">
+                              Renovação / vencimento
+                            </Label>
+                            <Input
+                              type="date"
+                              value={cur.periodo_fim}
+                              onChange={(e) =>
+                                setEdit((s) => ({ ...s, [c.id]: { ...cur, periodo_fim: e.target.value } }))
+                              }
+                              className="max-w-[180px]"
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            variant={cur.status === "cortesia" ? "default" : "outline"}
+                            size="sm"
+                            onClick={() =>
+                              setEdit((s) => ({
+                                ...s,
+                                [c.id]: {
+                                  ...cur,
+                                  status: cur.status === "cortesia" ? "ativo" : "cortesia",
+                                },
+                              }))
+                            }
+                          >
+                            <Gift className="mr-2 h-4 w-4" />
+                            {cur.status === "cortesia" ? "Cortesia ativada" : "Ativar cortesia"}
+                          </Button>
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          No modo cortesia o cliente tem acesso liberado sem cobrança. Defina a data
+                          para mostrar quantos dias faltam para renovar.
+                        </p>
+                      </div>
+
+
+                      <div className="mt-4 border-t border-border/60 pt-4">
                         <Label className="text-xs">Nova senha</Label>
                         <div className="mt-1 flex flex-wrap items-end gap-2">
                           <Input
