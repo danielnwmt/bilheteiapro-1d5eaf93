@@ -1,10 +1,22 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, X, Loader2, ArrowLeft } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Check, X, Loader2, ArrowLeft, ArrowUp, ArrowDown } from "lucide-react";
 import { toast } from "sonner";
 import {
   TODAS_LIGAS,
@@ -19,7 +31,7 @@ import {
   type Plano,
 } from "@/lib/planos";
 import { usePlanos } from "@/hooks/usePlanos";
-import { createAsaasCheckout } from "@/lib/payments.functions";
+import { createAsaasCheckout, cancelarAssinatura } from "@/lib/payments.functions";
 import { useAccess } from "@/hooks/useAccess";
 import { CartaoPagamento } from "@/components/CartaoPagamento";
 
