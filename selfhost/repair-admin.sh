@@ -30,6 +30,10 @@ echo ">> Garantindo banco/auth/gateway no ar..."
 $DC up -d db auth rest kong
 until $DC exec -T db pg_isready -U postgres -d postgres >/dev/null 2>&1; do sleep 2; done
 
+echo ">> Reparando schema local e listagem de usuários..."
+$DC cp repair.sql db:/tmp/repair.sql
+$DC exec -T db psql -v ON_ERROR_STOP=1 -U postgres -d postgres -f /tmp/repair.sql >/dev/null
+
 echo ">> Recriando/garantindo admin padrão via API do Auth..."
 bash "$SCRIPT_DIR/create-admin.sh"
 
