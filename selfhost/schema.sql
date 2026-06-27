@@ -464,19 +464,19 @@ CREATE TRIGGER update_plano_config_updated_at
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 -- Seed com os valores atuais
-INSERT INTO public.plano_config (plano, nome, preco, descricao, nivel, price_id, historico_dias, ligas, recursos) VALUES
+INSERT INTO public.plano_config (plano, nome, preco, descricao, nivel, historico_dias, ligas, recursos) VALUES
 (
-  'start', 'BilheteIA Start', 'R$ 29,90', 'Para quem busca múltiplas inteligentes com IA.', 1, 'start_monthly', 15,
+  'start', 'BilheteIA Start', 'R$ 29,90', 'Para quem busca múltiplas inteligentes com IA.', 1, 15,
   '["Brasileirão Série A","Brasileirão Série B","Premier League"]'::jsonb,
   '{"bilhetesIlimitados":true,"oddPersonalizada":true,"planilhaBanca":false,"favoritos":false,"estatisticasAvancadas":false,"tempoReal":false,"alertasInteligentes":false,"suportePrioritario":false}'::jsonb
 ),
 (
-  'pro', 'BilheteIA Pro', 'R$ 49,90', 'Todas as ligas mundiais e ferramentas de gestão.', 2, 'pro_monthly', 30,
+  'pro', 'BilheteIA Pro', 'R$ 49,90', 'Todas as ligas mundiais e ferramentas de gestão.', 2, 30,
   '["Brasileirão Série A","Brasileirão Série B","Premier League","Copa do Brasil","Libertadores","Sul-Americana","La Liga","Serie A (Itália)","Bundesliga","Ligue 1","Champions League","Europa League","Conference League","Copa do Mundo"]'::jsonb,
   '{"bilhetesIlimitados":true,"oddPersonalizada":true,"planilhaBanca":true,"favoritos":true,"estatisticasAvancadas":true,"tempoReal":false,"alertasInteligentes":false,"suportePrioritario":false}'::jsonb
 ),
 (
-  'elite', 'BilheteIA Elite', 'R$ 79,90', 'Tudo, em tempo real e com suporte prioritário.', 3, 'elite_monthly', 60,
+  'elite', 'BilheteIA Elite', 'R$ 79,90', 'Tudo, em tempo real e com suporte prioritário.', 3, 60,
   '["Brasileirão Série A","Brasileirão Série B","Premier League","Copa do Brasil","Libertadores","Sul-Americana","La Liga","Serie A (Itália)","Bundesliga","Ligue 1","Champions League","Europa League","Conference League","Copa do Mundo"]'::jsonb,
   '{"bilhetesIlimitados":true,"oddPersonalizada":true,"planilhaBanca":true,"favoritos":true,"estatisticasAvancadas":true,"tempoReal":true,"alertasInteligentes":true,"suportePrioritario":true}'::jsonb
 );
