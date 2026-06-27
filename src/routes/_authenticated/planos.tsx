@@ -237,6 +237,15 @@ function PlanosPage() {
             {list.map((info) => {
               const p = info.plano;
               const atual = planoAtual === p;
+              const isUpgrade = nivelAtual != null && info.nivel > nivelAtual;
+              const isDowngrade = nivelAtual != null && info.nivel < nivelAtual;
+              const label = atual
+                ? "Plano atual"
+                : isUpgrade
+                  ? "Fazer upgrade"
+                  : isDowngrade
+                    ? "Fazer downgrade"
+                    : "Assinar";
               return (
                 <Card
                   key={p}
@@ -265,17 +274,52 @@ function PlanosPage() {
                   )}
                   <Button
                     className="mt-6 w-full font-semibold"
-                    variant={p === "pro" ? "default" : "outline"}
-                    disabled={atual}
+                    variant={atual ? "outline" : p === "pro" ? "default" : "outline"}
+                    disabled={atual || isStaff}
                     onClick={() => { setTelaCartao(false); setCheckout(p); }}
                   >
-                    {atual ? "Plano atual" : "Assinar"}
+                    {isUpgrade && <ArrowUp className="mr-2 h-4 w-4" />}
+                    {isDowngrade && <ArrowDown className="mr-2 h-4 w-4" />}
+                    {label}
                   </Button>
                 </Card>
               );
             })}
           </div>
         )}
+
+        {!isStaff && planoAtual && !checkout && (
+          <Card className="mt-6 border-border/60 bg-card p-6">
+            <h2 className="text-lg font-bold">Cancelar assinatura</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Você continua com acesso ao plano até o fim do período já pago.
+            </p>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" className="mt-4 font-semibold" disabled={cancelando}>
+                  {cancelando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Cancelar assinatura
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Tem certeza que deseja cancelar?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Ao cancelar, você perde o acesso aos recursos do plano ao fim do
+                    período atual e precisará assinar novamente para voltar a usar.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Manter assinatura</AlertDialogCancel>
+                  <AlertDialogAction onClick={cancelarPlano}>
+                    Sim, cancelar
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </Card>
+        )}
+
 
         <Card className="mt-10 overflow-hidden border-border/60 bg-card">
           <div className="border-b border-border/60 p-5">
