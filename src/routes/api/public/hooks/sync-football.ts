@@ -58,7 +58,7 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
           return Response.json({
             ok: true,
             skipped: true,
-            reason: `sem jogos ao vivo e dentro do intervalo de ${Math.round(intervaloMin)} min`,
+            reason: `dentro do intervalo de ${Math.round(intervaloMin)} min`,
             minutesSinceLast: Math.round(minutesSinceLast),
           });
         }
