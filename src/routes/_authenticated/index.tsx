@@ -225,11 +225,18 @@ function Index() {
             }).format(d);
           };
           const endOffset = periodo === "semana" ? 7 : periodo === "amanha" ? 1 : 0;
-          const startDate = periodo === "amanha" ? spDate(1) : spDate(0);
+          // "Hoje" só mostra jogos que ainda não começaram (a partir de agora).
+          const startBound =
+            periodo === "amanha"
+              ? `${spDate(1)}T00:00:00-03:00`
+              : periodo === "semana"
+                ? new Date().toISOString()
+                : new Date().toISOString();
           q = q
-            .gte("inicio", `${startDate}T00:00:00-03:00`)
+            .gte("inicio", startBound)
             .lte("inicio", `${spDate(endOffset)}T23:59:59-03:00`)
             .neq("status", "encerrado");
+
         }
 
         const { data, error } = await q.limit(200);
