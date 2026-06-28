@@ -123,7 +123,17 @@ function ApisPage() {
       ...CHAVES_PADRAO.map((c) => c.chave),
       ...configRows.map((c) => c.chave),
     ]),
-  ).filter((c) => !chavesPagamento.has(c));
+  ).filter(
+    (c) =>
+      !chavesPagamento.has(c) &&
+      // chaves internas/derivadas não devem aparecer como cards próprios
+      !c.endsWith("_INTERVALO_VALOR") &&
+      !c.endsWith("_INTERVALO_UNIDADE") &&
+      c !== "ASAAS_WEBHOOK_TOKEN" &&
+      c !== "PIX_PROVEDOR" &&
+      c !== "CARTAO_PROVEDOR",
+  );
+
 
   if (error && currentEmail !== ADMIN_EMAIL) {
     if (currentEmail === null) {
