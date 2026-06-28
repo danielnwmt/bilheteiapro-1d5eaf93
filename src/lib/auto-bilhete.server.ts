@@ -103,6 +103,7 @@ function resumirEstatisticas(stats: EstatisticaRow[]): string {
   return partes.join(" | ").slice(0, 600);
 }
 
+function normKey(v: string) {
   return v
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
