@@ -1,0 +1,1 @@
+ALTER TABLE public.partidas ADD COLUMN IF NOT EXISTS flashscore_id TEXT;
