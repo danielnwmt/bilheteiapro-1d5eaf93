@@ -88,6 +88,33 @@ function ApisPage() {
     onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
   });
 
+  const testar = useServerFn(testApiKey);
+  const [testando, setTestando] = useState<string | null>(null);
+
+  async function ativarETestar(chave: string) {
+    const valor = vals[chave] ?? "";
+    setTestando(chave);
+    const tid = toast.loading(`Ativando ${chave}…`);
+    try {
+      // Salva o valor atual antes de testar (se foi digitado algo).
+      if (valor) {
+        await salvar({ data: { chave, valor, descricao: existentes.get(chave) ?? "" } });
+        qc.invalidateQueries({ queryKey: ["system-config"] });
+      }
+      const r = (await testar({ data: { chave, valor } })) as { ok: boolean; info?: string; error?: string };
+      if (r.ok) {
+        toast.success(r.info ?? "API ativada com sucesso", { id: tid });
+      } else {
+        toast.error(r.error ?? "Falha ao conectar na API", { id: tid });
+      }
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao testar a API", { id: tid });
+    } finally {
+      setTestando(null);
+    }
+  }
+
+
   // Token de validação do webhook: usa o salvo ou gera um automaticamente.
   const webhookToken =
     configRows.find((c) => c.chave === "ASAAS_WEBHOOK_TOKEN")?.valor ?? "";
