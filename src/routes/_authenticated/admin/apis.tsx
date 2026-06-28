@@ -78,6 +78,8 @@ function ApisPage() {
       const m: Record<string, string> = {};
       for (const c of config as ConfigRow[]) m[c.chave] = c.valor ?? "";
       setVals((v) => ({ ...m, ...v }));
+      const raw = (config as ConfigRow[]).find((c) => c.chave === "API_FLUXO")?.valor;
+      setFlow(parseFlow(raw ?? null));
     }
   }, [config]);
 
