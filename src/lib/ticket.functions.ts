@@ -213,23 +213,34 @@ async function getFootballIntervaloMin(): Promise<number> {
 }
 
 async function podeSincronizarFootball(supabaseAdmin: any): Promise<boolean> {
-  const { data: state } = await supabaseAdmin
+  const { data: state, error } = await supabaseAdmin
     .from("sync_state")
     .select("last_sync_at")
     .eq("id", "football")
     .maybeSingle();
+
+  if (error) {
+    console.error("sync_state football indisponível; bloqueando chamada API-Football", error);
+    return false;
+  }
+
   const last = state?.last_sync_at ? new Date(state.last_sync_at).getTime() : 0;
   const minutesSinceLast = (Date.now() - last) / 60_000;
   return minutesSinceLast >= await getFootballIntervaloMin();
 }
 
-async function marcarSyncFootball(supabaseAdmin: any) {
-  await supabaseAdmin
+async function reservarSyncFootball(supabaseAdmin: any): Promise<boolean> {
+  const { error } = await supabaseAdmin
     .from("sync_state")
     .upsert(
       { id: "football", last_sync_at: new Date().toISOString() },
       { onConflict: "id" },
     );
+  if (error) {
+    console.error("Não foi possível gravar sync_state football; chamada API-Football bloqueada", error);
+    return false;
+  }
+  return true;
 }
 
 function buildDeepLink(
@@ -349,12 +360,14 @@ export const gerarBilhete = createServerFn({ method: "POST" })
 
     // Sem jogos no banco: só busca na API-Football se passou o intervalo configurado.
     const apiFootballLiberada = await podeSincronizarFootball(supabaseAdmin);
+    let footballReservado = false;
     if (!partidas?.length) {
       if (apiFootballLiberada) {
         try {
+          footballReservado = await reservarSyncFootball(supabaseAdmin);
+          if (!footballReservado) throw new Error("Controle de intervalo indisponível");
           const { syncFixtures } = await import("./football.server");
           await syncFixtures(data.periodo);
-          await marcarSyncFootball(supabaseAdmin);
           ({ data: partidas, error } = await lerPartidas());
         } catch (e) {
           console.error("Falha ao sincronizar com API-Football", e);
@@ -376,8 +389,12 @@ export const gerarBilhete = createServerFn({ method: "POST" })
     const semOdds = rows.filter(
       (r) => !r.odds.some((o) => normKey(o.casa) === normKey(data.casa)),
     );
-    if (semOdds.length && apiFootballLiberada) {
+    if (semOdds.length && (footballReservado || apiFootballLiberada)) {
       try {
+        if (!footballReservado) {
+          footballReservado = await reservarSyncFootball(supabaseAdmin);
+        }
+        if (!footballReservado) throw new Error("Controle de intervalo indisponível");
         const { syncOdds } = await import("./football.server");
         const gravadas = await syncOdds(
           semOdds.map((r) => ({
@@ -388,7 +405,6 @@ export const gerarBilhete = createServerFn({ method: "POST" })
           })),
           data.casa,
         );
-        await marcarSyncFootball(supabaseAdmin);
         if (gravadas > 0) {
           const recarregado = await lerPartidas();
           if (!recarregado.error && recarregado.data?.length) {

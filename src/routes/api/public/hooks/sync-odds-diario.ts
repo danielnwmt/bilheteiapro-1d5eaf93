@@ -19,21 +19,30 @@ async function getIntervaloMin(chave: string): Promise<number> {
 }
 
 async function podeSincronizar(supabaseAdmin: any, id: string, chave: string, now: number) {
-  const { data: state } = await supabaseAdmin
+  const { data: state, error } = await supabaseAdmin
     .from("sync_state")
     .select("last_sync_at")
     .eq("id", id)
     .maybeSingle();
+  if (error) {
+    console.error(`sync_state ${id} indisponível; bloqueando chamada da API`, error);
+    return { ok: false, intervaloMin: await getIntervaloMin(chave), minutesSinceLast: 0 };
+  }
   const last = state?.last_sync_at ? new Date(state.last_sync_at).getTime() : 0;
   const minutesSinceLast = (now - last) / 60_000;
   const intervaloMin = await getIntervaloMin(chave);
   return { ok: minutesSinceLast >= intervaloMin, intervaloMin, minutesSinceLast };
 }
 
-async function marcarSync(supabaseAdmin: any, id: string, now: number) {
-  await supabaseAdmin
+async function reservarSync(supabaseAdmin: any, id: string, now: number): Promise<boolean> {
+  const { error } = await supabaseAdmin
     .from("sync_state")
     .upsert({ id, last_sync_at: new Date(now).toISOString() }, { onConflict: "id" });
+  if (error) {
+    console.error(`Não foi possível gravar sync_state ${id}; chamada da API bloqueada`, error);
+    return false;
+  }
+  return true;
 }
 
 export const Route = createFileRoute("/api/public/hooks/sync-odds-diario")({
@@ -52,8 +61,11 @@ export const Route = createFileRoute("/api/public/hooks/sync-odds-diario")({
           // API 1: garante as partidas do dia (descobre as ligas com jogos).
           let fixturesHoje = 0;
           if (footballSync.ok) {
-            fixturesHoje = await syncFixtures("hoje");
-            await marcarSync(supabaseAdmin, "football", now);
+            if (await reservarSync(supabaseAdmin, "football", now)) {
+              fixturesHoje = await syncFixtures("hoje");
+            } else {
+              skipped.API_FOOTBALL_KEY = "controle de intervalo indisponível";
+            }
           } else {
             skipped.API_FOOTBALL_KEY = `dentro do intervalo de ${Math.round(footballSync.intervaloMin)} min`;
           }
@@ -61,8 +73,11 @@ export const Route = createFileRoute("/api/public/hooks/sync-odds-diario")({
           // API 2: The Odds API — odds + deep links das ligas com jogos.
           let result = { ligas: 0, chamadas: 0, eventos: 0, odds: 0 };
           if (oddsApiSync.ok) {
-            result = await syncOddsFromOddsApi(casa);
-            await marcarSync(supabaseAdmin, "odds_api", now);
+            if (await reservarSync(supabaseAdmin, "odds_api", now)) {
+              result = await syncOddsFromOddsApi(casa);
+            } else {
+              skipped.ODDS_API_KEY = "controle de intervalo indisponível";
+            }
           } else {
             skipped.ODDS_API_KEY = `dentro do intervalo de ${Math.round(oddsApiSync.intervaloMin)} min`;
           }

@@ -24,11 +24,20 @@ async function podeSincronizar(
   chave: string,
   now: number,
 ) {
-  const { data: state } = await supabaseAdmin
+  const { data: state, error } = await supabaseAdmin
     .from("sync_state")
     .select("last_sync_at")
     .eq("id", id)
     .maybeSingle();
+
+  if (error) {
+    console.error(`sync_state ${id} indisponível; bloqueando chamada da API`, error);
+    return {
+      ok: false,
+      intervaloMin: await getIntervaloMin(chave),
+      minutesSinceLast: 0,
+    };
+  }
 
   const last = state?.last_sync_at ? new Date(state.last_sync_at).getTime() : 0;
   const minutesSinceLast = (now - last) / 60_000;
@@ -40,13 +49,18 @@ async function podeSincronizar(
   };
 }
 
-async function marcarSync(supabaseAdmin: any, id: string, now: number) {
-  await supabaseAdmin
+async function reservarSync(supabaseAdmin: any, id: string, now: number): Promise<boolean> {
+  const { error } = await supabaseAdmin
     .from("sync_state")
     .upsert(
       { id, last_sync_at: new Date(now).toISOString() },
       { onConflict: "id" },
     );
+  if (error) {
+    console.error(`Não foi possível gravar sync_state ${id}; chamada da API bloqueada`, error);
+    return false;
+  }
+  return true;
 }
 
 export const Route = createFileRoute("/api/public/hooks/sync-football")({
@@ -78,15 +92,20 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
         const flow = await getApiFlow();
         const footballSync = await podeSincronizar(supabaseAdmin, "football", "API_FOOTBALL_KEY", now);
         const oddsApiSync = await podeSincronizar(supabaseAdmin, "odds_api", "ODDS_API_KEY", now);
+        let footballReservado = false;
 
         try {
           // Etapa "jogos": só chama API-Football quando passou o intervalo dela.
           if (footballSync.ok) {
-            fixturesHoje = await syncFixtures("hoje");
-            if (hasLive) {
-              fixturesAoVivo = await syncFixtures("aovivo");
+            footballReservado = await reservarSync(supabaseAdmin, "football", now);
+            if (footballReservado) {
+              fixturesHoje = await syncFixtures("hoje");
+              if (hasLive) {
+                fixturesAoVivo = await syncFixtures("aovivo");
+              }
+            } else {
+              skipped.API_FOOTBALL_KEY = "controle de intervalo indisponível";
             }
-            await marcarSync(supabaseAdmin, "football", now);
           } else {
             skipped.API_FOOTBALL_KEY = `dentro do intervalo de ${Math.round(footballSync.intervaloMin)} min`;
           }
@@ -94,15 +113,18 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
           // Etapa "odds": usa a API definida no fluxo e respeita o intervalo da chave escolhida.
           if (flow.odds === "ODDS_API_KEY") {
             if (oddsApiSync.ok) {
-              // The Odds API: já traz odds + deep links das casas.
-              const r = await syncOddsFromOddsApi(CASA_PADRAO);
-              oddsCount = r.odds;
-              await marcarSync(supabaseAdmin, "odds_api", now);
+              if (await reservarSync(supabaseAdmin, "odds_api", now)) {
+                // The Odds API: já traz odds + deep links das casas.
+                const r = await syncOddsFromOddsApi(CASA_PADRAO);
+                oddsCount = r.odds;
+              } else {
+                skipped.ODDS_API_KEY = "controle de intervalo indisponível";
+              }
             } else {
               skipped.ODDS_API_KEY = `dentro do intervalo de ${Math.round(oddsApiSync.intervaloMin)} min`;
             }
           } else {
-            if (footballSync.ok) {
+            if (footballReservado) {
               // API-Football (padrão). Cobre jogos ao vivo e os próximos de hoje.
               const todayTo = new Date(now + 24 * 60 * 60_000).toISOString();
               const { data: partidas } = await supabaseAdmin
@@ -117,6 +139,8 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
               if (partidas?.length) {
                 oddsCount = await syncOdds(partidas, CASA_PADRAO);
               }
+            } else if (footballSync.ok) {
+              skipped.API_FOOTBALL_KEY = "controle de intervalo indisponível";
             }
           }
         } catch (e) {
