@@ -73,6 +73,14 @@ function BackupPage() {
   const [autoFreq, setAutoFreq] = useState<"daily" | "weekly">("daily");
   const [autoWeekday, setAutoWeekday] = useState(0);
 
+  // Configuração de e-mail (SMTP) para enviar o backup.
+  const [smtpHost, setSmtpHost] = useState("");
+  const [smtpPort, setSmtpPort] = useState(587);
+  const [smtpUser, setSmtpUser] = useState("");
+  const [smtpPass, setSmtpPass] = useState("");
+  const [mailFrom, setMailFrom] = useState("");
+  const [mailTo, setMailTo] = useState("");
+
   const doBackup = useServerFn(createBackup);
   const doDrive = useServerFn(backupToDrive);
   const doRestore = useServerFn(restoreBackup);
@@ -83,6 +91,9 @@ function BackupPage() {
   const doDisconnect = useServerFn(disconnectDrive);
   const doGetSchedule = useServerFn(getBackupSchedule);
   const doSaveSchedule = useServerFn(saveBackupSchedule);
+  const doGetEmail = useServerFn(getEmailConfig);
+  const doSaveEmail = useServerFn(saveEmailConfig);
+  const doEmailBackup = useServerFn(backupToEmail);
 
   const redirectUri =
     typeof window !== "undefined" ? `${window.location.origin}/admin/backup` : "";
