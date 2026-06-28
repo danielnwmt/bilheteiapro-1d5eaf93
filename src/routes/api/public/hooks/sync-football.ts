@@ -71,20 +71,23 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
           fixturesHoje = await syncFixtures("hoje");
           if (hasLive) {
             fixturesAoVivo = await syncFixtures("aovivo");
+          }
 
-            // Atualiza odds reais das partidas ao vivo / em andamento.
-            const { data: partidas } = await supabaseAdmin
-              .from("partidas")
-              .select("id, external_id, time_casa, time_fora")
-              .or(
-                `status.eq.ao_vivo,and(inicio.gte.${liveFrom},inicio.lte.${liveTo})`,
-              )
-              .not("external_id", "is", null)
-              .limit(12);
+          // Atualiza as odds no mesmo intervalo configurado para a API-Football.
+          // Cobre jogos ao vivo / em andamento e os próximos jogos de hoje.
+          const todayFrom = new Date(now).toISOString();
+          const todayTo = new Date(now + 24 * 60 * 60_000).toISOString();
+          const { data: partidas } = await supabaseAdmin
+            .from("partidas")
+            .select("id, external_id, time_casa, time_fora")
+            .or(
+              `status.eq.ao_vivo,and(inicio.gte.${liveFrom},inicio.lte.${todayTo})`,
+            )
+            .not("external_id", "is", null)
+            .limit(20);
 
-            if (partidas?.length) {
-              oddsCount = await syncOdds(partidas, CASA_PADRAO);
-            }
+          if (partidas?.length) {
+            oddsCount = await syncOdds(partidas, CASA_PADRAO);
           }
         } catch (e) {
           console.error("Erro no sync agendado:", e);
