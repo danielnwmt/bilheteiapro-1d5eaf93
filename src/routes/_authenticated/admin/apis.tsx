@@ -333,20 +333,42 @@ function ApisPage() {
                       Salvar
                     </Button>
                   </div>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    className="mt-2"
-                    disabled={testando === chave}
-                    onClick={() => ativarETestar(chave)}
-                  >
-                    {testando === chave ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Plug className="mr-2 h-4 w-4" />
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      disabled={testando === chave}
+                      onClick={() => ativarETestar(chave)}
+                    >
+                      {testando === chave ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Plug className="mr-2 h-4 w-4" />
+                      )}
+                      Ativar e testar
+                    </Button>
+                    {CHAMAVEIS.has(chave) && (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        disabled={chamando === chave}
+                        onClick={() => chamarAgora(chave)}
+                      >
+                        {chamando === chave ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <PlayCircle className="mr-2 h-4 w-4" />
+                        )}
+                        Chamar agora
+                      </Button>
                     )}
-                    Ativar e testar
-                  </Button>
+                    <span className="ml-auto flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                      <Activity className="h-3.5 w-3.5" />
+                      {usageMap[chave]?.total ?? 0} chamadas hoje
+                    </span>
+                  </div>
+
+
 
 
                   <div className="mt-3 flex items-center gap-2 border-t border-border/40 pt-3">
