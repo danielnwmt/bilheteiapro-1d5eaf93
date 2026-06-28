@@ -336,8 +336,171 @@ export const gerarBilhete = createServerFn({ method: "POST" })
       throw new Error(`Os jogos desse período ainda não têm odds salvas para ${data.casa}. Aguarde a sincronização automática configurada no painel.`);
     }
 
-    // Texto para a IA com jogos + odds reais disponíveis
-    const jogosTexto = rows
+    // ---- Análise por jogo com cache diário ----
+    // Cada jogo é analisado pela IA no máximo 1x por dia (por casa). O resultado
+    // fica salvo em analise_cache e é reaproveitado para jogos que ainda não
+    // começaram, sem chamar a IA de novo.
+    const dia = diaSaoPaulo(now);
+    const aAnalisar = rows.slice(0, 30);
+    const analises = await analisarPartidas(
+      supabaseAdmin,
+      aiModel,
+      aAnalisar as unknown as AnalisePartidaRow[],
+      data.casa,
+      dia,
+    );
+
+    const mercadoOk = (mercado: string, selecao: string) => {
+      if (!data.mercados.length) return true;
+      const alvo = normKey(`${mercado} ${selecao}`);
+      return data.mercados.some((m) => alvo.includes(normKey(m)));
+    };
+
+    type Cand = {
+      jogo: string;
+      data: string;
+      mercado: string;
+      selecao: string;
+      odd: number;
+      confianca: number;
+      justificativa: string;
+      external_odd_id: string | null;
+      _partidaId: string;
+    };
+
+    const porJogo = new Map<string, Cand[]>();
+    for (const r of aAnalisar) {
+      const a = analises.get(r.id);
+      if (!a) continue;
+      const jogo = `${r.time_casa} x ${r.time_fora}`;
+      const lista: Cand[] = [];
+      for (const p of a.picks) {
+        if (!mercadoOk(p.mercado, p.selecao)) continue;
+        if (p.confianca < data.minConfianca) continue;
+        lista.push({
+          jogo,
+          data: formatMatchDate(r.inicio),
+          mercado: p.mercado,
+          selecao: p.selecao,
+          odd: p.odd,
+          confianca: p.confianca,
+          justificativa: p.justificativa,
+          external_odd_id: p.external_odd_id,
+          _partidaId: r.id,
+        });
+      }
+      if (lista.length) porJogo.set(r.id, lista.sort((x, y) => y.confianca - x.confianca));
+    }
+
+    if (!porJogo.size) {
+      throw new Error("Nenhuma entrada encontrada para esse filtro. Tente outro período ou campeonato.");
+    }
+
+    // ---- Monta o bilhete (sem nova chamada de IA) para chegar perto da odd alvo ----
+    const target = data.oddAlvo;
+    const low = target * 0.85;
+    const high = target * 1.15;
+    const bests: Cand[] = [];
+    const extras: Cand[] = [];
+    for (const lista of porJogo.values()) {
+      bests.push(lista[0]);
+      for (let k = 1; k < lista.length; k++) extras.push(lista[k]);
+    }
+    bests.sort((a, b) => b.confianca - a.confianca);
+    extras.sort((a, b) => b.confianca - a.confianca);
+
+    const chosen: Cand[] = [];
+    const usedMarket = new Set<string>();
+    let prod = 1;
+    const tryAdd = (p: Cand) => {
+      const mk = `${p._partidaId}::${normKey(p.mercado)}`;
+      if (usedMarket.has(mk)) return false;
+      chosen.push(p);
+      usedMarket.add(mk);
+      prod *= p.odd;
+      return true;
+    };
+
+    // Fase 1: melhor seleção de cada jogo, sem estourar o teto.
+    for (const p of bests) {
+      if (prod >= low) break;
+      if (prod * p.odd <= high) tryAdd(p);
+    }
+    // Fase 2: mercados extras do mesmo jogo, se ainda abaixo da margem.
+    if (prod < low) {
+      for (const p of extras) {
+        if (prod >= low) break;
+        if (prod * p.odd <= high) tryAdd(p);
+      }
+    }
+    // Fase 3: garante pelo menos 1 seleção.
+    if (!chosen.length) {
+      const all = [...bests, ...extras].sort((a, b) => b.confianca - a.confianca);
+      if (all[0]) tryAdd(all[0]);
+    }
+    // Fase 4: ainda abaixo da margem -> aproxima usando as odds maiores.
+    if (prod < low) {
+      const restantes = [...bests, ...extras]
+        .filter((p) => !chosen.includes(p))
+        .sort((a, b) => b.odd - a.odd);
+      for (const p of restantes) {
+        if (prod >= low) break;
+        tryAdd(p);
+      }
+    }
+
+    // Tabela de tradução de deep links
+    const { data: templates } = await supabaseAdmin.from("deep_links").select("casa, mercado, url_template");
+
+    const picks = chosen.map((c) => ({
+      jogo: c.jogo,
+      data: c.data,
+      mercado: c.mercado,
+      selecao: c.selecao,
+      oddEstimada: c.odd,
+      confianca: c.confianca,
+      justificativa: c.justificativa,
+      deepLink: buildDeepLink(
+        (templates ?? []) as Array<{ casa: string; mercado: string | null; url_template: string }>,
+        data.casa,
+        c.jogo,
+        { mercado: c.mercado, selecao: c.selecao },
+        c.external_odd_id,
+      ),
+      _partidaId: c._partidaId,
+    }));
+
+    if (!picks.length) {
+      throw new Error("Nenhuma entrada encontrada para esse filtro. Tente outro período ou campeonato.");
+    }
+
+    const oddTotal = picks.reduce((t, p) => t * p.oddEstimada, 1);
+
+    // Jogos com mais de uma seleção no bilhete recebem o bloco de estatísticas.
+    const contagem = new Map<string, number>();
+    for (const p of picks) contagem.set(p._partidaId, (contagem.get(p._partidaId) ?? 0) + 1);
+    const multiplos = new Set([...contagem.entries()].filter(([, n]) => n > 1).map(([k]) => k));
+    const analiseJogos = [...multiplos]
+      .map((pid) => {
+        const r = aAnalisar.find((x) => x.id === pid);
+        const a = analises.get(pid);
+        if (!r || !a) return null;
+        return { jogo: `${r.time_casa} x ${r.time_fora}`, ...a.analise };
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null);
+
+    // Verifica se a odd atingida ficou perto da odd alvo (±15%).
+    const desvio = Math.abs(oddTotal - data.oddAlvo) / data.oddAlvo;
+    const dentroDaMargem = desvio <= 0.15;
+    const oddFmt = oddTotal.toFixed(2);
+
+    const resumoBase = dentroDaMargem
+      ? `Aposta múltipla de ${picks.length} ${picks.length === 1 ? "seleção" : "seleções"} com odd total ${oddFmt}, dentro da margem de 15% da odd alvo (${data.oddAlvo}).`
+      : `Não foi possível atingir a odd alvo (${data.oddAlvo}) com os jogos disponíveis: a melhor combinação possível chegou a ${oddFmt} com ${picks.length} ${picks.length === 1 ? "seleção" : "seleções"} de alta confiança. Amplie os campeonatos ou o período para alcançar odds maiores.`;
+
+    const observacoes = dentroDaMargem
+      ? "Análises salvas do dia; as odds podem variar até a confirmação na casa."
+      : `Odd alvo ${data.oddAlvo} não alcançável com o filtro atual (poucos jogos/mercados de alta confiança). Análises salvas do dia; as odds podem variar até a confirmação na casa.`;
       .map((r) => {
         const jogo = `${r.time_casa} x ${r.time_fora}`;
         const oddsTxt = r.odds.length
