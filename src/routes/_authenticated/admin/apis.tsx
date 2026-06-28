@@ -206,6 +206,73 @@ function ApisPage() {
           </div>
         ) : (
           <div className="space-y-4">
+            {/* Fluxo das APIs — editável; muda a execução real */}
+            <Card className="border-primary/40 bg-card p-4">
+              <div className="mb-1 flex items-center gap-2">
+                <Workflow className="h-4 w-4 text-primary" />
+                <Label className="text-sm font-semibold">Fluxo das APIs</Label>
+              </div>
+              <p className="mb-4 text-xs text-muted-foreground">
+                Defina qual API faz cada etapa. Ao salvar, o sistema passa a usar
+                a API escolhida em cada passo.
+              </p>
+              <div className="space-y-2">
+                {FLUXO_ETAPAS.map((etapa, i) => (
+                  <div key={etapa.id}>
+                    <div className="flex items-center gap-3 rounded-lg border border-border/50 bg-input/20 p-3">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">
+                        {i + 1}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">{etapa.label}</p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {etapa.descricao}
+                        </p>
+                      </div>
+                      <Select
+                        value={flow[etapa.id] ?? etapa.apis[0]}
+                        onValueChange={(v) =>
+                          setFlow((f) => ({ ...f, [etapa.id]: v }))
+                        }
+                      >
+                        <SelectTrigger className="w-40 shrink-0 bg-input/40">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {etapa.apis.map((api) => (
+                            <SelectItem key={api} value={api}>
+                              {API_LABEL[api] ?? api}
+                            </SelectItem>
+                          ))}
+                          {etapa.opcional && (
+                            <SelectItem value="off">Desligado</SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {i < FLUXO_ETAPAS.length - 1 && (
+                      <div className="flex justify-center py-0.5">
+                        <ArrowDown className="h-3.5 w-3.5 text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <Button
+                className="mt-4 w-full"
+                disabled={mut.isPending}
+                onClick={() =>
+                  mut.mutate({
+                    chave: "API_FLUXO",
+                    valor: JSON.stringify(flow),
+                    descricao: "Fluxo: qual API faz cada etapa do sistema.",
+                  })
+                }
+              >
+                Salvar fluxo
+              </Button>
+            </Card>
+
             {todasChaves.map((chave) => {
               const descricao =
                 existentes.get(chave) ??
