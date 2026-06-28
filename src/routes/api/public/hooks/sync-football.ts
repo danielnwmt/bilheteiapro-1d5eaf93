@@ -1,10 +1,23 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { syncFixtures, syncOdds } from "@/lib/football.server";
+import { getConfigKey } from "@/lib/system-config.server";
 
 // Janela (min) para considerar um jogo "acontecendo agora" mesmo sem status ao_vivo.
 const LIVE_WINDOW_MIN = 150; // ~2h30 de duração de jogo
-const IDLE_INTERVAL_MIN = 60; // sem jogos: sincroniza no máximo a cada 1h
+const IDLE_INTERVAL_MIN_DEFAULT = 60; // fallback: sem intervalo configurado
 const CASA_PADRAO = "betano";
+
+// Lê o intervalo configurado no painel (chave API_FOOTBALL_KEY) em minutos.
+async function getIntervaloMin(): Promise<number> {
+  const valorRaw = await getConfigKey("API_FOOTBALL_KEY_INTERVALO_VALOR");
+  const unidade = (await getConfigKey("API_FOOTBALL_KEY_INTERVALO_UNIDADE")) ?? "minutos";
+  const valor = Number(valorRaw);
+  if (!valor || valor <= 0) return IDLE_INTERVAL_MIN_DEFAULT;
+  if (unidade === "segundos") return valor / 60;
+  if (unidade === "horas") return valor * 60;
+  return valor; // minutos
+}
+
 
 export const Route = createFileRoute("/api/public/hooks/sync-football")({
   server: {
