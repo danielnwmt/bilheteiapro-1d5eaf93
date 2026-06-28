@@ -56,6 +56,7 @@ function ApisPage() {
   const [vals, setVals] = useState<Record<string, string>>({});
   const [novaChave, setNovaChave] = useState("");
   const [currentEmail, setCurrentEmail] = useState<string | null>(null);
+  const [flow, setFlow] = useState<Record<string, string>>({ ...FLUXO_PADRAO });
 
   const { data: config, isLoading, error } = useQuery({
     queryKey: ["system-config"],
