@@ -278,8 +278,7 @@ function Index() {
   const riscoPct =
     ticket && ticket.picks.length
       ? Math.round(
-          100 -
-            ticket.picks.reduce((acc, p) => acc + (p.confianca || 0), 0) / ticket.picks.length,
+          ticket.picks.reduce((acc, p) => acc + (p.confianca || 0), 0) / ticket.picks.length,
         )
       : 0;
 
@@ -693,7 +692,7 @@ function Index() {
                       />
                     </div>
                     <div className="rounded-md border border-border bg-muted/30 p-2 text-right">
-                      <p className="text-[10px] uppercase text-muted-foreground">Odds</p>
+                      <p className="text-[10px] uppercase text-muted-foreground">Odd total</p>
                       <p className="text-sm font-bold">{ticket.oddTotal.toFixed(2)}</p>
                     </div>
                   </div>
