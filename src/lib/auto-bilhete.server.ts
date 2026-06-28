@@ -207,12 +207,12 @@ async function montarBilhete(cfg: BilheteConfig): Promise<AutoResult> {
 
   // 1) Garante fixtures de hoje no banco — SÓ chama a API se já passou o
   // intervalo configurado. Caso contrário, usa o que o cron já salvou (cache).
-  let apiLiberada = await podeChamarApi(supabase);
+  const apiLiberada = await podeChamarApi(supabase);
+  let apiReservada = false;
   if (apiLiberada) {
     try {
-      const reservou = await reservarSync(supabase);
-      apiLiberada = false;
-      if (!reservou) throw new Error("Controle de intervalo indisponível");
+      apiReservada = await reservarSync(supabase);
+      if (!apiReservada) throw new Error("Controle de intervalo indisponível");
       await syncFixtures("hoje");
     } catch (e) {
       console.error("auto-bilhete: falha ao sincronizar fixtures", e);
@@ -239,8 +239,12 @@ async function montarBilhete(cfg: BilheteConfig): Promise<AutoResult> {
 
   // 2) Busca odds reais (Betano) dos jogos sem odds — SÓ se o intervalo permitir.
   const semOdds = rows.filter((r) => !r.odds.some((o) => normKey(o.casa) === normKey(CASA)));
-  if (semOdds.length && apiLiberada) {
+  if (semOdds.length && (apiReservada || apiLiberada)) {
     try {
+      if (!apiReservada) {
+        apiReservada = await reservarSync(supabase);
+      }
+      if (!apiReservada) throw new Error("Controle de intervalo indisponível");
       const gravadas = await syncOdds(
         semOdds.map((r) => ({
           id: r.id,

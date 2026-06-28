@@ -359,13 +359,13 @@ export const gerarBilhete = createServerFn({ method: "POST" })
     }
 
     // Sem jogos no banco: só busca na API-Football se passou o intervalo configurado.
-    let apiFootballLiberada = await podeSincronizarFootball(supabaseAdmin);
+    const apiFootballLiberada = await podeSincronizarFootball(supabaseAdmin);
+    let footballReservado = false;
     if (!partidas?.length) {
       if (apiFootballLiberada) {
         try {
-          const reservou = await reservarSyncFootball(supabaseAdmin);
-          apiFootballLiberada = false;
-          if (!reservou) throw new Error("Controle de intervalo indisponível");
+          footballReservado = await reservarSyncFootball(supabaseAdmin);
+          if (!footballReservado) throw new Error("Controle de intervalo indisponível");
           const { syncFixtures } = await import("./football.server");
           await syncFixtures(data.periodo);
           ({ data: partidas, error } = await lerPartidas());
@@ -389,11 +389,12 @@ export const gerarBilhete = createServerFn({ method: "POST" })
     const semOdds = rows.filter(
       (r) => !r.odds.some((o) => normKey(o.casa) === normKey(data.casa)),
     );
-    if (semOdds.length && apiFootballLiberada) {
+    if (semOdds.length && (footballReservado || apiFootballLiberada)) {
       try {
-        const reservou = await reservarSyncFootball(supabaseAdmin);
-        apiFootballLiberada = false;
-        if (!reservou) throw new Error("Controle de intervalo indisponível");
+        if (!footballReservado) {
+          footballReservado = await reservarSyncFootball(supabaseAdmin);
+        }
+        if (!footballReservado) throw new Error("Controle de intervalo indisponível");
         const { syncOdds } = await import("./football.server");
         const gravadas = await syncOdds(
           semOdds.map((r) => ({
