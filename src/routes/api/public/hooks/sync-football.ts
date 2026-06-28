@@ -92,11 +92,13 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
         const flow = await getApiFlow();
         const footballSync = await podeSincronizar(supabaseAdmin, "football", "API_FOOTBALL_KEY", now);
         const oddsApiSync = await podeSincronizar(supabaseAdmin, "odds_api", "ODDS_API_KEY", now);
+        let footballReservado = false;
 
         try {
           // Etapa "jogos": só chama API-Football quando passou o intervalo dela.
           if (footballSync.ok) {
-            if (await reservarSync(supabaseAdmin, "football", now)) {
+            footballReservado = await reservarSync(supabaseAdmin, "football", now);
+            if (footballReservado) {
               fixturesHoje = await syncFixtures("hoje");
               if (hasLive) {
                 fixturesAoVivo = await syncFixtures("aovivo");
@@ -122,7 +124,7 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
               skipped.ODDS_API_KEY = `dentro do intervalo de ${Math.round(oddsApiSync.intervaloMin)} min`;
             }
           } else {
-            if (footballSync.ok) {
+            if (footballReservado) {
               // API-Football (padrão). Cobre jogos ao vivo e os próximos de hoje.
               const todayTo = new Date(now + 24 * 60 * 60_000).toISOString();
               const { data: partidas } = await supabaseAdmin
@@ -137,6 +139,8 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
               if (partidas?.length) {
                 oddsCount = await syncOdds(partidas, CASA_PADRAO);
               }
+            } else if (footballSync.ok) {
+              skipped.API_FOOTBALL_KEY = "controle de intervalo indisponível";
             }
           }
         } catch (e) {
