@@ -95,6 +95,40 @@ function ApisPage() {
   const testar = useServerFn(testApiKey);
   const [testando, setTestando] = useState<string | null>(null);
 
+  // Contagem de chamadas feitas hoje por cada API.
+  const fetchUsage = useServerFn(getApiUsage);
+  const { data: usage } = useQuery({
+    queryKey: ["api-usage"],
+    queryFn: () => fetchUsage(),
+    retry: false,
+    refetchInterval: 30_000,
+  });
+  const usageMap = (usage ?? {}) as Record<string, { total: number; ultima: string | null }>;
+
+  // Chaves que suportam chamada manual imediata.
+  const CHAMAVEIS = new Set(["API_FOOTBALL_KEY", "ODDS_API_KEY", "GEMINI_API_KEY"]);
+  const chamarManual = useServerFn(chamarApiManual);
+  const [chamando, setChamando] = useState<string | null>(null);
+
+  async function chamarAgora(chave: string) {
+    setChamando(chave);
+    const tid = toast.loading(`Chamando ${chave}…`);
+    try {
+      const r = (await chamarManual({ data: { chave } })) as { ok: boolean; info?: string; error?: string };
+      if (r.ok) {
+        toast.success(r.info ?? "Chamada concluída", { id: tid });
+      } else {
+        toast.error(r.error ?? "Falha na chamada", { id: tid });
+      }
+      qc.invalidateQueries({ queryKey: ["api-usage"] });
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao chamar a API", { id: tid });
+    } finally {
+      setChamando(null);
+    }
+  }
+
+
   async function ativarETestar(chave: string) {
     const valor = vals[chave] ?? "";
     setTestando(chave);
