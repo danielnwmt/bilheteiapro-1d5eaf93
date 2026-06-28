@@ -727,7 +727,7 @@ function Index() {
                     className="mt-4 w-full font-semibold"
                     onClick={() => {
                       const txt = ticket.picks
-                        .map((p, i) => `${i + 1}. ${p.jogo} — ${p.mercado}: ${p.selecao} @ ${p.oddEstimada.toFixed(2)}`)
+                        .map((p, i) => `${i + 1}. ${p.jogo} — ${traduzTermo(p.mercado)}: ${traduzTermo(p.selecao)} @ ${p.oddEstimada.toFixed(2)}`)
                         .join("\n");
                       navigator.clipboard.writeText(`${txt}\n\nOdd total: ${ticket.oddTotal.toFixed(2)}\nValor: R$ ${valorAposta}\nPrêmio potencial: ${premioPotencial.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`);
                       toast.success("Bilhete pronto copiado!");
@@ -794,7 +794,7 @@ function Index() {
                 variant="secondary"
                 onClick={() => {
                   const txt = ticket.picks
-                    .map((p, i) => `${i + 1}. ${p.jogo} — ${p.mercado}: ${p.selecao} @ ${p.oddEstimada.toFixed(2)}`)
+                    .map((p, i) => `${i + 1}. ${p.jogo} — ${traduzTermo(p.mercado)}: ${traduzTermo(p.selecao)} @ ${p.oddEstimada.toFixed(2)}`)
                     .join("\n");
                   navigator.clipboard.writeText(`${txt}\n\nOdd total: ${ticket.oddTotal.toFixed(2)}`);
                   toast.success("Bilhete copiado!");
