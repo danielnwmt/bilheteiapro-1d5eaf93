@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Loader2, Plus, Clock, Plug, ArrowDown, Workflow } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, Clock, Plug, ArrowDown, Workflow, PlayCircle, Activity } from "lucide-react";
 import {
   Select,
   SelectContent,
