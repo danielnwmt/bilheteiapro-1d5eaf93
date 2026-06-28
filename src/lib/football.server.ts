@@ -52,6 +52,7 @@ interface ApiFixture {
 }
 
 async function apiGet(path: string, key: string): Promise<ApiFixture[]> {
+  await registrarChamada("API_FOOTBALL_KEY");
   const res = await fetch(`${API_BASE}${path}`, {
     headers: { "x-apisports-key": key },
   });
