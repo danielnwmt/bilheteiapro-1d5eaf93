@@ -14,6 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      analise_cache: {
+        Row: {
+          casa: string
+          created_at: string
+          dia: string
+          id: string
+          partida_id: string
+          payload: Json
+        }
+        Insert: {
+          casa?: string
+          created_at?: string
+          dia: string
+          id?: string
+          partida_id: string
+          payload: Json
+        }
+        Update: {
+          casa?: string
+          created_at?: string
+          dia?: string
+          id?: string
+          partida_id?: string
+          payload?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analise_cache_partida_id_fkey"
+            columns: ["partida_id"]
+            isOneToOne: false
+            referencedRelation: "partidas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       api_usage: {
         Row: {
           chave: string
