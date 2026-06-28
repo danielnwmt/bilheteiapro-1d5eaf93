@@ -376,6 +376,106 @@ function BackupPage() {
           )}
         </Card>
 
+        <Card className="mb-6 p-6">
+          <div className="mb-1 flex items-center gap-2">
+            <Mail className="h-4 w-4 text-primary" />
+            <h2 className="font-semibold">Backup por e-mail</h2>
+          </div>
+          <p className="mb-4 text-sm text-muted-foreground">
+            Envie o backup como anexo por e-mail. Preencha o servidor de envio (SMTP), o e-mail que
+            envia e o e-mail que recebe.
+          </p>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="mail-from">E-mail que envia</Label>
+              <Input
+                id="mail-from"
+                type="email"
+                value={mailFrom}
+                onChange={(e) => setMailFrom(e.target.value)}
+                placeholder="envia@seudominio.com"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="mail-to">E-mail que recebe</Label>
+              <Input
+                id="mail-to"
+                type="email"
+                value={mailTo}
+                onChange={(e) => setMailTo(e.target.value)}
+                placeholder="recebe@seudominio.com"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="smtp-host">Servidor SMTP</Label>
+              <Input
+                id="smtp-host"
+                value={smtpHost}
+                onChange={(e) => setSmtpHost(e.target.value)}
+                placeholder="smtp.gmail.com"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="smtp-port">Porta</Label>
+              <Input
+                id="smtp-port"
+                type="number"
+                value={smtpPort}
+                onChange={(e) => setSmtpPort(Number(e.target.value))}
+                placeholder="587"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="smtp-user">Usuário SMTP</Label>
+              <Input
+                id="smtp-user"
+                value={smtpUser}
+                onChange={(e) => setSmtpUser(e.target.value)}
+                placeholder="envia@seudominio.com"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="smtp-pass">Senha SMTP</Label>
+              <Input
+                id="smtp-pass"
+                type="password"
+                value={smtpPass}
+                onChange={(e) => setSmtpPass(e.target.value)}
+                placeholder={emailQuery.data?.hasPass ? "•••••• (salvo)" : "senha do e-mail"}
+              />
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Button
+              variant="outline"
+              disabled={mutSaveEmail.isPending}
+              onClick={() => mutSaveEmail.mutate()}
+            >
+              {mutSaveEmail.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+              )}
+              Salvar configuração
+            </Button>
+            <Button
+              disabled={mutEmailBackup.isPending}
+              onClick={() => mutEmailBackup.mutate()}
+            >
+              {mutEmailBackup.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="mr-2 h-4 w-4" />
+              )}
+              Enviar backup por e-mail
+            </Button>
+          </div>
+        </Card>
+
+
+
 
         <Card className="mb-6 p-6">
           <h2 className="mb-1 font-semibold">Fazer backup</h2>
