@@ -97,57 +97,8 @@ function riskFromPicks(picks: Ticket["picks"], oddTotal: number): Ticket["risco"
   return "medio";
 }
 
-function toNumber(value: unknown, fallback = 0) {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  const parsed = Number(String(value ?? "").replace(",", ".").replace(/[^0-9.-]/g, ""));
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
 
-function toText(value: unknown, fallback = "") {
-  return typeof value === "string" && value.trim() ? value.trim() : fallback;
-}
 
-function extractJson(text: string) {
-  const cleaned = text.replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
-  const start = cleaned.indexOf("{");
-  const end = cleaned.lastIndexOf("}");
-  if (start === -1 || end === -1 || end <= start) throw new Error("JSON não encontrado");
-  return cleaned.slice(start, end + 1);
-}
-
-// Remove trailing commas e tenta fechar JSON truncado (saída da IA cortada)
-function repairJson(input: string) {
-  let s = input.replace(/,\s*([}\]])/g, "$1");
-  const opens: string[] = [];
-  let inString = false;
-  let escaped = false;
-  for (const ch of s) {
-    if (inString) {
-      if (escaped) escaped = false;
-      else if (ch === "\\") escaped = true;
-      else if (ch === '"') inString = false;
-      continue;
-    }
-    if (ch === '"') inString = true;
-    else if (ch === "{" || ch === "[") opens.push(ch);
-    else if (ch === "}" || ch === "]") opens.pop();
-  }
-  if (inString) s += '"';
-  while (opens.length) {
-    const o = opens.pop();
-    s += o === "{" ? "}" : "]";
-  }
-  return s.replace(/,\s*([}\]])/g, "$1");
-}
-
-function parseAiJson(text: string): Record<string, unknown> {
-  const extracted = extractJson(text);
-  try {
-    return JSON.parse(extracted) as Record<string, unknown>;
-  } catch {
-    return JSON.parse(repairJson(extracted)) as Record<string, unknown>;
-  }
-}
 
 
 function normKey(value: string) {
