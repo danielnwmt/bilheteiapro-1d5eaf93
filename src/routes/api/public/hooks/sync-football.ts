@@ -49,16 +49,16 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
         const last = state?.last_sync_at ? new Date(state.last_sync_at).getTime() : 0;
         const minutesSinceLast = (now - last) / 60_000;
 
-        // Com jogos ao vivo: sincroniza sempre.
-        // Sem jogos: só sincroniza se passou o intervalo configurado na chave.
+        // Só sincroniza quando passou o intervalo configurado na chave,
+        // mesmo que existam jogos ao vivo.
         const intervaloMin = await getIntervaloMin();
-        const shouldSync = hasLive || minutesSinceLast >= intervaloMin;
+        const shouldSync = minutesSinceLast >= intervaloMin;
 
         if (!shouldSync) {
           return Response.json({
             ok: true,
             skipped: true,
-            reason: `sem jogos ao vivo e dentro do intervalo de ${Math.round(intervaloMin)} min`,
+            reason: `dentro do intervalo de ${Math.round(intervaloMin)} min`,
             minutesSinceLast: Math.round(minutesSinceLast),
           });
         }
