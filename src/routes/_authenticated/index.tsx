@@ -155,6 +155,7 @@ function Index() {
   const [currentEmail, setCurrentEmail] = useState("");
   const [jogos, setJogos] = useState<JogoDia[]>([]);
   const [loadingJogos, setLoadingJogos] = useState(false);
+  const [janela, setJanela] = useState<{ url: string; title: string } | null>(null);
 
   const { byPlano } = usePlanos();
   const roles = access?.roles ?? [];
