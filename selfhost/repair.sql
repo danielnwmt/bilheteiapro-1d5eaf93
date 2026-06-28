@@ -32,7 +32,16 @@ BEGIN
   END IF;
 END $$;
 
--- sync_state tinha RLS sem policy em algumas versões locais.
+-- sync_state controla o intervalo das APIs. Sem ele, a instalação local pode
+-- tentar chamar API-Football toda vez que gera bilhete.
+CREATE TABLE IF NOT EXISTS public.sync_state (
+  id TEXT PRIMARY KEY,
+  last_sync_at TIMESTAMP WITH TIME ZONE,
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.sync_state TO authenticated;
+GRANT ALL ON public.sync_state TO service_role;
+
 DO $$
 BEGIN
   IF to_regclass('public.sync_state') IS NOT NULL THEN
@@ -53,6 +62,11 @@ BEGIN
     END IF;
   END IF;
 END $$;
+
+INSERT INTO public.sync_state (id, last_sync_at) VALUES
+  ('football', NULL),
+  ('odds_api', NULL)
+ON CONFLICT (id) DO NOTHING;
 
 -- Depósitos da gestão de banca (foi adicionado depois do schema inicial).
 CREATE TABLE IF NOT EXISTS public.banca_entradas (

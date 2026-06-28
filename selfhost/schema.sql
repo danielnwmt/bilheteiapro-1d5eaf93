@@ -116,7 +116,9 @@ WITH CHECK (true);
 
 -- Sem políticas públicas: apenas service_role (cron/worker) acessa.
 
-INSERT INTO public.sync_state (id, last_sync_at) VALUES ('football', NULL)
+INSERT INTO public.sync_state (id, last_sync_at) VALUES
+  ('football', NULL),
+  ('odds_api', NULL)
 ON CONFLICT (id) DO NOTHING;
 
 CREATE TABLE public.bilhetes (

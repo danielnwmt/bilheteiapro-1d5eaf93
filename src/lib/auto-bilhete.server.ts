@@ -24,24 +24,37 @@ async function getIntervaloMin(): Promise<number> {
 async function podeChamarApi(
   supabase: ReturnType<typeof admin>,
 ): Promise<boolean> {
-  const { data: state } = await supabase
+  const { data: state, error } = await supabase
     .from("sync_state")
     .select("last_sync_at")
     .eq("id", "football")
     .maybeSingle();
+
+  if (error) {
+    console.error("auto-bilhete: sync_state football indisponível; bloqueando API-Football", error);
+    return false;
+  }
+
   const last = state?.last_sync_at ? new Date(state.last_sync_at).getTime() : 0;
   const minutesSinceLast = (Date.now() - last) / 60_000;
   const intervaloMin = await getIntervaloMin();
   return minutesSinceLast >= intervaloMin;
 }
 
-async function marcarSync(supabase: ReturnType<typeof admin>) {
-  await supabase
+async function reservarSync(supabase: ReturnType<typeof admin>): Promise<boolean> {
+  const { error } = await supabase
     .from("sync_state")
     .upsert(
       { id: "football", last_sync_at: new Date().toISOString() },
       { onConflict: "id" },
     );
+
+  if (error) {
+    console.error("auto-bilhete: não foi possível gravar sync_state football; bloqueando API-Football", error);
+    return false;
+  }
+
+  return true;
 }
 
 // Configuração de cada tipo de bilhete que o robô monta.
@@ -194,11 +207,13 @@ async function montarBilhete(cfg: BilheteConfig): Promise<AutoResult> {
 
   // 1) Garante fixtures de hoje no banco — SÓ chama a API se já passou o
   // intervalo configurado. Caso contrário, usa o que o cron já salvou (cache).
-  const apiLiberada = await podeChamarApi(supabase);
+  let apiLiberada = await podeChamarApi(supabase);
   if (apiLiberada) {
     try {
+      const reservou = await reservarSync(supabase);
+      apiLiberada = false;
+      if (!reservou) throw new Error("Controle de intervalo indisponível");
       await syncFixtures("hoje");
-      await marcarSync(supabase);
     } catch (e) {
       console.error("auto-bilhete: falha ao sincronizar fixtures", e);
     }
