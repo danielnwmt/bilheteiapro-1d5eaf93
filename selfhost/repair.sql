@@ -367,3 +367,18 @@ BEGIN
     END;
   END IF;
 END $$;
+
+-- Corrige deeplinks antigos (search?query 404) para busca Google "casa + jogo"
+DO $$
+BEGIN
+  IF to_regclass('public.deep_links') IS NOT NULL THEN
+    DELETE FROM public.deep_links;
+    INSERT INTO public.deep_links (casa, mercado, url_template) VALUES
+      ('Bet365', NULL, 'https://www.google.com/search?q=bet365%20{jogo}'),
+      ('Betano', NULL, 'https://www.google.com/search?q=betano%20{jogo}'),
+      ('Superbet', NULL, 'https://www.google.com/search?q=superbet%20{jogo}'),
+      ('KTO', NULL, 'https://www.google.com/search?q=kto%20{jogo}'),
+      ('Sportingbet', NULL, 'https://www.google.com/search?q=sportingbet%20{jogo}'),
+      ('Betfair', NULL, 'https://www.google.com/search?q=betfair%20{jogo}');
+  END IF;
+END $$;
