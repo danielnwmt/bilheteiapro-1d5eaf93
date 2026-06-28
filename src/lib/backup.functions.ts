@@ -409,6 +409,107 @@ export const backupToDrive = createServerFn({ method: "POST" })
   });
 
 // ============================================================================
+// Backup por e-mail (SMTP) — funciona em instalação local (Node).
+// ============================================================================
+const CFG_SMTP_HOST = "backup_smtp_host";
+const CFG_SMTP_PORT = "backup_smtp_port";
+const CFG_SMTP_USER = "backup_smtp_user";
+const CFG_SMTP_PASS = "backup_smtp_pass";
+const CFG_MAIL_FROM = "backup_mail_from"; // e-mail que envia
+const CFG_MAIL_TO = "backup_mail_to"; // e-mail que recebe
+
+export type EmailConfig = {
+  host: string;
+  port: number;
+  user: string;
+  hasPass: boolean;
+  from: string;
+  to: string;
+};
+
+export const getEmailConfig = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<EmailConfig> => {
+    const { userId, claims } = context;
+    const base = restBase();
+    await assertAdmin(base, userId, getAuthEmail(claims));
+    return {
+      host: (await cfgGet(base, CFG_SMTP_HOST)) ?? "",
+      port: Number((await cfgGet(base, CFG_SMTP_PORT)) ?? "587"),
+      user: (await cfgGet(base, CFG_SMTP_USER)) ?? "",
+      hasPass: Boolean(await cfgGet(base, CFG_SMTP_PASS)),
+      from: (await cfgGet(base, CFG_MAIL_FROM)) ?? "",
+      to: (await cfgGet(base, CFG_MAIL_TO)) ?? "",
+    };
+  });
+
+export const saveEmailConfig = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (d: { host: string; port: number; user: string; pass?: string; from: string; to: string }) => d,
+  )
+  .handler(async ({ data, context }) => {
+    const { userId, claims } = context;
+    const base = restBase();
+    await assertAdmin(base, userId, getAuthEmail(claims));
+
+    await cfgSet(base, CFG_SMTP_HOST, data.host.trim());
+    await cfgSet(base, CFG_SMTP_PORT, String(data.port || 587));
+    await cfgSet(base, CFG_SMTP_USER, data.user.trim());
+    if (data.pass) await cfgSet(base, CFG_SMTP_PASS, data.pass);
+    await cfgSet(base, CFG_MAIL_FROM, normalizeEmail(data.from));
+    await cfgSet(base, CFG_MAIL_TO, normalizeEmail(data.to));
+    return { ok: true };
+  });
+
+// Gera o backup e envia como anexo por e-mail.
+async function performEmailBackup(base: { url: string; key: string }) {
+  const host = await cfgGet(base, CFG_SMTP_HOST);
+  const user = await cfgGet(base, CFG_SMTP_USER);
+  const pass = await cfgGet(base, CFG_SMTP_PASS);
+  const from = (await cfgGet(base, CFG_MAIL_FROM)) || user || "";
+  const to = await cfgGet(base, CFG_MAIL_TO);
+  const port = Number((await cfgGet(base, CFG_SMTP_PORT)) ?? "587");
+  if (!host || !user || !pass || !to) {
+    throw new Error("Configure o SMTP (servidor, usuário, senha) e o e-mail de destino.");
+  }
+
+  const backup = await montarBackup(base);
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const filename = `bilheteia-backup-${stamp}.json`;
+  const content = JSON.stringify(backup, null, 2);
+
+  const nodemailer = (await import("nodemailer")).default;
+  const transporter = nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    auth: { user, pass },
+  });
+
+  await transporter.sendMail({
+    from,
+    to,
+    subject: `Backup BilheteIA — ${stamp}`,
+    text: "Segue em anexo o backup do sistema BilheteIA.",
+    attachments: [{ filename, content, contentType: "application/json" }],
+  });
+
+  return { ok: true, filename, to };
+}
+
+export const backupToEmail = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { userId, claims } = context;
+    const base = restBase();
+    await assertAdmin(base, userId, getAuthEmail(claims));
+    return performEmailBackup(base);
+  });
+
+
+
+// ============================================================================
 // Backup automático agendado
 // ============================================================================
 const CFG_AUTO_ENABLED = "backup_auto_enabled";
