@@ -7,10 +7,10 @@ const LIVE_WINDOW_MIN = 150; // ~2h30 de duração de jogo
 const IDLE_INTERVAL_MIN_DEFAULT = 60; // fallback: sem intervalo configurado
 const CASA_PADRAO = "betano";
 
-// Lê o intervalo configurado no painel (chave API_FOOTBALL_KEY) em minutos.
-async function getIntervaloMin(): Promise<number> {
-  const valorRaw = await getConfigKey("API_FOOTBALL_KEY_INTERVALO_VALOR");
-  const unidade = (await getConfigKey("API_FOOTBALL_KEY_INTERVALO_UNIDADE")) ?? "minutos";
+// Lê o intervalo configurado no painel para cada chave em minutos.
+async function getIntervaloMin(chave: string): Promise<number> {
+  const valorRaw = await getConfigKey(`${chave}_INTERVALO_VALOR`);
+  const unidade = (await getConfigKey(`${chave}_INTERVALO_UNIDADE`)) ?? "minutos";
   const valor = Number(valorRaw);
   if (!valor || valor <= 0) return IDLE_INTERVAL_MIN_DEFAULT;
   if (unidade === "segundos") return valor / 60;
@@ -18,6 +18,36 @@ async function getIntervaloMin(): Promise<number> {
   return valor; // minutos
 }
 
+async function podeSincronizar(
+  supabaseAdmin: any,
+  id: string,
+  chave: string,
+  now: number,
+) {
+  const { data: state } = await supabaseAdmin
+    .from("sync_state")
+    .select("last_sync_at")
+    .eq("id", id)
+    .maybeSingle();
+
+  const last = state?.last_sync_at ? new Date(state.last_sync_at).getTime() : 0;
+  const minutesSinceLast = (now - last) / 60_000;
+  const intervaloMin = await getIntervaloMin(chave);
+  return {
+    ok: minutesSinceLast >= intervaloMin,
+    intervaloMin,
+    minutesSinceLast,
+  };
+}
+
+async function marcarSync(supabaseAdmin: any, id: string, now: number) {
+  await supabaseAdmin
+    .from("sync_state")
+    .upsert(
+      { id, last_sync_at: new Date(now).toISOString() },
+      { onConflict: "id" },
+    );
+}
 
 export const Route = createFileRoute("/api/public/hooks/sync-football")({
   server: {
@@ -39,63 +69,54 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
 
         const hasLive = (liveCount ?? 0) > 0;
 
-        // Último sync registrado
-        const { data: state } = await supabaseAdmin
-          .from("sync_state")
-          .select("last_sync_at")
-          .eq("id", "football")
-          .maybeSingle();
-
-        const last = state?.last_sync_at ? new Date(state.last_sync_at).getTime() : 0;
-        const minutesSinceLast = (now - last) / 60_000;
-
-        // Só sincroniza quando passou o intervalo configurado na chave,
-        // mesmo que existam jogos ao vivo.
-        const intervaloMin = await getIntervaloMin();
-        const shouldSync = minutesSinceLast >= intervaloMin;
-
-        if (!shouldSync) {
-          return Response.json({
-            ok: true,
-            skipped: true,
-            reason: `dentro do intervalo de ${Math.round(intervaloMin)} min`,
-            minutesSinceLast: Math.round(minutesSinceLast),
-          });
-        }
-
         let fixturesAoVivo = 0;
         let fixturesHoje = 0;
         let oddsCount = 0;
+        const skipped: Record<string, string> = {};
 
         // Fluxo configurado no painel: qual API faz cada etapa.
         const flow = await getApiFlow();
+        const footballSync = await podeSincronizar(supabaseAdmin, "football", "API_FOOTBALL_KEY", now);
+        const oddsApiSync = await podeSincronizar(supabaseAdmin, "odds_api", "ODDS_API_KEY", now);
 
         try {
-          // Etapa "jogos" (sempre API-Football).
-          fixturesHoje = await syncFixtures("hoje");
-          if (hasLive) {
-            fixturesAoVivo = await syncFixtures("aovivo");
+          // Etapa "jogos": só chama API-Football quando passou o intervalo dela.
+          if (footballSync.ok) {
+            fixturesHoje = await syncFixtures("hoje");
+            if (hasLive) {
+              fixturesAoVivo = await syncFixtures("aovivo");
+            }
+            await marcarSync(supabaseAdmin, "football", now);
+          } else {
+            skipped.API_FOOTBALL_KEY = `dentro do intervalo de ${Math.round(footballSync.intervaloMin)} min`;
           }
 
-          // Etapa "odds": usa a API definida no fluxo.
+          // Etapa "odds": usa a API definida no fluxo e respeita o intervalo da chave escolhida.
           if (flow.odds === "ODDS_API_KEY") {
-            // The Odds API: já traz odds + deep links das casas.
-            const r = await syncOddsFromOddsApi(CASA_PADRAO);
-            oddsCount = r.odds;
+            if (oddsApiSync.ok) {
+              // The Odds API: já traz odds + deep links das casas.
+              const r = await syncOddsFromOddsApi(CASA_PADRAO);
+              oddsCount = r.odds;
+              await marcarSync(supabaseAdmin, "odds_api", now);
+            } else {
+              skipped.ODDS_API_KEY = `dentro do intervalo de ${Math.round(oddsApiSync.intervaloMin)} min`;
+            }
           } else {
-            // API-Football (padrão). Cobre jogos ao vivo e os próximos de hoje.
-            const todayTo = new Date(now + 24 * 60 * 60_000).toISOString();
-            const { data: partidas } = await supabaseAdmin
-              .from("partidas")
-              .select("id, external_id, time_casa, time_fora")
-              .or(
-                `status.eq.ao_vivo,and(inicio.gte.${liveFrom},inicio.lte.${todayTo})`,
-              )
-              .not("external_id", "is", null)
-              .limit(20);
+            if (footballSync.ok) {
+              // API-Football (padrão). Cobre jogos ao vivo e os próximos de hoje.
+              const todayTo = new Date(now + 24 * 60 * 60_000).toISOString();
+              const { data: partidas } = await supabaseAdmin
+                .from("partidas")
+                .select("id, external_id, time_casa, time_fora")
+                .or(
+                  `status.eq.ao_vivo,and(inicio.gte.${liveFrom},inicio.lte.${todayTo})`,
+                )
+                .not("external_id", "is", null)
+                .limit(20);
 
-            if (partidas?.length) {
-              oddsCount = await syncOdds(partidas, CASA_PADRAO);
+              if (partidas?.length) {
+                oddsCount = await syncOdds(partidas, CASA_PADRAO);
+              }
             }
           }
         } catch (e) {
@@ -106,16 +127,10 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
           );
         }
 
-        await supabaseAdmin
-          .from("sync_state")
-          .upsert(
-            { id: "football", last_sync_at: new Date(now).toISOString() },
-            { onConflict: "id" },
-          );
-
         return Response.json({
           ok: true,
           hasLive,
+          skipped,
           fixturesHoje,
           fixturesAoVivo,
           oddsCount,

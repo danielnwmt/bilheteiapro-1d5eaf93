@@ -201,6 +201,37 @@ type PartidaRow = {
   odds: OddRow[];
 };
 
+async function getFootballIntervaloMin(): Promise<number> {
+  const { getConfigKey } = await import("./system-config.server");
+  const valorRaw = await getConfigKey("API_FOOTBALL_KEY_INTERVALO_VALOR");
+  const unidade = (await getConfigKey("API_FOOTBALL_KEY_INTERVALO_UNIDADE")) ?? "minutos";
+  const valor = Number(valorRaw);
+  if (!valor || valor <= 0) return 60;
+  if (unidade === "segundos") return valor / 60;
+  if (unidade === "horas") return valor * 60;
+  return valor;
+}
+
+async function podeSincronizarFootball(supabaseAdmin: any): Promise<boolean> {
+  const { data: state } = await supabaseAdmin
+    .from("sync_state")
+    .select("last_sync_at")
+    .eq("id", "football")
+    .maybeSingle();
+  const last = state?.last_sync_at ? new Date(state.last_sync_at).getTime() : 0;
+  const minutesSinceLast = (Date.now() - last) / 60_000;
+  return minutesSinceLast >= await getFootballIntervaloMin();
+}
+
+async function marcarSyncFootball(supabaseAdmin: any) {
+  await supabaseAdmin
+    .from("sync_state")
+    .upsert(
+      { id: "football", last_sync_at: new Date().toISOString() },
+      { onConflict: "id" },
+    );
+}
+
 function buildDeepLink(
   templates: Array<{ casa: string; mercado: string | null; url_template: string }>,
   casa: string,
@@ -316,14 +347,18 @@ export const gerarBilhete = createServerFn({ method: "POST" })
       throw new Error("Não foi possível ler os jogos do banco. Tente novamente.");
     }
 
-    // Sem jogos no banco: busca na API-Football e tenta de novo.
+    // Sem jogos no banco: só busca na API-Football se passou o intervalo configurado.
+    const apiFootballLiberada = await podeSincronizarFootball(supabaseAdmin);
     if (!partidas?.length) {
-      try {
-        const { syncFixtures } = await import("./football.server");
-        await syncFixtures(data.periodo);
-        ({ data: partidas, error } = await lerPartidas());
-      } catch (e) {
-        console.error("Falha ao sincronizar com API-Football", e);
+      if (apiFootballLiberada) {
+        try {
+          const { syncFixtures } = await import("./football.server");
+          await syncFixtures(data.periodo);
+          await marcarSyncFootball(supabaseAdmin);
+          ({ data: partidas, error } = await lerPartidas());
+        } catch (e) {
+          console.error("Falha ao sincronizar com API-Football", e);
+        }
       }
     }
 
@@ -331,16 +366,17 @@ export const gerarBilhete = createServerFn({ method: "POST" })
     if (!rows.length) {
       throw new Error(
         data.periodo === "aovivo"
-          ? "Nenhum jogo ao vivo encontrado agora na API-Football."
-          : "Nenhum jogo encontrado nesse período na API-Football.",
+          ? "Nenhum jogo ao vivo salvo no banco ainda. Aguarde a próxima sincronização configurada."
+          : "Nenhum jogo salvo no banco para esse período ainda. Aguarde a próxima sincronização configurada.",
       );
     }
 
-    // Busca odds reais na API-Football para os jogos sem odds da casa escolhida.
+    // Busca odds reais na API-Football para os jogos sem odds da casa escolhida,
+    // respeitando o mesmo intervalo configurado no painel.
     const semOdds = rows.filter(
       (r) => !r.odds.some((o) => normKey(o.casa) === normKey(data.casa)),
     );
-    if (semOdds.length) {
+    if (semOdds.length && apiFootballLiberada) {
       try {
         const { syncOdds } = await import("./football.server");
         const gravadas = await syncOdds(
@@ -352,6 +388,7 @@ export const gerarBilhete = createServerFn({ method: "POST" })
           })),
           data.casa,
         );
+        await marcarSyncFootball(supabaseAdmin);
         if (gravadas > 0) {
           const recarregado = await lerPartidas();
           if (!recarregado.error && recarregado.data?.length) {
