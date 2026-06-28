@@ -3,9 +3,16 @@
 // Assim as chaves podem ser adicionadas manualmente após a instalação.
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { parseFlow } from "./api-flow";
 
 const cache = new Map<string, { value: string; at: number }>();
 const TTL = 60_000; // 1 min
+
+// Lê o fluxo configurado (qual API faz cada etapa).
+export async function getApiFlow(): Promise<Record<string, string>> {
+  const raw = await getConfigKey("API_FLUXO");
+  return parseFlow(raw ?? null);
+}
 
 export async function getConfigKey(chave: string): Promise<string | undefined> {
   const env = process.env[chave];
