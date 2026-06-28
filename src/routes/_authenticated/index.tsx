@@ -140,6 +140,24 @@ const MERCADOS = [
 
 const ADMIN_EMAIL = "contato@protenexus.com";
 
+// Traduz termos em inglês que vêm da API (Over/Under, etc.) para português.
+function traduzTermo(texto: string): string {
+  if (!texto) return texto;
+  return texto
+    .replace(/\bOver\b/gi, "Mais de")
+    .replace(/\bUnder\b/gi, "Menos de")
+    .replace(/\bGoals?\b/gi, "Gols")
+    .replace(/\bCorners?\b/gi, "Escanteios")
+    .replace(/\bCards?\b/gi, "Cartões")
+    .replace(/\bBoth Teams To Score\b/gi, "Ambas Marcam")
+    .replace(/\bDraw\b/gi, "Empate")
+    .replace(/\bHome\b/gi, "Casa")
+    .replace(/\bAway\b/gi, "Fora")
+    .replace(/\bYes\b/gi, "Sim")
+    .replace(/\bNo\b/gi, "Não")
+    .replace(/\bMatch Winner\b/gi, "Resultado Final");
+}
+
 function Index() {
   const router = useRouter();
   const run = useServerFn(gerarBilhete);
@@ -278,8 +296,7 @@ function Index() {
   const riscoPct =
     ticket && ticket.picks.length
       ? Math.round(
-          100 -
-            ticket.picks.reduce((acc, p) => acc + (p.confianca || 0), 0) / ticket.picks.length,
+          ticket.picks.reduce((acc, p) => acc + (p.confianca || 0), 0) / ticket.picks.length,
         )
       : 0;
 
@@ -588,10 +605,10 @@ function Index() {
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           <span>{p.data}</span>
                           <span>·</span>
-                          <span className="font-medium text-foreground/80">{p.mercado}</span>
+                          <span className="font-medium text-foreground/80">{traduzTermo(p.mercado)}</span>
                         </div>
                         <h3 className="mt-1 text-base font-semibold">{p.jogo}</h3>
-                        <p className="mt-1 text-primary font-medium">{p.selecao}</p>
+                        <p className="mt-1 text-primary font-medium">{traduzTermo(p.selecao)}</p>
                       </div>
                       <div className="text-right">
                         <div className="font-display text-2xl font-bold text-primary">
@@ -656,8 +673,8 @@ function Index() {
                             {grupo.picks.map((p, pi) => (
                               <div key={`${p.selecao}-${pi}`} className="flex items-end justify-between gap-3">
                                 <div>
-                                  <p className="text-sm font-semibold">{p.selecao}</p>
-                                  <p className="text-[10px] text-muted-foreground">{p.mercado}</p>
+                                  <p className="text-sm font-semibold">{traduzTermo(p.selecao)}</p>
+                                  <p className="text-[10px] text-muted-foreground">{traduzTermo(p.mercado)}</p>
                                 </div>
                                 <div className="text-right">
                                   <p className="text-[11px] font-bold text-primary">{p.oddEstimada.toFixed(2)}</p>
@@ -693,7 +710,7 @@ function Index() {
                       />
                     </div>
                     <div className="rounded-md border border-border bg-muted/30 p-2 text-right">
-                      <p className="text-[10px] uppercase text-muted-foreground">Odds</p>
+                      <p className="text-[10px] uppercase text-muted-foreground">Odd total</p>
                       <p className="text-sm font-bold">{ticket.oddTotal.toFixed(2)}</p>
                     </div>
                   </div>
@@ -710,7 +727,7 @@ function Index() {
                     className="mt-4 w-full font-semibold"
                     onClick={() => {
                       const txt = ticket.picks
-                        .map((p, i) => `${i + 1}. ${p.jogo} — ${p.mercado}: ${p.selecao} @ ${p.oddEstimada.toFixed(2)}`)
+                        .map((p, i) => `${i + 1}. ${p.jogo} — ${traduzTermo(p.mercado)}: ${traduzTermo(p.selecao)} @ ${p.oddEstimada.toFixed(2)}`)
                         .join("\n");
                       navigator.clipboard.writeText(`${txt}\n\nOdd total: ${ticket.oddTotal.toFixed(2)}\nValor: R$ ${valorAposta}\nPrêmio potencial: ${premioPotencial.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`);
                       toast.success("Bilhete pronto copiado!");
@@ -777,7 +794,7 @@ function Index() {
                 variant="secondary"
                 onClick={() => {
                   const txt = ticket.picks
-                    .map((p, i) => `${i + 1}. ${p.jogo} — ${p.mercado}: ${p.selecao} @ ${p.oddEstimada.toFixed(2)}`)
+                    .map((p, i) => `${i + 1}. ${p.jogo} — ${traduzTermo(p.mercado)}: ${traduzTermo(p.selecao)} @ ${p.oddEstimada.toFixed(2)}`)
                     .join("\n");
                   navigator.clipboard.writeText(`${txt}\n\nOdd total: ${ticket.oddTotal.toFixed(2)}`);
                   toast.success("Bilhete copiado!");
