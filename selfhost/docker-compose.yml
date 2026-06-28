@@ -126,5 +126,25 @@ services:
     ports:
       - "${APP_PORT}:3000"
 
+  # ---------- Agendador (cron) — sincroniza jogos/odds sozinho ----------
+  # Sem isto, o banco fica vazio e cada clique em "Buscar jogos e gerar
+  # bilhete" cai no fallback e bate na API-Football. Com o cron, os jogos
+  # já ficam no banco e o clique não consome chamadas de API.
+  cron:
+    image: curlimages/curl:8.10.1
+    container_name: bia-cron
+    restart: always
+    depends_on:
+      - app
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        echo "[cron] iniciado — sync a cada 15 min";
+        while true; do
+          curl -s -X POST http://app:3000/api/public/hooks/sync-football >/dev/null 2>&1 || true;
+          sleep 900;
+        done
+
 volumes:
   bia-db-data:
