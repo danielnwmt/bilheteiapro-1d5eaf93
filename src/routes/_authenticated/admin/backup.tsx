@@ -130,6 +130,49 @@ function BackupPage() {
     onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar agendamento"),
   });
 
+  const emailQuery = useQuery({
+    queryKey: ["backup-email"],
+    queryFn: () => doGetEmail(),
+  });
+  useEffect(() => {
+    const e = emailQuery.data;
+    if (e) {
+      setSmtpHost(e.host);
+      setSmtpPort(e.port);
+      setSmtpUser(e.user);
+      setMailFrom(e.from);
+      setMailTo(e.to);
+    }
+  }, [emailQuery.data]);
+
+  const mutSaveEmail = useMutation({
+    mutationFn: () =>
+      doSaveEmail({
+        data: {
+          host: smtpHost,
+          port: smtpPort,
+          user: smtpUser,
+          pass: smtpPass || undefined,
+          from: mailFrom,
+          to: mailTo,
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Configuração de e-mail salva.");
+      setSmtpPass("");
+      emailQuery.refetch();
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar e-mail"),
+  });
+
+  const mutEmailBackup = useMutation({
+    mutationFn: () => doEmailBackup(),
+    onSuccess: (r: any) => toast.success(`Backup enviado para ${r.to}`),
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao enviar por e-mail", { duration: 10000 }),
+  });
+
+
+
 
 
   const mutSaveCreds = useMutation({
