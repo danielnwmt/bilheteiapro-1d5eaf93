@@ -275,8 +275,9 @@ REGRAS OBRIGATÓRIAS:
 - Use de ${cfg.minJogos} a ${cfg.maxJogos} jogos no bilhete (um jogo só pode aparecer uma vez).
 - ${regraTotal}
 - Priorize as entradas mais seguras e de maior confiança.
+- Quando houver "Estatísticas" no jogo, USE-AS para decidir (forma, médias de gols, etc.); prefira seleções sustentadas pelos dados.
 
-JOGOS E ODDS DISPONÍVEIS:
+JOGOS, ODDS E ESTATÍSTICAS DISPONÍVEIS:
 ${jogosTexto}
 
 Responda APENAS em JSON, sem texto fora do JSON:
