@@ -627,24 +627,42 @@ function Index() {
                   </div>
 
                   <div className="space-y-2">
-                    {ticket.picks.map((p, i) => (
-                      <div key={`${p.jogo}-${i}`} className="rounded-md border border-border/70 bg-muted/30 p-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="truncate text-xs font-bold">{p.jogo}</p>
-                            <p className="mt-1 text-[11px] text-muted-foreground">{p.data}</p>
+                    {Object.values(
+                      ticket.picks.reduce(
+                        (acc, p) => {
+                          (acc[p.jogo] ??= { jogo: p.jogo, data: p.data, picks: [] }).picks.push(p);
+                          return acc;
+                        },
+                        {} as Record<string, { jogo: string; data: string; picks: typeof ticket.picks }>,
+                      ),
+                    ).map((grupo, gi) => {
+                      const oddGrupo = grupo.picks.reduce((t, p) => t * p.oddEstimada, 1);
+                      return (
+                        <div key={`${grupo.jogo}-${gi}`} className="rounded-md border border-border/70 bg-muted/30 p-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-xs font-bold">{grupo.jogo}</p>
+                              <p className="mt-1 text-[11px] text-muted-foreground">{grupo.data}</p>
+                            </div>
+                            <span className="text-xs font-bold text-primary">{oddGrupo.toFixed(2)}</span>
                           </div>
-                          <span className="text-xs font-bold text-primary">{p.oddEstimada.toFixed(2)}</span>
-                        </div>
-                        <div className="mt-3 flex items-end justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-semibold">{p.selecao}</p>
-                            <p className="text-[10px] text-muted-foreground">{p.mercado}</p>
+                          <div className="mt-3 space-y-2 border-t border-border/50 pt-2">
+                            {grupo.picks.map((p, pi) => (
+                              <div key={`${p.selecao}-${pi}`} className="flex items-end justify-between gap-3">
+                                <div>
+                                  <p className="text-sm font-semibold">{p.selecao}</p>
+                                  <p className="text-[10px] text-muted-foreground">{p.mercado}</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-[11px] font-bold text-primary">{p.oddEstimada.toFixed(2)}</p>
+                                  <p className="text-[10px] font-semibold text-primary">{p.confianca}%</p>
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                          <span className="text-[10px] font-semibold text-primary">{p.confianca}%</span>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   <div className="mt-3 rounded-md border border-primary/30 bg-primary/10 p-3">
