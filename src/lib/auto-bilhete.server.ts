@@ -192,11 +192,16 @@ async function montarBilhete(cfg: BilheteConfig): Promise<AutoResult> {
   const from = new Date(now).toISOString();
   const to = new Date(now + cfg.janelaHoras * 3600_000).toISOString();
 
-  // 1) Garante fixtures de hoje no banco.
-  try {
-    await syncFixtures("hoje");
-  } catch (e) {
-    console.error("auto-bilhete: falha ao sincronizar fixtures", e);
+  // 1) Garante fixtures de hoje no banco — SÓ chama a API se já passou o
+  // intervalo configurado. Caso contrário, usa o que o cron já salvou (cache).
+  const apiLiberada = await podeChamarApi(supabase);
+  if (apiLiberada) {
+    try {
+      await syncFixtures("hoje");
+      await marcarSync(supabase);
+    } catch (e) {
+      console.error("auto-bilhete: falha ao sincronizar fixtures", e);
+    }
   }
 
   const lerPartidas = async () =>
