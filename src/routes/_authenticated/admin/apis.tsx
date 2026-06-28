@@ -161,6 +161,7 @@ function ApisPage() {
       !c.endsWith("_INTERVALO_VALOR") &&
       !c.endsWith("_INTERVALO_UNIDADE") &&
       c !== "ASAAS_WEBHOOK_TOKEN" &&
+      c !== "API_FLUXO" &&
       c !== "PIX_PROVEDOR" &&
       c !== "CARTAO_PROVEDOR",
   );
