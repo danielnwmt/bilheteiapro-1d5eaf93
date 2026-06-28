@@ -787,12 +787,10 @@ function Index() {
               </Button>
               <Button
                 type="button"
-                asChild
                 className="font-semibold"
+                onClick={() => setJanela({ url: casaAtual.url, title: casaAtual.nome })}
               >
-                <a href={casaAtual.url} target="_blank" rel="noopener noreferrer">
-                  Abrir {casaAtual.nome} <ExternalLink className="ml-2 h-4 w-4" />
-                </a>
+                Abrir {casaAtual.nome} <ExternalLink className="ml-2 h-4 w-4" />
               </Button>
               <p className="text-xs text-muted-foreground">
                 As casas de aposta não permitem montar múltiplas via link. Use "Abrir jogo na {casaAtual.nome}" em cada entrada para buscar o jogo, adicione à sua sacola e finalize como múltipla na {casaAtual.nome}.
