@@ -2,13 +2,13 @@ import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getSystemConfig, setSystemConfig } from "@/lib/access.functions";
+import { getSystemConfig, setSystemConfig, testApiKey } from "@/lib/access.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Loader2, Plus, Clock } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, Clock, Plug } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -87,6 +87,33 @@ function ApisPage() {
     },
     onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
   });
+
+  const testar = useServerFn(testApiKey);
+  const [testando, setTestando] = useState<string | null>(null);
+
+  async function ativarETestar(chave: string) {
+    const valor = vals[chave] ?? "";
+    setTestando(chave);
+    const tid = toast.loading(`Ativando ${chave}…`);
+    try {
+      // Salva o valor atual antes de testar (se foi digitado algo).
+      if (valor) {
+        await salvar({ data: { chave, valor, descricao: existentes.get(chave) ?? "" } });
+        qc.invalidateQueries({ queryKey: ["system-config"] });
+      }
+      const r = (await testar({ data: { chave, valor } })) as { ok: boolean; info?: string; error?: string };
+      if (r.ok) {
+        toast.success(r.info ?? "API ativada com sucesso", { id: tid });
+      } else {
+        toast.error(r.error ?? "Falha ao conectar na API", { id: tid });
+      }
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao testar a API", { id: tid });
+    } finally {
+      setTestando(null);
+    }
+  }
+
 
   // Token de validação do webhook: usa o salvo ou gera um automaticamente.
   const webhookToken =
@@ -200,6 +227,21 @@ function ApisPage() {
                       Salvar
                     </Button>
                   </div>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="mt-2"
+                    disabled={testando === chave}
+                    onClick={() => ativarETestar(chave)}
+                  >
+                    {testando === chave ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Plug className="mr-2 h-4 w-4" />
+                    )}
+                    Ativar e testar
+                  </Button>
+
 
                   <div className="mt-3 flex items-center gap-2 border-t border-border/40 pt-3">
                     <Clock className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -372,6 +414,21 @@ function ApisPage() {
                           Salvar
                         </Button>
                       </div>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="mt-2"
+                        disabled={testando === chave}
+                        onClick={() => ativarETestar(chave)}
+                      >
+                        {testando === chave ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Plug className="mr-2 h-4 w-4" />
+                        )}
+                        Ativar e testar
+                      </Button>
+
                     </Card>
                   );
                 })}

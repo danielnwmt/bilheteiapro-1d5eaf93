@@ -140,10 +140,10 @@ services:
       - /bin/sh
       - -c
       - |
-        echo "[cron] iniciado — sync a cada 15 min";
+        echo "[cron] iniciado — verifica a cada 60s e respeita o intervalo da chave";
         while true; do
           curl -s -X POST http://app:3000/api/public/hooks/sync-football >/dev/null 2>&1 || true;
-          sleep 900;
+          sleep 60;
         done
 
 volumes:

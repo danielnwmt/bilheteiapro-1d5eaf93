@@ -1389,3 +1389,84 @@ export const setSystemConfig = createServerFn({ method: "POST" })
     );
     return { ok: true };
   });
+
+// Faz uma primeira chamada de teste à API para validar a chave e informar erro.
+export const testApiKey = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { chave: string; valor?: string }) => d)
+  .handler(async ({ data, context }) => {
+    const { userId, claims } = context;
+    const base = restBase();
+    const roles = await assertStaff(base, userId, getAuthEmail(claims));
+    if (!roles.includes("admin")) throw new Error("Acesso restrito");
+
+    const chave = data.chave;
+    let valor = (data.valor ?? "").trim();
+
+    // Se o campo veio vazio, usa o valor salvo (env ou system_config).
+    if (!valor) {
+      const { getConfigKey } = await import("./system-config.server");
+      valor = (await getConfigKey(chave)) ?? "";
+    }
+    if (!valor) {
+      return { ok: false, error: "Nenhuma chave informada/salva para testar." };
+    }
+
+    try {
+      if (chave === "API_FOOTBALL_KEY") {
+        const res = await fetch("https://v3.football.api-sports.io/status", {
+          headers: { "x-apisports-key": valor },
+        });
+        const json = (await res.json()) as any;
+        const errs = json?.errors;
+        const hasErr = Array.isArray(errs) ? errs.length > 0 : errs && Object.keys(errs).length > 0;
+        if (!res.ok || hasErr) {
+          return { ok: false, error: `API-Football: ${JSON.stringify(errs ?? res.statusText)}` };
+        }
+        const sub = json?.response?.requests;
+        return {
+          ok: true,
+          info: sub
+            ? `Conta válida. Requisições hoje: ${sub.current}/${sub.limit_day}.`
+            : "Chave válida.",
+        };
+      }
+
+      if (chave === "ODDS_API_KEY") {
+        const res = await fetch(`https://api.the-odds-api.com/v4/sports?apiKey=${encodeURIComponent(valor)}`);
+        if (!res.ok) {
+          return { ok: false, error: `The Odds API ${res.status}: ${await res.text()}` };
+        }
+        const remaining = res.headers.get("x-requests-remaining");
+        return { ok: true, info: remaining ? `Chave válida. Requisições restantes: ${remaining}.` : "Chave válida." };
+      }
+
+      if (chave === "GEMINI_API_KEY") {
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(valor)}`,
+        );
+        if (!res.ok) {
+          return { ok: false, error: `Gemini ${res.status}: ${await res.text()}` };
+        }
+        return { ok: true, info: "Chave do Gemini válida." };
+      }
+
+      if (chave === "ASAAS_API_KEY") {
+        const res = await fetch("https://api.asaas.com/v3/myAccount", {
+          headers: { access_token: valor },
+        });
+        if (res.status === 401 || res.status === 403) {
+          return { ok: false, error: "Asaas: chave inválida (não autorizada)." };
+        }
+        if (!res.ok) {
+          return { ok: false, error: `Asaas ${res.status}: ${await res.text()}` };
+        }
+        return { ok: true, info: "Conta Asaas conectada." };
+      }
+
+      // Chave genérica: apenas confirma que há um valor configurado.
+      return { ok: true, info: "Valor configurado (sem teste automático para esta chave)." };
+    } catch (e: any) {
+      return { ok: false, error: e?.message ?? "Falha ao conectar na API." };
+    }
+  });
