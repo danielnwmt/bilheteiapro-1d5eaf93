@@ -21,6 +21,7 @@ export async function getAiModel(): Promise<LanguageModel> {
       headers: { Authorization: `Bearer ${geminiKey}` },
       supportsStructuredOutputs: true,
     });
+    await registrarChamada("GEMINI_API_KEY");
     return google(process.env.GEMINI_MODEL || "gemini-2.5-flash");
   }
 
