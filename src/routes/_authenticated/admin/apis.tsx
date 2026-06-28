@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Loader2, Plus, Clock, Plug } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, Clock, Plug, ArrowDown, Workflow } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { FLUXO_ETAPAS, API_LABEL, FLUXO_PADRAO, parseFlow } from "@/lib/api-flow";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin/apis")({
