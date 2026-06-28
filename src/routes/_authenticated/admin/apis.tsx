@@ -414,6 +414,21 @@ function ApisPage() {
                           Salvar
                         </Button>
                       </div>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="mt-2"
+                        disabled={testando === chave}
+                        onClick={() => ativarETestar(chave)}
+                      >
+                        {testando === chave ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Plug className="mr-2 h-4 w-4" />
+                        )}
+                        Ativar e testar
+                      </Button>
+
                     </Card>
                   );
                 })}
