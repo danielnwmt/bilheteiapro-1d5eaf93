@@ -16,6 +16,7 @@ import { useAccess } from "@/hooks/useAccess";
 import { ligaLiberada } from "@/lib/planos";
 import { usePlanos } from "@/hooks/usePlanos";
 import { AccentPicker } from "@/components/AccentPicker";
+import { FloatingBrowser } from "@/components/FloatingBrowser";
 
 export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
@@ -154,6 +155,7 @@ function Index() {
   const [currentEmail, setCurrentEmail] = useState("");
   const [jogos, setJogos] = useState<JogoDia[]>([]);
   const [loadingJogos, setLoadingJogos] = useState(false);
+  const [janela, setJanela] = useState<{ url: string; title: string } | null>(null);
 
   const { byPlano } = usePlanos();
   const roles = access?.roles ?? [];
@@ -602,14 +604,18 @@ function Index() {
                     </div>
                     <p className="mt-2 text-sm text-muted-foreground">{p.justificativa}</p>
                     <div className="mt-3">
-                      <Button asChild size="sm" variant="outline">
-                        <a
-                          href={p.deepLink ?? casaAtual.search(p.jogo)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          Abrir jogo na {casaAtual.nome} <ExternalLink className="ml-2 h-3.5 w-3.5" />
-                        </a>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          setJanela({
+                            url: p.deepLink ?? casaAtual.search(p.jogo),
+                            title: `${casaAtual.nome} — ${p.jogo}`,
+                          })
+                        }
+                      >
+                        Abrir jogo na {casaAtual.nome} <ExternalLink className="ml-2 h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </div>
@@ -781,12 +787,10 @@ function Index() {
               </Button>
               <Button
                 type="button"
-                asChild
                 className="font-semibold"
+                onClick={() => setJanela({ url: casaAtual.url, title: casaAtual.nome })}
               >
-                <a href={casaAtual.url} target="_blank" rel="noopener noreferrer">
-                  Abrir {casaAtual.nome} <ExternalLink className="ml-2 h-4 w-4" />
-                </a>
+                Abrir {casaAtual.nome} <ExternalLink className="ml-2 h-4 w-4" />
               </Button>
               <p className="text-xs text-muted-foreground">
                 As casas de aposta não permitem montar múltiplas via link. Use "Abrir jogo na {casaAtual.nome}" em cada entrada para buscar o jogo, adicione à sua sacola e finalize como múltipla na {casaAtual.nome}.
@@ -799,6 +803,14 @@ function Index() {
           Aposte com responsabilidade. Conteúdo apenas informativo.
         </p>
       </div>
+
+      {janela && (
+        <FloatingBrowser
+          url={janela.url}
+          title={janela.title}
+          onClose={() => setJanela(null)}
+        />
+      )}
     </main>
   );
 }
