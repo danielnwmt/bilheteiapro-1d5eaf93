@@ -605,10 +605,10 @@ function Index() {
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           <span>{p.data}</span>
                           <span>·</span>
-                          <span className="font-medium text-foreground/80">{p.mercado}</span>
+                          <span className="font-medium text-foreground/80">{traduzTermo(p.mercado)}</span>
                         </div>
                         <h3 className="mt-1 text-base font-semibold">{p.jogo}</h3>
-                        <p className="mt-1 text-primary font-medium">{p.selecao}</p>
+                        <p className="mt-1 text-primary font-medium">{traduzTermo(p.selecao)}</p>
                       </div>
                       <div className="text-right">
                         <div className="font-display text-2xl font-bold text-primary">
@@ -673,8 +673,8 @@ function Index() {
                             {grupo.picks.map((p, pi) => (
                               <div key={`${p.selecao}-${pi}`} className="flex items-end justify-between gap-3">
                                 <div>
-                                  <p className="text-sm font-semibold">{p.selecao}</p>
-                                  <p className="text-[10px] text-muted-foreground">{p.mercado}</p>
+                                  <p className="text-sm font-semibold">{traduzTermo(p.selecao)}</p>
+                                  <p className="text-[10px] text-muted-foreground">{traduzTermo(p.mercado)}</p>
                                 </div>
                                 <div className="text-right">
                                   <p className="text-[11px] font-bold text-primary">{p.oddEstimada.toFixed(2)}</p>
