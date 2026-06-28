@@ -117,6 +117,7 @@ BEGIN
 END;
 $$;
 
+-- Depósitos da gestão de banca (foi adicionado depois do schema inicial).
 CREATE TABLE IF NOT EXISTS public.banca_entradas (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES auth.users ON DELETE CASCADE,
