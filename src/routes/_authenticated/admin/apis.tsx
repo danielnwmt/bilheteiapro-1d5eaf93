@@ -2,13 +2,13 @@ import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getSystemConfig, setSystemConfig } from "@/lib/access.functions";
+import { getSystemConfig, setSystemConfig, testApiKey } from "@/lib/access.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Loader2, Plus, Clock } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, Clock, Plug } from "lucide-react";
 import {
   Select,
   SelectContent,
