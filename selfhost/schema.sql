@@ -121,6 +121,43 @@ INSERT INTO public.sync_state (id, last_sync_at) VALUES
   ('odds_api', NULL)
 ON CONFLICT (id) DO NOTHING;
 
+-- Contagem diária de chamadas a cada API externa.
+CREATE TABLE public.api_usage (
+  chave TEXT NOT NULL,
+  dia DATE NOT NULL DEFAULT (now() AT TIME ZONE 'America/Sao_Paulo')::date,
+  total INTEGER NOT NULL DEFAULT 0,
+  ultima_chamada TIMESTAMP WITH TIME ZONE,
+  PRIMARY KEY (chave, dia)
+);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.api_usage TO authenticated;
+GRANT ALL ON public.api_usage TO service_role;
+
+ALTER TABLE public.api_usage ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Auth api usage access" ON public.api_usage
+FOR ALL TO authenticated
+USING (true)
+WITH CHECK (true);
+
+CREATE OR REPLACE FUNCTION public.increment_api_usage(_chave text)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  _dia date := (now() AT TIME ZONE 'America/Sao_Paulo')::date;
+BEGIN
+  INSERT INTO public.api_usage (chave, dia, total, ultima_chamada)
+  VALUES (_chave, _dia, 1, now())
+  ON CONFLICT (chave, dia) DO UPDATE
+    SET total = public.api_usage.total + 1,
+        ultima_chamada = now();
+END;
+$$;
+
+
 CREATE TABLE public.bilhetes (
   id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   resumo text NOT NULL DEFAULT '',

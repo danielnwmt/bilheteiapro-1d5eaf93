@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      api_usage: {
+        Row: {
+          chave: string
+          dia: string
+          total: number
+          ultima_chamada: string | null
+        }
+        Insert: {
+          chave: string
+          dia?: string
+          total?: number
+          ultima_chamada?: string | null
+        }
+        Update: {
+          chave?: string
+          dia?: string
+          total?: number
+          ultima_chamada?: string | null
+        }
+        Relationships: []
+      }
       banca_depositos: {
         Row: {
           created_at: string
@@ -519,6 +540,7 @@ export type Database = {
           telefone: string
         }[]
       }
+      increment_api_usage: { Args: { _chave: string }; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "operador" | "cliente"

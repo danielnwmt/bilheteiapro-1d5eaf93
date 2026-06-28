@@ -1,6 +1,7 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import type { LanguageModel } from "ai";
 import { getConfigKey } from "./system-config.server";
+import { registrarChamada } from "./api-usage.server";
 
 /**
  * Retorna o modelo de IA a ser usado para tratar os dados da API.
@@ -20,6 +21,7 @@ export async function getAiModel(): Promise<LanguageModel> {
       headers: { Authorization: `Bearer ${geminiKey}` },
       supportsStructuredOutputs: true,
     });
+    await registrarChamada("GEMINI_API_KEY");
     return google(process.env.GEMINI_MODEL || "gemini-2.5-flash");
   }
 

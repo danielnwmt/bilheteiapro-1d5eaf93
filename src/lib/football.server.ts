@@ -3,6 +3,7 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { getConfigKey } from "./system-config.server";
+import { registrarChamada } from "./api-usage.server";
 
 const API_BASE = "https://v3.football.api-sports.io";
 
@@ -51,6 +52,7 @@ interface ApiFixture {
 }
 
 async function apiGet(path: string, key: string): Promise<ApiFixture[]> {
+  await registrarChamada("API_FOOTBALL_KEY");
   const res = await fetch(`${API_BASE}${path}`, {
     headers: { "x-apisports-key": key },
   });
@@ -191,6 +193,7 @@ interface ApiOddResponse {
 }
 
 async function apiGetOdds(path: string, key: string): Promise<ApiOddResponse[]> {
+  await registrarChamada("API_FOOTBALL_KEY");
   const res = await fetch(`${API_BASE}${path}`, { headers: { "x-apisports-key": key } });
   if (!res.ok) throw new Error(`API-Football odds ${res.status}: ${await res.text()}`);
   const json = (await res.json()) as { errors?: unknown; response?: ApiOddResponse[] };
@@ -416,6 +419,7 @@ export async function syncOddsByLeagueToday(
       let raw: { paging?: { current: number; total: number } } = {};
       try {
         const q = bookmakerId ? `&bookmaker=${bookmakerId}` : "";
+        await registrarChamada("API_FOOTBALL_KEY");
         const res = await fetch(
           `${API_BASE}/odds?date=${date}&league=${leagueId}&season=${season}${q}&page=${page}&timezone=America/Sao_Paulo`,
           { headers: { "x-apisports-key": key } },
@@ -638,6 +642,7 @@ export async function syncOddsFromOddsApi(
         `${ODDS_API_BASE}/sports/${sport}/odds/?apiKey=${apiKey}` +
         `&regions=eu,uk&markets=h2h,totals,btts,double_chance` +
         `&oddsFormat=decimal&dateFormat=iso&includeLinks=true&includeSids=true`;
+      await registrarChamada("ODDS_API_KEY");
       const res = await fetch(url);
       chamadas++;
       if (!res.ok) throw new Error(`Odds API ${res.status}: ${await res.text()}`);

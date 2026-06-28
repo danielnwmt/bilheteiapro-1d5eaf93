@@ -1470,3 +1470,61 @@ export const testApiKey = createServerFn({ method: "POST" })
       return { ok: false, error: e?.message ?? "Falha ao conectar na API." };
     }
   });
+
+// Retorna a quantidade de chamadas feitas hoje para cada chave de API.
+export const getApiUsage = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { userId, claims } = context;
+    const base = restBase();
+    const roles = await assertStaff(base, userId, getAuthEmail(claims));
+    if (!roles.includes("admin") && !roles.includes("operador")) {
+      throw new Error("Acesso restrito");
+    }
+
+    // Dia atual no fuso de São Paulo (mesmo critério usado no banco).
+    const dia = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const rows = await restSelect<{ chave: string; total: number; ultima_chamada: string | null }>(
+      base,
+      "api_usage",
+      { select: "chave,total,ultima_chamada", dia: `eq.${dia}` },
+      "api_usage",
+    );
+    const map: Record<string, { total: number; ultima: string | null }> = {};
+    for (const r of rows) map[r.chave] = { total: r.total ?? 0, ultima: r.ultima_chamada };
+    return map;
+  });
+
+// Dispara uma chamada manual à API escolhida (busca dados agora).
+export const chamarApiManual = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { chave: string }) => d)
+  .handler(async ({ data, context }) => {
+    const { userId, claims } = context;
+    const base = restBase();
+    const roles = await assertStaff(base, userId, getAuthEmail(claims));
+    if (!roles.includes("admin")) throw new Error("Acesso restrito");
+
+    try {
+      if (data.chave === "API_FOOTBALL_KEY") {
+        const { syncFixtures } = await import("./football.server");
+        const n = await syncFixtures("hoje");
+        return { ok: true, info: `API-Football chamada. ${n} jogos atualizados.` };
+      }
+      if (data.chave === "ODDS_API_KEY") {
+        const { syncOddsFromOddsApi } = await import("./football.server");
+        const r = await syncOddsFromOddsApi("betano");
+        return { ok: true, info: `The Odds API chamada. ${r.odds} odds atualizadas.` };
+      }
+      if (data.chave === "GEMINI_API_KEY") {
+        const { getAiModel } = await import("./ai-gateway.server");
+        const { generateText } = await import("ai");
+        await generateText({ model: await getAiModel(), prompt: "Responda apenas: ok" });
+        return { ok: true, info: "Gemini chamado com sucesso." };
+      }
+      return { ok: false, error: "Chamada manual não disponível para esta chave." };
+    } catch (e: any) {
+      return { ok: false, error: e?.message ?? "Falha ao chamar a API." };
+    }
+  });
+
