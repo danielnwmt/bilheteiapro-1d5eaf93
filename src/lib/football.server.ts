@@ -193,6 +193,7 @@ interface ApiOddResponse {
 }
 
 async function apiGetOdds(path: string, key: string): Promise<ApiOddResponse[]> {
+  await registrarChamada("API_FOOTBALL_KEY");
   const res = await fetch(`${API_BASE}${path}`, { headers: { "x-apisports-key": key } });
   if (!res.ok) throw new Error(`API-Football odds ${res.status}: ${await res.text()}`);
   const json = (await res.json()) as { errors?: unknown; response?: ApiOddResponse[] };
