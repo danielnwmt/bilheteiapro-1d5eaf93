@@ -222,9 +222,9 @@ async function montarBilhete(cfg: BilheteConfig): Promise<AutoResult> {
     return { ok: true, tipo: cfg.tipo, jogosAnalisados: 0, picks: 0, motivo: "Nenhum jogo nas próximas 4h nas ligas principais." };
   }
 
-  // 2) Busca odds reais (Betano) dos jogos sem odds dessa casa.
+  // 2) Busca odds reais (Betano) dos jogos sem odds — SÓ se o intervalo permitir.
   const semOdds = rows.filter((r) => !r.odds.some((o) => normKey(o.casa) === normKey(CASA)));
-  if (semOdds.length) {
+  if (semOdds.length && apiLiberada) {
     try {
       const gravadas = await syncOdds(
         semOdds.map((r) => ({
