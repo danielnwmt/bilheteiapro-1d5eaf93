@@ -419,6 +419,7 @@ export async function syncOddsByLeagueToday(
       let raw: { paging?: { current: number; total: number } } = {};
       try {
         const q = bookmakerId ? `&bookmaker=${bookmakerId}` : "";
+        await registrarChamada("API_FOOTBALL_KEY");
         const res = await fetch(
           `${API_BASE}/odds?date=${date}&league=${leagueId}&season=${season}${q}&page=${page}&timezone=America/Sao_Paulo`,
           { headers: { "x-apisports-key": key } },
