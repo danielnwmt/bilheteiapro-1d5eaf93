@@ -85,11 +85,14 @@ CREATE TRIGGER trg_partidas_updated BEFORE UPDATE ON public.partidas FOR EACH RO
 CREATE TRIGGER trg_odds_updated BEFORE UPDATE ON public.odds FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 CREATE TRIGGER trg_deep_links_updated BEFORE UPDATE ON public.deep_links FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
--- Seed deep link templates (placeholders {jogo} {selecao} {odd_id})
+-- Seed deep link templates (busca Google: nome da casa + jogo, sem 404)
 INSERT INTO public.deep_links (casa, mercado, url_template) VALUES
-  ('Betano', NULL, 'https://www.betano.bet.br/search/?query={jogo}'),
   ('Bet365', NULL, 'https://www.google.com/search?q=bet365%20{jogo}'),
-  ('Superbet', NULL, 'https://superbet.bet.br/search?query={jogo}');
+  ('Betano', NULL, 'https://www.google.com/search?q=betano%20{jogo}'),
+  ('Superbet', NULL, 'https://www.google.com/search?q=superbet%20{jogo}'),
+  ('KTO', NULL, 'https://www.google.com/search?q=kto%20{jogo}'),
+  ('Sportingbet', NULL, 'https://www.google.com/search?q=sportingbet%20{jogo}'),
+  ('Betfair', NULL, 'https://www.google.com/search?q=betfair%20{jogo}');
 
 ALTER TABLE public.odds
   ADD CONSTRAINT odds_unique_partida_casa_mercado_selecao
