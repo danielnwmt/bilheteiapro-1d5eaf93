@@ -604,14 +604,18 @@ function Index() {
                     </div>
                     <p className="mt-2 text-sm text-muted-foreground">{p.justificativa}</p>
                     <div className="mt-3">
-                      <Button asChild size="sm" variant="outline">
-                        <a
-                          href={p.deepLink ?? casaAtual.search(p.jogo)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          Abrir jogo na {casaAtual.nome} <ExternalLink className="ml-2 h-3.5 w-3.5" />
-                        </a>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          setJanela({
+                            url: p.deepLink ?? casaAtual.search(p.jogo),
+                            title: `${casaAtual.nome} — ${p.jogo}`,
+                          })
+                        }
+                      >
+                        Abrir jogo na {casaAtual.nome} <ExternalLink className="ml-2 h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </div>
