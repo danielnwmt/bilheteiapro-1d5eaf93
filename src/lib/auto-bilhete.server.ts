@@ -75,6 +75,34 @@ type PartidaRow = {
   odds: OddRow[];
 };
 
+type EstatisticaRow = {
+  partida_id: string | null;
+  tipo: string | null;
+  payload: unknown;
+};
+
+// Resume o payload (json) de estatísticas em texto curto e legível pra IA.
+function resumirEstatisticas(stats: EstatisticaRow[]): string {
+  const partes: string[] = [];
+  for (const s of stats) {
+    const p = s.payload;
+    if (p == null) continue;
+    let txt = "";
+    if (typeof p === "string") {
+      txt = p;
+    } else if (typeof p === "object") {
+      txt = Object.entries(p as Record<string, unknown>)
+        .filter(([, v]) => v != null && typeof v !== "object")
+        .map(([k, v]) => `${k}: ${v}`)
+        .join(", ");
+    }
+    txt = txt.trim();
+    if (!txt) continue;
+    partes.push(s.tipo ? `${s.tipo} → ${txt}` : txt);
+  }
+  return partes.join(" | ").slice(0, 600);
+}
+
 function normKey(v: string) {
   return v
     .normalize("NFD")
@@ -193,7 +221,25 @@ async function montarBilhete(cfg: BilheteConfig): Promise<AutoResult> {
     };
   }
 
-  // 3) Monta o texto e chama o Gemini.
+  // 3) Busca estatísticas reais dos jogos elegíveis (forma, médias, etc.).
+  const statsPorPartida = new Map<string, EstatisticaRow[]>();
+  try {
+    const ids = elegiveis.map((r) => r.id);
+    const { data: stats } = await supabase
+      .from("estatisticas")
+      .select("partida_id, tipo, payload")
+      .in("partida_id", ids);
+    for (const s of (stats ?? []) as EstatisticaRow[]) {
+      if (!s.partida_id) continue;
+      const list = statsPorPartida.get(s.partida_id) ?? [];
+      list.push(s);
+      statsPorPartida.set(s.partida_id, list);
+    }
+  } catch (e) {
+    console.error("auto-bilhete: falha ao buscar estatísticas", e);
+  }
+
+  // 4) Monta o texto e chama o Gemini.
   const jogosTexto = elegiveis
     .map((r) => {
       const jogo = `${r.time_casa} x ${r.time_fora}`;
@@ -201,7 +247,9 @@ async function montarBilhete(cfg: BilheteConfig): Promise<AutoResult> {
         .filter(oddElegivel)
         .map((o) => `${o.mercado} - ${o.selecao}: @${o.valor.toFixed(2)}`)
         .join(" | ");
-      return `- ${jogo} (${r.liga}, ${formatMatchDate(r.inicio)}): ${odds}`;
+      const stats = resumirEstatisticas(statsPorPartida.get(r.id) ?? []);
+      const statsLinha = stats ? `\n  Estatísticas: ${stats}` : "";
+      return `- ${jogo} (${r.liga}, ${formatMatchDate(r.inicio)}): ${odds}${statsLinha}`;
     })
     .join("\n");
 
@@ -227,8 +275,9 @@ REGRAS OBRIGATÓRIAS:
 - Use de ${cfg.minJogos} a ${cfg.maxJogos} jogos no bilhete (um jogo só pode aparecer uma vez).
 - ${regraTotal}
 - Priorize as entradas mais seguras e de maior confiança.
+- Quando houver "Estatísticas" no jogo, USE-AS para decidir (forma, médias de gols, etc.); prefira seleções sustentadas pelos dados.
 
-JOGOS E ODDS DISPONÍVEIS:
+JOGOS, ODDS E ESTATÍSTICAS DISPONÍVEIS:
 ${jogosTexto}
 
 Responda APENAS em JSON, sem texto fora do JSON:
