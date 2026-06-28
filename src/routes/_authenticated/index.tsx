@@ -16,6 +16,7 @@ import { useAccess } from "@/hooks/useAccess";
 import { ligaLiberada } from "@/lib/planos";
 import { usePlanos } from "@/hooks/usePlanos";
 import { AccentPicker } from "@/components/AccentPicker";
+import { FloatingBrowser } from "@/components/FloatingBrowser";
 
 export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
