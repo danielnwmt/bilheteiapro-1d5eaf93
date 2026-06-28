@@ -59,7 +59,7 @@ export const Route = createFileRoute("/api/public/hooks/sync-odds-diario")({
           }
 
           // API 2: The Odds API — odds + deep links das ligas com jogos.
-          let result = { ligas: 0, chamadas: 0, odds: 0, deepLinks: 0 };
+          let result = { ligas: 0, chamadas: 0, eventos: 0, odds: 0 };
           if (oddsApiSync.ok) {
             result = await syncOddsFromOddsApi(casa);
             await marcarSync(supabaseAdmin, "odds_api", now);
