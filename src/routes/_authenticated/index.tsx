@@ -140,6 +140,24 @@ const MERCADOS = [
 
 const ADMIN_EMAIL = "contato@protenexus.com";
 
+// Traduz termos em inglês que vêm da API (Over/Under, etc.) para português.
+function traduzTermo(texto: string): string {
+  if (!texto) return texto;
+  return texto
+    .replace(/\bOver\b/gi, "Mais de")
+    .replace(/\bUnder\b/gi, "Menos de")
+    .replace(/\bGoals?\b/gi, "Gols")
+    .replace(/\bCorners?\b/gi, "Escanteios")
+    .replace(/\bCards?\b/gi, "Cartões")
+    .replace(/\bBoth Teams To Score\b/gi, "Ambas Marcam")
+    .replace(/\bDraw\b/gi, "Empate")
+    .replace(/\bHome\b/gi, "Casa")
+    .replace(/\bAway\b/gi, "Fora")
+    .replace(/\bYes\b/gi, "Sim")
+    .replace(/\bNo\b/gi, "Não")
+    .replace(/\bMatch Winner\b/gi, "Resultado Final");
+}
+
 function Index() {
   const router = useRouter();
   const run = useServerFn(gerarBilhete);
