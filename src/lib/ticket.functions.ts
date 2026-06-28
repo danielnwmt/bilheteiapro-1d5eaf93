@@ -1,9 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
-import { generateText } from "ai";
 import { z } from "zod";
 import { getAiModel } from "./ai-gateway.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { type Plano } from "./planos";
+import { analisarPartidas, diaSaoPaulo, type PartidaRow as AnalisePartidaRow } from "./analise.server";
 
 const InputSchema = z.object({
   oddAlvo: z.number().min(1.1).max(1000),
