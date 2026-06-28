@@ -68,7 +68,55 @@ INSERT INTO public.sync_state (id, last_sync_at) VALUES
   ('odds_api', NULL)
 ON CONFLICT (id) DO NOTHING;
 
--- Depósitos da gestão de banca (foi adicionado depois do schema inicial).
+-- api_usage: contagem diária de chamadas a cada API externa.
+CREATE TABLE IF NOT EXISTS public.api_usage (
+  chave TEXT NOT NULL,
+  dia DATE NOT NULL DEFAULT (now() AT TIME ZONE 'America/Sao_Paulo')::date,
+  total INTEGER NOT NULL DEFAULT 0,
+  ultima_chamada TIMESTAMP WITH TIME ZONE,
+  PRIMARY KEY (chave, dia)
+);
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.api_usage TO authenticated;
+GRANT ALL ON public.api_usage TO service_role;
+
+DO $$
+BEGIN
+  IF to_regclass('public.api_usage') IS NOT NULL THEN
+    ALTER TABLE public.api_usage ENABLE ROW LEVEL SECURITY;
+    IF NOT EXISTS (
+      SELECT 1
+      FROM pg_policy p
+      JOIN pg_class c ON c.oid = p.polrelid
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public'
+        AND c.relname = 'api_usage'
+        AND p.polname = 'Auth api usage access'
+    ) THEN
+      CREATE POLICY "Auth api usage access" ON public.api_usage
+      FOR ALL TO authenticated
+      USING (true)
+      WITH CHECK (true);
+    END IF;
+  END IF;
+END $$;
+
+CREATE OR REPLACE FUNCTION public.increment_api_usage(_chave text)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  _dia date := (now() AT TIME ZONE 'America/Sao_Paulo')::date;
+BEGIN
+  INSERT INTO public.api_usage (chave, dia, total, ultima_chamada)
+  VALUES (_chave, _dia, 1, now())
+  ON CONFLICT (chave, dia) DO UPDATE
+    SET total = public.api_usage.total + 1,
+        ultima_chamada = now();
+END;
+$$;
+
 CREATE TABLE IF NOT EXISTS public.banca_entradas (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES auth.users ON DELETE CASCADE,
