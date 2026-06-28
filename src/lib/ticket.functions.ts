@@ -1,8 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { generateText } from "ai";
 import { z } from "zod";
-import { createClient } from "@supabase/supabase-js";
-import type { Database } from "@/integrations/supabase/types";
 import { getAiModel } from "./ai-gateway.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { type Plano } from "./planos";
@@ -201,48 +199,6 @@ type PartidaRow = {
   odds: OddRow[];
 };
 
-async function getFootballIntervaloMin(): Promise<number> {
-  const { getConfigKey } = await import("./system-config.server");
-  const valorRaw = await getConfigKey("API_FOOTBALL_KEY_INTERVALO_VALOR");
-  const unidade = (await getConfigKey("API_FOOTBALL_KEY_INTERVALO_UNIDADE")) ?? "minutos";
-  const valor = Number(valorRaw);
-  if (!valor || valor <= 0) return 60;
-  if (unidade === "segundos") return valor / 60;
-  if (unidade === "horas") return valor * 60;
-  return valor;
-}
-
-async function podeSincronizarFootball(supabaseAdmin: any): Promise<boolean> {
-  const { data: state, error } = await supabaseAdmin
-    .from("sync_state")
-    .select("last_sync_at")
-    .eq("id", "football")
-    .maybeSingle();
-
-  if (error) {
-    console.error("sync_state football indisponível; bloqueando chamada API-Football", error);
-    return false;
-  }
-
-  const last = state?.last_sync_at ? new Date(state.last_sync_at).getTime() : 0;
-  const minutesSinceLast = (Date.now() - last) / 60_000;
-  return minutesSinceLast >= await getFootballIntervaloMin();
-}
-
-async function reservarSyncFootball(supabaseAdmin: any): Promise<boolean> {
-  const { error } = await supabaseAdmin
-    .from("sync_state")
-    .upsert(
-      { id: "football", last_sync_at: new Date().toISOString() },
-      { onConflict: "id" },
-    );
-  if (error) {
-    console.error("Não foi possível gravar sync_state football; chamada API-Football bloqueada", error);
-    return false;
-  }
-  return true;
-}
-
 function buildDeepLink(
   templates: Array<{ casa: string; mercado: string | null; url_template: string }>,
   casa: string,
@@ -327,18 +283,12 @@ export const gerarBilhete = createServerFn({ method: "POST" })
       }
     }
 
-    const supabase = createClient<Database>(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_PUBLISHABLE_KEY!,
-      { auth: { persistSession: false, autoRefreshToken: false } },
-    );
-
     const now = new Date();
     const { from, to } = periodRange(data.periodo, now);
 
 
     const lerPartidas = async () => {
-      const query = supabase
+      const query = supabaseAdmin
         .from("partidas")
         .select("id, external_id, liga, time_casa, time_fora, inicio, status, odds(casa, mercado, selecao, valor, external_odd_id)")
         .gte("inicio", new Date(from).toISOString())
@@ -358,62 +308,19 @@ export const gerarBilhete = createServerFn({ method: "POST" })
       throw new Error("Não foi possível ler os jogos do banco. Tente novamente.");
     }
 
-    // Sem jogos no banco: só busca na API-Football se passou o intervalo configurado.
-    const apiFootballLiberada = await podeSincronizarFootball(supabaseAdmin);
-    let footballReservado = false;
-    if (!partidas?.length) {
-      if (apiFootballLiberada) {
-        try {
-          footballReservado = await reservarSyncFootball(supabaseAdmin);
-          if (!footballReservado) throw new Error("Controle de intervalo indisponível");
-          const { syncFixtures } = await import("./football.server");
-          await syncFixtures(data.periodo);
-          ({ data: partidas, error } = await lerPartidas());
-        } catch (e) {
-          console.error("Falha ao sincronizar com API-Football", e);
-        }
-      }
-    }
-
     let rows = (partidas ?? []) as PartidaRow[];
     if (!rows.length) {
       throw new Error(
         data.periodo === "aovivo"
-          ? "Nenhum jogo ao vivo salvo no banco ainda. Aguarde a próxima sincronização configurada."
-          : "Nenhum jogo salvo no banco para esse período ainda. Aguarde a próxima sincronização configurada.",
+          ? "Nenhum jogo ao vivo salvo no banco ainda. Aguarde a sincronização automática configurada no painel."
+          : "Nenhum jogo salvo no banco para esse período ainda. Aguarde a sincronização automática configurada no painel.",
       );
     }
 
-    // Busca odds reais na API-Football para os jogos sem odds da casa escolhida,
-    // respeitando o mesmo intervalo configurado no painel.
-    const semOdds = rows.filter(
-      (r) => !r.odds.some((o) => normKey(o.casa) === normKey(data.casa)),
-    );
-    if (semOdds.length && (footballReservado || apiFootballLiberada)) {
-      try {
-        if (!footballReservado) {
-          footballReservado = await reservarSyncFootball(supabaseAdmin);
-        }
-        if (!footballReservado) throw new Error("Controle de intervalo indisponível");
-        const { syncOdds } = await import("./football.server");
-        const gravadas = await syncOdds(
-          semOdds.map((r) => ({
-            id: r.id,
-            external_id: r.external_id,
-            time_casa: r.time_casa,
-            time_fora: r.time_fora,
-          })),
-          data.casa,
-        );
-        if (gravadas > 0) {
-          const recarregado = await lerPartidas();
-          if (!recarregado.error && recarregado.data?.length) {
-            rows = recarregado.data as PartidaRow[];
-          }
-        }
-      } catch (e) {
-        console.error("Falha ao sincronizar odds reais", e);
-      }
+    // Gerar bilhete NÃO chama API-Football. Usa somente odds já salvas no banco.
+    rows = rows.filter((r) => r.odds.some((o) => normKey(o.casa) === normKey(data.casa)));
+    if (!rows.length) {
+      throw new Error(`Os jogos desse período ainda não têm odds salvas para ${data.casa}. Aguarde a sincronização automática configurada no painel.`);
     }
 
     // Texto para a IA com jogos + odds reais disponíveis
@@ -483,7 +390,7 @@ Responda SOMENTE com JSON válido neste formato:
     const rawPicks = Array.isArray(raw.picks) ? raw.picks : [];
 
     // Tabela de tradução de deep links
-    const { data: templates } = await supabase.from("deep_links").select("casa, mercado, url_template");
+    const { data: templates } = await supabaseAdmin.from("deep_links").select("casa, mercado, url_template");
 
     const picks = rawPicks
       .map((item) => {
@@ -558,7 +465,7 @@ Responda SOMENTE com JSON válido neste formato:
       ? `Aposta múltipla de ${picks.length} ${picks.length === 1 ? "seleção" : "seleções"} com odd total ${oddFmt}, dentro da margem de 15% da odd alvo (${data.oddAlvo}).`
       : `Não foi possível atingir a odd alvo (${data.oddAlvo}) com os jogos disponíveis: a melhor combinação possível chegou a ${oddFmt} com ${picks.length} ${picks.length === 1 ? "seleção" : "seleções"} de alta confiança. Amplie os campeonatos ou o período para alcançar odds maiores.`;
 
-    const obsBase = toText(raw.observacoes ?? raw.notes, "Odds reais da API-Football; podem variar até a confirmação na casa.");
+    const obsBase = toText(raw.observacoes ?? raw.notes, "Odds salvas no banco; podem variar até a confirmação na casa.");
     const observacoes = dentroDaMargem
       ? obsBase
       : `Odd alvo ${data.oddAlvo} não alcançável com o filtro atual (poucos jogos/mercados de alta confiança). ${obsBase}`;

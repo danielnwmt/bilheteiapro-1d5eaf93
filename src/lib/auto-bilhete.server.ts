@@ -5,57 +5,6 @@ import { generateText } from "ai";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { getAiModel } from "./ai-gateway.server";
-import { syncFixtures, syncOdds } from "./football.server";
-import { getConfigKey } from "./system-config.server";
-
-// Intervalo (min) configurado na chave API_FOOTBALL_KEY no painel.
-async function getIntervaloMin(): Promise<number> {
-  const valorRaw = await getConfigKey("API_FOOTBALL_KEY_INTERVALO_VALOR");
-  const unidade = (await getConfigKey("API_FOOTBALL_KEY_INTERVALO_UNIDADE")) ?? "minutos";
-  const valor = Number(valorRaw);
-  if (!valor || valor <= 0) return 60;
-  if (unidade === "segundos") return valor / 60;
-  if (unidade === "horas") return valor * 60;
-  return valor;
-}
-
-// Só permite chamar a API-Football quando passou o intervalo configurado
-// desde o último sync (compartilha o estado "football" com o cron).
-async function podeChamarApi(
-  supabase: ReturnType<typeof admin>,
-): Promise<boolean> {
-  const { data: state, error } = await supabase
-    .from("sync_state")
-    .select("last_sync_at")
-    .eq("id", "football")
-    .maybeSingle();
-
-  if (error) {
-    console.error("auto-bilhete: sync_state football indisponível; bloqueando API-Football", error);
-    return false;
-  }
-
-  const last = state?.last_sync_at ? new Date(state.last_sync_at).getTime() : 0;
-  const minutesSinceLast = (Date.now() - last) / 60_000;
-  const intervaloMin = await getIntervaloMin();
-  return minutesSinceLast >= intervaloMin;
-}
-
-async function reservarSync(supabase: ReturnType<typeof admin>): Promise<boolean> {
-  const { error } = await supabase
-    .from("sync_state")
-    .upsert(
-      { id: "football", last_sync_at: new Date().toISOString() },
-      { onConflict: "id" },
-    );
-
-  if (error) {
-    console.error("auto-bilhete: não foi possível gravar sync_state football; bloqueando API-Football", error);
-    return false;
-  }
-
-  return true;
-}
 
 // Configuração de cada tipo de bilhete que o robô monta.
 export interface BilheteConfig {
@@ -205,19 +154,7 @@ async function montarBilhete(cfg: BilheteConfig): Promise<AutoResult> {
   const from = new Date(now).toISOString();
   const to = new Date(now + cfg.janelaHoras * 3600_000).toISOString();
 
-  // 1) Garante fixtures de hoje no banco — SÓ chama a API se já passou o
-  // intervalo configurado. Caso contrário, usa o que o cron já salvou (cache).
-  const apiLiberada = await podeChamarApi(supabase);
-  let apiReservada = false;
-  if (apiLiberada) {
-    try {
-      apiReservada = await reservarSync(supabase);
-      if (!apiReservada) throw new Error("Controle de intervalo indisponível");
-      await syncFixtures("hoje");
-    } catch (e) {
-      console.error("auto-bilhete: falha ao sincronizar fixtures", e);
-    }
-  }
+  // 1) Geração de bilhete não chama API-Football. Usa somente o cache/banco.
 
   const lerPartidas = async () =>
     supabase
@@ -237,31 +174,7 @@ async function montarBilhete(cfg: BilheteConfig): Promise<AutoResult> {
     return { ok: true, tipo: cfg.tipo, jogosAnalisados: 0, picks: 0, motivo: "Nenhum jogo nas próximas 4h nas ligas principais." };
   }
 
-  // 2) Busca odds reais (Betano) dos jogos sem odds — SÓ se o intervalo permitir.
-  const semOdds = rows.filter((r) => !r.odds.some((o) => normKey(o.casa) === normKey(CASA)));
-  if (semOdds.length && (apiReservada || apiLiberada)) {
-    try {
-      if (!apiReservada) {
-        apiReservada = await reservarSync(supabase);
-      }
-      if (!apiReservada) throw new Error("Controle de intervalo indisponível");
-      const gravadas = await syncOdds(
-        semOdds.map((r) => ({
-          id: r.id,
-          external_id: r.external_id,
-          time_casa: r.time_casa,
-          time_fora: r.time_fora,
-        })),
-        CASA,
-      );
-      if (gravadas > 0) {
-        const reload = await lerPartidas();
-        if (reload.data?.length) rows = reload.data as PartidaRow[];
-      }
-    } catch (e) {
-      console.error("auto-bilhete: falha ao sincronizar odds", e);
-    }
-  }
+  // 2) Não busca odds na API aqui. Só usa odds já salvas no banco.
 
   // Odd elegível: casa correta, dentro da faixa por jogo e mercado permitido.
   const oddElegivel = (o: OddRow) =>
