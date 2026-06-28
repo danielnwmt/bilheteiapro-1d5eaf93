@@ -803,6 +803,14 @@ function Index() {
           Aposte com responsabilidade. Conteúdo apenas informativo.
         </p>
       </div>
+
+      {janela && (
+        <FloatingBrowser
+          url={janela.url}
+          title={janela.title}
+          onClose={() => setJanela(null)}
+        />
+      )}
     </main>
   );
 }
