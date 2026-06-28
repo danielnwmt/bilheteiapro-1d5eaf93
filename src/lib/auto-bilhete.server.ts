@@ -6,6 +6,43 @@ import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { getAiModel } from "./ai-gateway.server";
 import { syncFixtures, syncOdds } from "./football.server";
+import { getConfigKey } from "./system-config.server";
+
+// Intervalo (min) configurado na chave API_FOOTBALL_KEY no painel.
+async function getIntervaloMin(): Promise<number> {
+  const valorRaw = await getConfigKey("API_FOOTBALL_KEY_INTERVALO_VALOR");
+  const unidade = (await getConfigKey("API_FOOTBALL_KEY_INTERVALO_UNIDADE")) ?? "minutos";
+  const valor = Number(valorRaw);
+  if (!valor || valor <= 0) return 60;
+  if (unidade === "segundos") return valor / 60;
+  if (unidade === "horas") return valor * 60;
+  return valor;
+}
+
+// Só permite chamar a API-Football quando passou o intervalo configurado
+// desde o último sync (compartilha o estado "football" com o cron).
+async function podeChamarApi(
+  supabase: ReturnType<typeof admin>,
+): Promise<boolean> {
+  const { data: state } = await supabase
+    .from("sync_state")
+    .select("last_sync_at")
+    .eq("id", "football")
+    .maybeSingle();
+  const last = state?.last_sync_at ? new Date(state.last_sync_at).getTime() : 0;
+  const minutesSinceLast = (Date.now() - last) / 60_000;
+  const intervaloMin = await getIntervaloMin();
+  return minutesSinceLast >= intervaloMin;
+}
+
+async function marcarSync(supabase: ReturnType<typeof admin>) {
+  await supabase
+    .from("sync_state")
+    .upsert(
+      { id: "football", last_sync_at: new Date().toISOString() },
+      { onConflict: "id" },
+    );
+}
 
 // Configuração de cada tipo de bilhete que o robô monta.
 export interface BilheteConfig {
