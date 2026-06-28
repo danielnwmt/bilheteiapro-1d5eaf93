@@ -3,6 +3,7 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { getConfigKey } from "./system-config.server";
+import { registrarChamada } from "./api-usage.server";
 
 const API_BASE = "https://v3.football.api-sports.io";
 
