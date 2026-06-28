@@ -1,9 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
-import { generateText } from "ai";
 import { z } from "zod";
 import { getAiModel } from "./ai-gateway.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { type Plano } from "./planos";
+import { analisarPartidas, diaSaoPaulo, type PartidaRow as AnalisePartidaRow } from "./analise.server";
 
 const InputSchema = z.object({
   oddAlvo: z.number().min(1.1).max(1000),
@@ -97,57 +97,8 @@ function riskFromPicks(picks: Ticket["picks"], oddTotal: number): Ticket["risco"
   return "medio";
 }
 
-function toNumber(value: unknown, fallback = 0) {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  const parsed = Number(String(value ?? "").replace(",", ".").replace(/[^0-9.-]/g, ""));
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
 
-function toText(value: unknown, fallback = "") {
-  return typeof value === "string" && value.trim() ? value.trim() : fallback;
-}
 
-function extractJson(text: string) {
-  const cleaned = text.replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
-  const start = cleaned.indexOf("{");
-  const end = cleaned.lastIndexOf("}");
-  if (start === -1 || end === -1 || end <= start) throw new Error("JSON não encontrado");
-  return cleaned.slice(start, end + 1);
-}
-
-// Remove trailing commas e tenta fechar JSON truncado (saída da IA cortada)
-function repairJson(input: string) {
-  let s = input.replace(/,\s*([}\]])/g, "$1");
-  const opens: string[] = [];
-  let inString = false;
-  let escaped = false;
-  for (const ch of s) {
-    if (inString) {
-      if (escaped) escaped = false;
-      else if (ch === "\\") escaped = true;
-      else if (ch === '"') inString = false;
-      continue;
-    }
-    if (ch === '"') inString = true;
-    else if (ch === "{" || ch === "[") opens.push(ch);
-    else if (ch === "}" || ch === "]") opens.pop();
-  }
-  if (inString) s += '"';
-  while (opens.length) {
-    const o = opens.pop();
-    s += o === "{" ? "}" : "]";
-  }
-  return s.replace(/,\s*([}\]])/g, "$1");
-}
-
-function parseAiJson(text: string): Record<string, unknown> {
-  const extracted = extractJson(text);
-  try {
-    return JSON.parse(extracted) as Record<string, unknown>;
-  } catch {
-    return JSON.parse(repairJson(extracted)) as Record<string, unknown>;
-  }
-}
 
 
 function normKey(value: string) {
@@ -336,140 +287,160 @@ export const gerarBilhete = createServerFn({ method: "POST" })
       throw new Error(`Os jogos desse período ainda não têm odds salvas para ${data.casa}. Aguarde a sincronização automática configurada no painel.`);
     }
 
-    // Texto para a IA com jogos + odds reais disponíveis
-    const jogosTexto = rows
-      .map((r) => {
-        const jogo = `${r.time_casa} x ${r.time_fora}`;
-        const oddsTxt = r.odds.length
-          ? r.odds
-              .filter((o) => normKey(o.casa) === normKey(data.casa))
-              .map((o) => `${o.mercado} / ${o.selecao} @ ${o.valor}`)
-              .join("; ")
-          : "";
-        return `${formatMatchDate(r.inicio)} | ${jogo}${r.liga ? ` | ${r.liga}` : ""}${oddsTxt ? `\n  Odds (${data.casa}): ${oddsTxt}` : ""}`;
-      })
-      .join("\n")
-      .slice(0, 14000);
+    // ---- Análise por jogo com cache diário ----
+    // Cada jogo é analisado pela IA no máximo 1x por dia (por casa). O resultado
+    // fica salvo em analise_cache e é reaproveitado para jogos que ainda não
+    // começaram, sem chamar a IA de novo.
+    const dia = diaSaoPaulo(now);
+    const aAnalisar = rows.slice(0, 30);
+    const analises = await analisarPartidas(
+      supabaseAdmin,
+      aiModel,
+      aAnalisar as unknown as AnalisePartidaRow[],
+      data.casa,
+      dia,
+    );
 
-    
+    const mercadoOk = (mercado: string, selecao: string) => {
+      if (!data.mercados.length) return true;
+      const alvo = normKey(`${mercado} ${selecao}`);
+      return data.mercados.some((m) => alvo.includes(normKey(m)));
+    };
 
-    const system = `Você é um analista esportivo de futebol especializado em apostas.
-Receberá uma lista de jogos com odds reais disponíveis na casa "${data.casa}".
-Monte uma aposta múltipla (bilhete) cuja odd total combinada se aproxime ao máximo da odd alvo informada.
+    type Cand = {
+      jogo: string;
+      data: string;
+      mercado: string;
+      selecao: string;
+      odd: number;
+      confianca: number;
+      justificativa: string;
+      external_odd_id: string | null;
+      _partidaId: string;
+    };
 
-Regras:
-- Use SOMENTE jogos e mercados/seleções presentes na lista. Nunca invente.
-- Quando houver odd listada para a seleção escolhida, use exatamente esse valor em oddEstimada.
-- OBJETIVO PRINCIPAL: a MULTIPLICAÇÃO de todas as odds individuais deve bater a odd alvo (ficar a ±15% dela). Continue adicionando seleções até o produto chegar na odd alvo.
-- Para alcançar a odd alvo combine VÁRIAS seleções: use vários jogos e, quando necessário, mais de um mercado INDEPENDENTE do MESMO jogo (ex.: resultado + escanteios + cartões). Nunca combine seleções contraditórias do mesmo mercado.
-- Priorize sempre as seleções de MAIOR confiança possível, mas o mais importante é ATINGIR a odd alvo. Não descarte o bilhete por causa da confiança.
-- Sempre informe a confiança real (0 a 100) de cada seleção em "confianca". Esse percentual será exibido ao usuário.
-- Se mesmo usando todos os jogos/mercados disponíveis o produto não chegar à odd alvo, retorne o bilhete possível mais próximo e diga isso claramente no campo "observacoes".
-- Considere forma recente, mando de campo, confrontos diretos e contexto.
-- Justificativas curtas e diretas, em português.
-- IMPORTANTE: quando houver MAIS DE UMA seleção no mesmo jogo, inclua esse jogo em "analiseJogos" com estimativas de: escanteios (média e linha provável), gols (média de gols na partida), chutes ao gol (média por time), média de cartões dos times e média de cartões do árbitro da partida. Cada campo deve ser curto (1 frase com números).${
-      data.mercados.length
-        ? `\n- RESTRIÇÃO DE MERCADOS: o usuário escolheu apostar SOMENTE nestes tipos de mercado: ${data.mercados.join(", ")}. Use exclusivamente seleções desses mercados. Se um jogo não tiver esses mercados, ignore-o. Se mesmo assim não atingir a odd alvo, retorne o melhor bilhete possível com esses mercados e explique em "observacoes".`
-        : ""
-    }`;
+    const porJogo = new Map<string, Cand[]>();
+    for (const r of aAnalisar) {
+      const a = analises.get(r.id);
+      if (!a) continue;
+      const jogo = `${r.time_casa} x ${r.time_fora}`;
+      const lista: Cand[] = [];
+      for (const p of a.picks) {
+        if (!mercadoOk(p.mercado, p.selecao)) continue;
+        if (p.confianca < data.minConfianca) continue;
+        lista.push({
+          jogo,
+          data: formatMatchDate(r.inicio),
+          mercado: p.mercado,
+          selecao: p.selecao,
+          odd: p.odd,
+          confianca: p.confianca,
+          justificativa: p.justificativa,
+          external_odd_id: p.external_odd_id,
+          _partidaId: r.id,
+        });
+      }
+      if (lista.length) porJogo.set(r.id, lista.sort((x, y) => y.confianca - x.confianca));
+    }
 
-    const periodoLabel = { hoje: "hoje", amanha: "amanhã", semana: "próximos dias", aovivo: "AO VIVO agora" }[data.periodo];
-    const prompt = `Período: ${periodoLabel}
-Odd alvo da múltipla: ${data.oddAlvo}
-Casa de aposta: ${data.casa}
+    if (!porJogo.size) {
+      throw new Error("Nenhuma entrada encontrada para esse filtro. Tente outro período ou campeonato.");
+    }
 
-Jogos disponíveis no banco:
-${jogosTexto}
+    // ---- Monta o bilhete (sem nova chamada de IA) para chegar perto da odd alvo ----
+    const target = data.oddAlvo;
+    const low = target * 0.85;
+    const high = target * 1.15;
+    const bests: Cand[] = [];
+    const extras: Cand[] = [];
+    for (const lista of porJogo.values()) {
+      bests.push(lista[0]);
+      for (let k = 1; k < lista.length; k++) extras.push(lista[k]);
+    }
+    bests.sort((a, b) => b.confianca - a.confianca);
+    extras.sort((a, b) => b.confianca - a.confianca);
 
-Monte o bilhete combinando seleções suficientes para ATINGIR a odd alvo (±15%). Informe a confiança real de cada seleção.
+    const chosen: Cand[] = [];
+    const usedMarket = new Set<string>();
+    let prod = 1;
+    const tryAdd = (p: Cand) => {
+      const mk = `${p._partidaId}::${normKey(p.mercado)}`;
+      if (usedMarket.has(mk)) return false;
+      chosen.push(p);
+      usedMarket.add(mk);
+      prod *= p.odd;
+      return true;
+    };
 
-Responda SOMENTE com JSON válido neste formato:
-{
-  "resumo": "texto curto",
-  "picks": [{ "jogo": "Time A x Time B", "data": "horário/data", "mercado": "mercado", "selecao": "palpite", "oddEstimada": 1.5, "confianca": 90, "justificativa": "motivo curto" }],
-  "analiseJogos": [{ "jogo": "Time A x Time B", "escanteios": "média ~9.5, linha +8.5", "gols": "média 2.7 gols", "chutesAoGol": "Time A 5.2 / Time B 4.1", "cartoesTimes": "Time A 2.1 / Time B 1.8", "cartoesArbitro": "árbitro média 4.3 cartões/jogo" }],
-  "observacoes": "texto curto"
-}`;
-
-    const { text } = await generateText({
-      model: aiModel,
-      system,
-      prompt,
-      temperature: 0.2,
-      maxOutputTokens: 6000,
-    });
-
-    const raw = parseAiJson(text);
-    const rawPicks = Array.isArray(raw.picks) ? raw.picks : [];
+    // Fase 1: melhor seleção de cada jogo, sem estourar o teto.
+    for (const p of bests) {
+      if (prod >= low) break;
+      if (prod * p.odd <= high) tryAdd(p);
+    }
+    // Fase 2: mercados extras do mesmo jogo, se ainda abaixo da margem.
+    if (prod < low) {
+      for (const p of extras) {
+        if (prod >= low) break;
+        if (prod * p.odd <= high) tryAdd(p);
+      }
+    }
+    // Fase 3: garante pelo menos 1 seleção.
+    if (!chosen.length) {
+      const all = [...bests, ...extras].sort((a, b) => b.confianca - a.confianca);
+      if (all[0]) tryAdd(all[0]);
+    }
+    // Fase 4: ainda abaixo da margem -> aproxima usando as odds maiores.
+    if (prod < low) {
+      const restantes = [...bests, ...extras]
+        .filter((p) => !chosen.includes(p))
+        .sort((a, b) => b.odd - a.odd);
+      for (const p of restantes) {
+        if (prod >= low) break;
+        tryAdd(p);
+      }
+    }
 
     // Tabela de tradução de deep links
     const { data: templates } = await supabaseAdmin.from("deep_links").select("casa, mercado, url_template");
 
-    const picks = rawPicks
-      .map((item) => {
-        const p = item as Record<string, unknown>;
-        const jogo = toText(p.jogo ?? p.partida ?? p.confronto, "Jogo listado");
-        const mercado = toText(p.mercado ?? p.market, "Resultado Final");
-        const selecao = toText(p.selecao ?? p.palpite ?? p.selection, "Melhor seleção");
-
-        // Casa o pick com a partida e odd reais do banco
-        const partida = rows.find((r) => normKey(`${r.time_casa} x ${r.time_fora}`) === normKey(jogo));
-        const oddRow = partida?.odds.find(
-          (o) => normKey(o.casa) === normKey(data.casa) && normKey(o.selecao) === normKey(selecao),
-        );
-        const oddEstimada = oddRow ? oddRow.valor : toNumber(p.oddEstimada ?? p.odd, 1.5);
-
-        const deepLink = buildDeepLink(
-          (templates ?? []) as Array<{ casa: string; mercado: string | null; url_template: string }>,
-          data.casa,
-          jogo,
-          { mercado, selecao },
-          oddRow?.external_odd_id ?? null,
-        );
-
-        return {
-          jogo,
-          data: toText(p.data ?? p.horario, partida ? formatMatchDate(partida.inicio) : "Hoje"),
-          mercado,
-          selecao,
-          oddEstimada,
-          confianca: Math.max(0, Math.min(100, toNumber(p.confianca ?? p.confidence, 60))),
-          justificativa: toText(p.justificativa ?? p.analise, "Escolha baseada nos jogos do banco."),
-          deepLink,
-          _partidaId: partida?.id,
-        };
-      })
-      .filter((p) => p.confianca >= data.minConfianca);
+    const picks = chosen.map((c) => ({
+      jogo: c.jogo,
+      data: c.data,
+      mercado: c.mercado,
+      selecao: c.selecao,
+      oddEstimada: c.odd,
+      confianca: c.confianca,
+      justificativa: c.justificativa,
+      deepLink: buildDeepLink(
+        (templates ?? []) as Array<{ casa: string; mercado: string | null; url_template: string }>,
+        data.casa,
+        c.jogo,
+        { mercado: c.mercado, selecao: c.selecao },
+        c.external_odd_id,
+      ),
+      _partidaId: c._partidaId,
+    }));
 
     if (!picks.length) {
       throw new Error("Nenhuma entrada encontrada para esse filtro. Tente outro período ou campeonato.");
     }
 
-
     const oddTotal = picks.reduce((t, p) => t * p.oddEstimada, 1);
 
-    // Jogos que aparecem em mais de uma seleção do bilhete (múltiplas opções no mesmo jogo)
-    const contagemJogos = new Map<string, number>();
-    for (const p of picks) contagemJogos.set(normKey(p.jogo), (contagemJogos.get(normKey(p.jogo)) ?? 0) + 1);
-    const jogosMultiplos = new Set([...contagemJogos.entries()].filter(([, n]) => n > 1).map(([k]) => k));
-
-    const rawAnalises = Array.isArray(raw.analiseJogos) ? raw.analiseJogos : [];
-    const analiseJogos = rawAnalises
-      .map((item) => {
-        const a = item as Record<string, unknown>;
-        return {
-          jogo: toText(a.jogo ?? a.partida, ""),
-          escanteios: toText(a.escanteios ?? a.corners, "Sem dados de escanteios."),
-          gols: toText(a.gols ?? a.goals, "Sem dados de gols."),
-          chutesAoGol: toText(a.chutesAoGol ?? a.chutes ?? a.shotsOnTarget, "Sem dados de chutes ao gol."),
-          cartoesTimes: toText(a.cartoesTimes ?? a.cartoes, "Sem dados de cartões dos times."),
-          cartoesArbitro: toText(a.cartoesArbitro ?? a.arbitro, "Sem dados do árbitro."),
-        };
+    // Jogos com mais de uma seleção no bilhete recebem o bloco de estatísticas.
+    const contagem = new Map<string, number>();
+    for (const p of picks) contagem.set(p._partidaId, (contagem.get(p._partidaId) ?? 0) + 1);
+    const multiplos = new Set([...contagem.entries()].filter(([, n]) => n > 1).map(([k]) => k));
+    const analiseJogos = [...multiplos]
+      .map((pid) => {
+        const r = aAnalisar.find((x) => x.id === pid);
+        const a = analises.get(pid);
+        if (!r || !a) return null;
+        return { jogo: `${r.time_casa} x ${r.time_fora}`, ...a.analise };
       })
-      .filter((a) => a.jogo && jogosMultiplos.has(normKey(a.jogo)));
+      .filter((x): x is NonNullable<typeof x> => x !== null);
 
-    // Verifica se a odd atingida ficou perto da odd alvo (±15%). Caso contrário,
-    // gera resumo/observação honestos em vez de afirmar que bateu a meta.
+    // Verifica se a odd atingida ficou perto da odd alvo (±15%).
     const desvio = Math.abs(oddTotal - data.oddAlvo) / data.oddAlvo;
     const dentroDaMargem = desvio <= 0.15;
     const oddFmt = oddTotal.toFixed(2);
@@ -478,10 +449,9 @@ Responda SOMENTE com JSON válido neste formato:
       ? `Aposta múltipla de ${picks.length} ${picks.length === 1 ? "seleção" : "seleções"} com odd total ${oddFmt}, dentro da margem de 15% da odd alvo (${data.oddAlvo}).`
       : `Não foi possível atingir a odd alvo (${data.oddAlvo}) com os jogos disponíveis: a melhor combinação possível chegou a ${oddFmt} com ${picks.length} ${picks.length === 1 ? "seleção" : "seleções"} de alta confiança. Amplie os campeonatos ou o período para alcançar odds maiores.`;
 
-    const obsBase = toText(raw.observacoes ?? raw.notes, "Odds salvas no banco; podem variar até a confirmação na casa.");
     const observacoes = dentroDaMargem
-      ? obsBase
-      : `Odd alvo ${data.oddAlvo} não alcançável com o filtro atual (poucos jogos/mercados de alta confiança). ${obsBase}`;
+      ? "Análises salvas do dia; as odds podem variar até a confirmação na casa."
+      : `Odd alvo ${data.oddAlvo} não alcançável com o filtro atual (poucos jogos/mercados de alta confiança). Análises salvas do dia; as odds podem variar até a confirmação na casa.`;
 
     const ticket: Ticket = {
       resumo: resumoBase,

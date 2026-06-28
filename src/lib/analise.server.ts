@@ -1,0 +1,259 @@
+// Análise por jogo com cache diário.
+// A IA analisa cada jogo no máximo 1x por dia (por casa). O resultado é salvo
+// em public.analise_cache e reaproveitado para jogos que ainda não começaram,
+// evitando chamadas repetidas à IA no mesmo dia.
+import { generateText } from "ai";
+import type { LanguageModel } from "ai";
+
+export type OddRow = {
+  casa: string;
+  mercado: string;
+  selecao: string;
+  valor: number;
+  external_odd_id: string | null;
+};
+
+export type PartidaRow = {
+  id: string;
+  external_id: string | null;
+  liga: string | null;
+  time_casa: string;
+  time_fora: string;
+  inicio: string;
+  status: string;
+  odds: OddRow[];
+};
+
+export type PickAnalise = {
+  mercado: string;
+  selecao: string;
+  odd: number;
+  confianca: number;
+  justificativa: string;
+  external_odd_id: string | null;
+};
+
+export type AnaliseJogoStats = {
+  escanteios: string;
+  gols: string;
+  chutesAoGol: string;
+  cartoesTimes: string;
+  cartoesArbitro: string;
+};
+
+export type AnalisePartida = {
+  picks: PickAnalise[];
+  analise: AnaliseJogoStats;
+};
+
+function normKey(value: string) {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function toText(value: unknown, fallback = "") {
+  return typeof value === "string" && value.trim() ? value.trim() : fallback;
+}
+
+function toNumber(value: unknown, fallback = 0) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  const parsed = Number(String(value ?? "").replace(",", ".").replace(/[^0-9.-]/g, ""));
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function extractJson(text: string) {
+  const cleaned = text.replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
+  if (start === -1 || end === -1 || end <= start) throw new Error("JSON não encontrado");
+  return cleaned.slice(start, end + 1);
+}
+
+function repairJson(input: string) {
+  let s = input.replace(/,\s*([}\]])/g, "$1");
+  const opens: string[] = [];
+  let inString = false;
+  let escaped = false;
+  for (const ch of s) {
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === "{" || ch === "[") opens.push(ch);
+    else if (ch === "}" || ch === "]") opens.pop();
+  }
+  if (inString) s += '"';
+  while (opens.length) {
+    const o = opens.pop();
+    s += o === "{" ? "}" : "]";
+  }
+  return s.replace(/,\s*([}\]])/g, "$1");
+}
+
+function parseAiJson(text: string): Record<string, unknown> {
+  const extracted = extractJson(text);
+  try {
+    return JSON.parse(extracted) as Record<string, unknown>;
+  } catch {
+    return JSON.parse(repairJson(extracted)) as Record<string, unknown>;
+  }
+}
+
+function formatMatchDate(iso: string) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date(iso));
+}
+
+// Chama a IA para analisar UM jogo a partir das odds reais da casa.
+async function analisarComIa(model: LanguageModel, partida: PartidaRow, casa: string): Promise<AnalisePartida> {
+  const oddsCasa = partida.odds.filter((o) => normKey(o.casa) === normKey(casa));
+  const oddsTxt = oddsCasa.map((o) => `${o.mercado} / ${o.selecao} @ ${o.valor}`).join("; ");
+  const jogo = `${partida.time_casa} x ${partida.time_fora}`;
+
+  const system = `Você é um analista esportivo de futebol especializado em apostas.
+Analise UM único jogo e recomende as melhores seleções para apostar, usando SOMENTE as odds reais listadas (casa "${casa}").
+Regras:
+- Use exatamente o mercado/seleção/odd da lista. Nunca invente seleções nem odds.
+- Para cada seleção recomendada informe a confiança real (0 a 100) e uma justificativa curta em português.
+- Recomende de 1 a 5 seleções, das mais seguras para as mais arriscadas.
+- Nunca recomende seleções contraditórias do mesmo mercado.
+- Forneça também estatísticas estimadas do jogo (curtas, com números): escanteios, gols, chutes ao gol, cartões dos times e cartões do árbitro.`;
+
+  const prompt = `Jogo: ${jogo}${partida.liga ? ` | ${partida.liga}` : ""}
+Início: ${formatMatchDate(partida.inicio)}
+Odds disponíveis (${casa}): ${oddsTxt}
+
+Responda SOMENTE com JSON válido neste formato:
+{
+  "picks": [{ "mercado": "mercado", "selecao": "seleção", "odd": 1.85, "confianca": 78, "justificativa": "motivo curto" }],
+  "analise": { "escanteios": "média ~9.5, linha +8.5", "gols": "média 2.7 gols", "chutesAoGol": "Casa 5.2 / Fora 4.1", "cartoesTimes": "Casa 2.1 / Fora 1.8", "cartoesArbitro": "árbitro média 4.3 cartões/jogo" }
+}`;
+
+  const { text } = await generateText({
+    model,
+    system,
+    prompt,
+    temperature: 0.2,
+    maxOutputTokens: 1200,
+  });
+
+  const raw = parseAiJson(text);
+  const rawPicks = Array.isArray(raw.picks) ? raw.picks : [];
+
+  const picks: PickAnalise[] = [];
+  const usados = new Set<string>();
+  for (const item of rawPicks) {
+    const p = item as Record<string, unknown>;
+    const mercado = toText(p.mercado ?? p.market, "");
+    const selecao = toText(p.selecao ?? p.palpite ?? p.selection, "");
+    if (!selecao) continue;
+    // Casa com a odd real do banco.
+    const oddRow = oddsCasa.find((o) => normKey(o.selecao) === normKey(selecao));
+    if (!oddRow) continue;
+    const chave = normKey(`${oddRow.mercado} ${oddRow.selecao}`);
+    if (usados.has(chave)) continue;
+    usados.add(chave);
+    picks.push({
+      mercado: oddRow.mercado || mercado || "Resultado Final",
+      selecao: oddRow.selecao,
+      odd: oddRow.valor,
+      confianca: Math.max(0, Math.min(100, toNumber(p.confianca ?? p.confidence, 60))),
+      justificativa: toText(p.justificativa ?? p.analise, "Escolha baseada nas odds reais."),
+      external_odd_id: oddRow.external_odd_id,
+    });
+  }
+
+  const a = (raw.analise ?? {}) as Record<string, unknown>;
+  const analise: AnaliseJogoStats = {
+    escanteios: toText(a.escanteios ?? a.corners, "Sem dados de escanteios."),
+    gols: toText(a.gols ?? a.goals, "Sem dados de gols."),
+    chutesAoGol: toText(a.chutesAoGol ?? a.chutes ?? a.shotsOnTarget, "Sem dados de chutes ao gol."),
+    cartoesTimes: toText(a.cartoesTimes ?? a.cartoes, "Sem dados de cartões dos times."),
+    cartoesArbitro: toText(a.cartoesArbitro ?? a.arbitro, "Sem dados do árbitro."),
+  };
+
+  return { picks, analise };
+}
+
+// Calcula o dia (America/Sao_Paulo) no formato YYYY-MM-DD.
+export function diaSaoPaulo(now = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+}
+
+// Retorna a análise do jogo: do cache (se existir para o dia) ou gera com a IA e salva.
+export async function obterAnalisePartida(
+  supabaseAdmin: any,
+  model: LanguageModel,
+  partida: PartidaRow,
+  casa: string,
+  dia: string,
+): Promise<AnalisePartida> {
+  // 1) Tenta o cache do dia.
+  const { data: cached } = await supabaseAdmin
+    .from("analise_cache")
+    .select("payload")
+    .eq("partida_id", partida.id)
+    .eq("dia", dia)
+    .eq("casa", casa)
+    .maybeSingle();
+
+  if (cached?.payload) {
+    const payload = cached.payload as AnalisePartida;
+    if (Array.isArray(payload.picks) && payload.picks.length) {
+      return payload;
+    }
+  }
+
+  // 2) Sem cache válido: chama a IA e salva.
+  const analise = await analisarComIa(model, partida, casa);
+  if (analise.picks.length) {
+    try {
+      await supabaseAdmin
+        .from("analise_cache")
+        .upsert({ partida_id: partida.id, dia, casa, payload: analise }, { onConflict: "partida_id,dia,casa" });
+    } catch (e) {
+      console.error("Falha ao salvar análise no cache", e);
+    }
+  }
+  return analise;
+}
+
+// Roda várias análises com concorrência limitada (evita estourar a IA).
+export async function analisarPartidas(
+  supabaseAdmin: any,
+  model: LanguageModel,
+  partidas: PartidaRow[],
+  casa: string,
+  dia: string,
+  concorrencia = 4,
+): Promise<Map<string, AnalisePartida>> {
+  const resultado = new Map<string, AnalisePartida>();
+  let i = 0;
+  async function worker() {
+    while (i < partidas.length) {
+      const idx = i++;
+      const partida = partidas[idx];
+      try {
+        const analise = await obterAnalisePartida(supabaseAdmin, model, partida, casa, dia);
+        if (analise.picks.length) resultado.set(partida.id, analise);
+      } catch (e) {
+        console.error("Falha ao analisar partida", partida.id, e);
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concorrencia, partidas.length) }, worker));
+  return resultado;
+}
