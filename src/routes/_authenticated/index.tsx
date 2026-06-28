@@ -212,7 +212,13 @@ function Index() {
           .order("inicio", { ascending: true });
 
         if (periodo === "aovivo") {
-          q = q.eq("status", "ao_vivo");
+          // Um jogo só é considerado realmente "ao vivo" se começou nas
+          // últimas ~3,5h (evita jogos com status desatualizado/encerrado).
+          const janelaInicio = new Date(Date.now() - 3.5 * 60 * 60 * 1000).toISOString();
+          q = q
+            .eq("status", "ao_vivo")
+            .gte("inicio", janelaInicio)
+            .lte("inicio", new Date().toISOString());
         } else {
           const spDate = (offset: number) => {
             const d = new Date();
