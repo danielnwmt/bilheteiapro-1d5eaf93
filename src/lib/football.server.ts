@@ -642,6 +642,7 @@ export async function syncOddsFromOddsApi(
         `${ODDS_API_BASE}/sports/${sport}/odds/?apiKey=${apiKey}` +
         `&regions=eu,uk&markets=h2h,totals,btts,double_chance` +
         `&oddsFormat=decimal&dateFormat=iso&includeLinks=true&includeSids=true`;
+      await registrarChamada("ODDS_API_KEY");
       const res = await fetch(url);
       chamadas++;
       if (!res.ok) throw new Error(`Odds API ${res.status}: ${await res.text()}`);
