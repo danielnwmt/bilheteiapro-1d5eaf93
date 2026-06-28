@@ -13,6 +13,9 @@ import {
   disconnectDrive,
   getBackupSchedule,
   saveBackupSchedule,
+  getEmailConfig,
+  saveEmailConfig,
+  backupToEmail,
   type BackupFile,
 } from "@/lib/backup.functions";
 import { Button } from "@/components/ui/button";
@@ -35,6 +38,8 @@ import {
   Unlink,
   CheckCircle2,
   Clock,
+  Mail,
+  Send,
 } from "lucide-react";
 
 
