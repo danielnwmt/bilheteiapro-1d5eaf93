@@ -290,10 +290,6 @@ BEGIN
       );
     END IF;
   END LOOP;
-END $$;        tbl.table_name
-      );
-    END IF;
-  END LOOP;
 END $$;
 
 -- ============================================================
