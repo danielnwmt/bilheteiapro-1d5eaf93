@@ -1452,16 +1452,24 @@ export const testApiKey = createServerFn({ method: "POST" })
       }
 
       if (chave === "ASAAS_API_KEY") {
-        const res = await fetch("https://api.asaas.com/v3/myAccount", {
+        const { getConfigKey } = await import("./system-config.server");
+        const env = (await getConfigKey("ASAAS_ENV"))?.toLowerCase().trim();
+        const baseUrl =
+          env === "sandbox"
+            ? "https://api-sandbox.asaas.com/v3"
+            : "https://api.asaas.com/v3";
+        const amb = env === "sandbox" ? "Sandbox" : "Produção";
+        const res = await fetch(`${baseUrl}/myAccount`, {
           headers: { access_token: valor },
         });
         if (res.status === 401 || res.status === 403) {
-          return { ok: false, error: "Asaas: chave inválida (não autorizada)." };
+          return { ok: false, error: `Asaas (${amb}): chave inválida ou de outro ambiente.` };
         }
         if (!res.ok) {
           return { ok: false, error: `Asaas ${res.status}: ${await res.text()}` };
         }
-        return { ok: true, info: "Conta Asaas conectada." };
+        const acc = (await res.json().catch(() => ({}))) as any;
+        return { ok: true, info: `Conta Asaas conectada (${amb})${acc?.email ? ` — ${acc.email}` : ""}.` };
       }
 
       // Chave genérica: apenas confirma que há um valor configurado.

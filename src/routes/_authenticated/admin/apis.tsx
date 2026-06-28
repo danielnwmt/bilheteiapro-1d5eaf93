@@ -520,7 +520,37 @@ function ApisPage() {
                 </div>
               </Card>
 
+              {/* Ambiente do Asaas: Sandbox (teste) ou Produção */}
+              <Card className="border-primary/30 bg-card p-4">
+                <Label className="text-sm font-semibold">Ambiente do Asaas</Label>
+                <p className="mb-2 text-xs text-muted-foreground">
+                  Use <b>Sandbox</b> para testar com chaves de homologação. Em
+                  produção use a chave real e selecione <b>Produção</b>.
+                </p>
+                <Select
+                  value={
+                    (configRows.find((c) => c.chave === "ASAAS_ENV")?.valor ?? "producao")
+                  }
+                  onValueChange={(v) =>
+                    mut.mutate({
+                      chave: "ASAAS_ENV",
+                      valor: v,
+                      descricao: "Ambiente do Asaas: sandbox (teste) ou producao.",
+                    })
+                  }
+                >
+                  <SelectTrigger className="bg-input/40">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sandbox">Sandbox (teste)</SelectItem>
+                    <SelectItem value="producao">Produção</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Card>
+
               <div className="space-y-4">
+
                 {CHAVES_PAGAMENTO.map(({ chave, descricao: desc }) => {
                   const descricao = existentes.get(chave) ?? desc ?? "";
                   return (
