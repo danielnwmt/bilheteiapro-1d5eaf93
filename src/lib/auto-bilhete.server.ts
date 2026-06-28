@@ -75,7 +75,34 @@ type PartidaRow = {
   odds: OddRow[];
 };
 
-function normKey(v: string) {
+type EstatisticaRow = {
+  partida_id: string | null;
+  tipo: string | null;
+  payload: unknown;
+};
+
+// Resume o payload (json) de estatísticas em texto curto e legível pra IA.
+function resumirEstatisticas(stats: EstatisticaRow[]): string {
+  const partes: string[] = [];
+  for (const s of stats) {
+    const p = s.payload;
+    if (p == null) continue;
+    let txt = "";
+    if (typeof p === "string") {
+      txt = p;
+    } else if (typeof p === "object") {
+      txt = Object.entries(p as Record<string, unknown>)
+        .filter(([, v]) => v != null && typeof v !== "object")
+        .map(([k, v]) => `${k}: ${v}`)
+        .join(", ");
+    }
+    txt = txt.trim();
+    if (!txt) continue;
+    partes.push(s.tipo ? `${s.tipo} → ${txt}` : txt);
+  }
+  return partes.join(" | ").slice(0, 600);
+}
+
   return v
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
