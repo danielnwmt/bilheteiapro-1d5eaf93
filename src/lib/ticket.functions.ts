@@ -287,28 +287,26 @@ export const gerarBilhete = createServerFn({ method: "POST" })
       throw new Error(`Os jogos desse período ainda não têm odds salvas para ${data.casa}. Aguarde a sincronização automática configurada no painel.`);
     }
 
-    // ---- Análise por jogo com cache diário ----
-    // Cada jogo é analisado pela IA no máximo 1x por dia (por casa). O resultado
-    // fica salvo em analise_cache e é reaproveitado para jogos que ainda não
-    // começaram, sem chamar a IA de novo.
+    // ---- Análise por jogo (somente cache) ----
+    // A IA NÃO é chamada aqui. O robô (cron a cada 5 min) já analisou todos os
+    // jogos e salvou em analise_cache. Aqui só lemos o que já está pronto.
     const dia = diaSaoPaulo(now);
-    const aAnalisar = rows.slice(0, 10);
-    const { resultado: analises, erros: errosAnalise, falhas } = await analisarPartidas(
+    const aAnalisar = rows.slice(0, 40);
+    const { resultado: analises } = await analisarPartidas(
       supabaseAdmin,
       aiModel,
       aAnalisar as unknown as AnalisePartidaRow[],
       data.casa,
       dia,
-      1,
+      8,
+      true, // somenteCache: nunca chama a IA no fluxo do cliente
     );
 
-    // Se a IA falhou em TODOS os jogos, mostra o motivo real (chave inválida,
-    // limite de uso, modelo errado, etc.) em vez de "Nenhuma entrada".
-    if (!analises.size && falhas >= aAnalisar.length && errosAnalise.length) {
-      const detalhe = /too many requests|rate limit|resource_exhausted|429/i.test(errosAnalise[0])
-        ? "A IA atingiu o limite de chamadas agora. Aguarde alguns minutos ou use uma chave com limite maior."
-        : `Detalhe: ${errosAnalise[0]}`;
-      throw new Error(`A IA não conseguiu analisar os jogos. ${detalhe}`);
+    // Se ainda não há análise salva para estes jogos, orienta a aguardar o robô.
+    if (!analises.size) {
+      throw new Error(
+        "As análises destes jogos ainda estão sendo preparadas pelo robô. Aguarde alguns minutos e tente novamente.",
+      );
     }
 
     const mercadoOk = (mercado: string, selecao: string) => {
