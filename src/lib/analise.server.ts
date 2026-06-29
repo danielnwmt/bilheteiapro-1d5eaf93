@@ -267,6 +267,25 @@ export async function obterAnalisePartida(
     }
   }
 
+  // Fallback: como as odds são compartilhadas entre as casas (consenso), uma
+  // análise já feita para QUALQUER casa do mesmo jogo/dia serve para a casa
+  // selecionada. Assim o robô só precisa analisar cada jogo uma vez.
+  {
+    const { data: outra } = await supabaseAdmin
+      .from("analise_cache")
+      .select("payload")
+      .eq("partida_id", partida.id)
+      .eq("dia", dia)
+      .limit(1)
+      .maybeSingle();
+    if (outra?.payload) {
+      const payload = outra.payload as AnalisePartida;
+      if (Array.isArray(payload.picks) && payload.picks.length) {
+        return payload;
+      }
+    }
+  }
+
   // Fluxo do cliente: não gera com IA, apenas usa o que o robô já salvou.
   if (somenteCache) {
     return { picks: [], analise: montarAnaliseSemIa(partida, casa).analise };
