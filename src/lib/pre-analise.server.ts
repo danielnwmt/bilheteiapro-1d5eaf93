@@ -14,7 +14,7 @@ const APP_CASAS = ["Bet365", "Betano", "Superbet", "KTO", "Sportingbet", "Betfai
 // Limite de chamadas de IA por execução do cron (evita estourar o limite/429).
 // Como o cache é diário, cada par jogo+casa só é analisado uma vez por dia;
 // as execuções seguintes só completam o que faltou.
-const BUDGET_POR_RUN = 12;
+const BUDGET_POR_RUN = 18;
 
 function normKey(v: string) {
   return v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
@@ -65,26 +65,30 @@ export async function preAnalisarTodos(): Promise<PreAnaliseResult> {
 
   const rows = (partidas ?? []) as PartidaRow[];
 
-  // Monta os pares (jogo, casa) que têm odds e ainda não estão no cache do dia.
+  // Como as odds são consenso (compartilhadas entre as casas), basta analisar
+  // CADA JOGO UMA VEZ, usando a primeira casa do app que tenha odds. O cliente
+  // reaproveita essa análise para qualquer casa selecionada.
   type Par = { partida: PartidaRow; casa: string };
   const candidatos: Par[] = [];
   for (const p of rows) {
-    const casasComOdd = new Set<string>();
-    for (const o of p.odds) {
-      const match = APP_CASAS.find((c) => normKey(c) === normKey(o.casa));
-      if (match) casasComOdd.add(match);
+    let casa: string | null = null;
+    for (const c of APP_CASAS) {
+      if (p.odds.some((o) => normKey(o.casa) === normKey(c))) {
+        casa = c;
+        break;
+      }
     }
-    for (const casa of casasComOdd) candidatos.push({ partida: p, casa });
+    if (casa) candidatos.push({ partida: p, casa });
   }
 
-  // Quais já estão no cache de hoje?
+  // Quais jogos já têm análise hoje (em qualquer casa)?
   const { data: jaCache } = await supabase
     .from("analise_cache")
-    .select("partida_id, casa")
+    .select("partida_id")
     .eq("dia", dia);
-  const cacheSet = new Set((jaCache ?? []).map((c: any) => `${c.partida_id}::${normKey(c.casa)}`));
+  const cacheSet = new Set((jaCache ?? []).map((c: any) => String(c.partida_id)));
 
-  const pendentes = candidatos.filter((c) => !cacheSet.has(`${c.partida.id}::${normKey(c.casa)}`));
+  const pendentes = candidatos.filter((c) => !cacheSet.has(c.partida.id));
 
   let analisados = 0;
   for (const c of pendentes) {
