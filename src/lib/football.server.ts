@@ -509,6 +509,22 @@ const LEAGUE_NAME_TO_ODDS_SPORT: Record<string, string> = {
   "Copa do Mundo": "soccer_fifa_world_cup",
 };
 
+// Casas exibidas no app. A The Odds API usa keys/títulos próprios (ex.:
+// "betfair_ex_uk"), então casamos por inclusão do nome normalizado.
+const APP_CASAS = ["Bet365", "Betano", "Superbet", "KTO", "Sportingbet", "Betfair"];
+
+// Resolve o nome de casa do app a partir de um bookmaker da The Odds API.
+// Retorna null quando a casa não é uma das exibidas no app.
+function resolveAppCasa(bmKey: string, bmTitle: string): string | null {
+  const k = normCasa(bmKey);
+  const t = normCasa(bmTitle);
+  for (const app of APP_CASAS) {
+    const a = normCasa(app);
+    if (k === a || t === a || k.includes(a) || t.includes(a)) return app;
+  }
+  return null;
+}
+
 interface OddsApiOutcome {
   name: string;
   price: number;
