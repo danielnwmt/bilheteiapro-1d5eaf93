@@ -155,8 +155,21 @@ Responda SOMENTE com JSON válido neste formato:
     const mercado = toText(p.mercado ?? p.market, "");
     const selecao = toText(p.selecao ?? p.palpite ?? p.selection, "");
     if (!selecao) continue;
-    // Casa com a odd real do banco.
-    const oddRow = oddsCasa.find((o) => normKey(o.selecao) === normKey(selecao));
+    // Casa com a odd real do banco. Primeiro tenta correspondência exata; se
+    // não achar (ex.: a IA escreveu "Vitória do Brasil" e a odd é "Brazil"),
+    // tenta correspondência parcial pelo mercado + seleção.
+    const selKey = normKey(selecao);
+    const merKey = normKey(mercado);
+    let oddRow = oddsCasa.find((o) => normKey(o.selecao) === selKey);
+    if (!oddRow) {
+      oddRow = oddsCasa.find((o) => {
+        const os = normKey(o.selecao);
+        const om = normKey(o.mercado);
+        const selMatch = os.includes(selKey) || selKey.includes(os);
+        const merMatch = !merKey || om.includes(merKey) || merKey.includes(om);
+        return selMatch && merMatch;
+      });
+    }
     if (!oddRow) continue;
     const chave = normKey(`${oddRow.mercado} ${oddRow.selecao}`);
     if (usados.has(chave)) continue;
@@ -232,6 +245,8 @@ export async function obterAnalisePartida(
 }
 
 // Roda várias análises com concorrência limitada (evita estourar a IA).
+// Retorna também os erros coletados para que a camada acima possa diferenciar
+// "nenhuma entrada" de "a IA falhou em todos os jogos".
 export async function analisarPartidas(
   supabaseAdmin: any,
   model: LanguageModel,
@@ -239,8 +254,10 @@ export async function analisarPartidas(
   casa: string,
   dia: string,
   concorrencia = 4,
-): Promise<Map<string, AnalisePartida>> {
+): Promise<{ resultado: Map<string, AnalisePartida>; erros: string[]; falhas: number }> {
   const resultado = new Map<string, AnalisePartida>();
+  const erros: string[] = [];
+  let falhas = 0;
   let i = 0;
   async function worker() {
     while (i < partidas.length) {
@@ -250,10 +267,13 @@ export async function analisarPartidas(
         const analise = await obterAnalisePartida(supabaseAdmin, model, partida, casa, dia);
         if (analise.picks.length) resultado.set(partida.id, analise);
       } catch (e) {
+        falhas++;
+        const msg = e instanceof Error ? e.message : String(e);
+        if (erros.length < 3) erros.push(msg);
         console.error("Falha ao analisar partida", partida.id, e);
       }
     }
   }
   await Promise.all(Array.from({ length: Math.min(concorrencia, partidas.length) }, worker));
-  return resultado;
+  return { resultado, erros, falhas };
 }
