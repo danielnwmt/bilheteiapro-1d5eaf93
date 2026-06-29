@@ -30,6 +30,7 @@ import { Route as ApiPublicHooksSyncOddsDiarioRouteImport } from './routes/api/p
 import { Route as ApiPublicHooksSyncFootballRouteImport } from './routes/api/public/hooks/sync-football'
 import { Route as ApiPublicHooksGerarBilhetesRouteImport } from './routes/api/public/hooks/gerar-bilhetes'
 import { Route as ApiPublicHooksAutoBackupRouteImport } from './routes/api/public/hooks/auto-backup'
+import { Route as ApiPublicHooksAnalisarJogosRouteImport } from './routes/api/public/hooks/analisar-jogos'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
@@ -143,6 +144,12 @@ const ApiPublicHooksAutoBackupRoute =
     path: '/api/public/hooks/auto-backup',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksAnalisarJogosRoute =
+  ApiPublicHooksAnalisarJogosRouteImport.update({
+    id: '/api/public/hooks/analisar-jogos',
+    path: '/api/public/hooks/analisar-jogos',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
@@ -159,6 +166,7 @@ export interface FileRoutesByFullPath {
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/api/public/ingest': typeof ApiPublicIngestRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
+  '/api/public/hooks/analisar-jogos': typeof ApiPublicHooksAnalisarJogosRoute
   '/api/public/hooks/auto-backup': typeof ApiPublicHooksAutoBackupRoute
   '/api/public/hooks/gerar-bilhetes': typeof ApiPublicHooksGerarBilhetesRoute
   '/api/public/hooks/sync-football': typeof ApiPublicHooksSyncFootballRoute
@@ -180,6 +188,7 @@ export interface FileRoutesByTo {
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/api/public/ingest': typeof ApiPublicIngestRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
+  '/api/public/hooks/analisar-jogos': typeof ApiPublicHooksAnalisarJogosRoute
   '/api/public/hooks/auto-backup': typeof ApiPublicHooksAutoBackupRoute
   '/api/public/hooks/gerar-bilhetes': typeof ApiPublicHooksGerarBilhetesRoute
   '/api/public/hooks/sync-football': typeof ApiPublicHooksSyncFootballRoute
@@ -204,6 +213,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/api/public/ingest': typeof ApiPublicIngestRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
+  '/api/public/hooks/analisar-jogos': typeof ApiPublicHooksAnalisarJogosRoute
   '/api/public/hooks/auto-backup': typeof ApiPublicHooksAutoBackupRoute
   '/api/public/hooks/gerar-bilhetes': typeof ApiPublicHooksGerarBilhetesRoute
   '/api/public/hooks/sync-football': typeof ApiPublicHooksSyncFootballRoute
@@ -228,6 +238,7 @@ export interface FileRouteTypes {
     | '/admin/usuarios'
     | '/api/public/ingest'
     | '/admin/'
+    | '/api/public/hooks/analisar-jogos'
     | '/api/public/hooks/auto-backup'
     | '/api/public/hooks/gerar-bilhetes'
     | '/api/public/hooks/sync-football'
@@ -249,6 +260,7 @@ export interface FileRouteTypes {
     | '/admin/usuarios'
     | '/api/public/ingest'
     | '/admin'
+    | '/api/public/hooks/analisar-jogos'
     | '/api/public/hooks/auto-backup'
     | '/api/public/hooks/gerar-bilhetes'
     | '/api/public/hooks/sync-football'
@@ -272,6 +284,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/usuarios'
     | '/api/public/ingest'
     | '/_authenticated/admin/'
+    | '/api/public/hooks/analisar-jogos'
     | '/api/public/hooks/auto-backup'
     | '/api/public/hooks/gerar-bilhetes'
     | '/api/public/hooks/sync-football'
@@ -285,6 +298,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   ApiPublicIngestRoute: typeof ApiPublicIngestRoute
+  ApiPublicHooksAnalisarJogosRoute: typeof ApiPublicHooksAnalisarJogosRoute
   ApiPublicHooksAutoBackupRoute: typeof ApiPublicHooksAutoBackupRoute
   ApiPublicHooksGerarBilhetesRoute: typeof ApiPublicHooksGerarBilhetesRoute
   ApiPublicHooksSyncFootballRoute: typeof ApiPublicHooksSyncFootballRoute
@@ -442,6 +456,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksAutoBackupRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/analisar-jogos': {
+      id: '/api/public/hooks/analisar-jogos'
+      path: '/api/public/hooks/analisar-jogos'
+      fullPath: '/api/public/hooks/analisar-jogos'
+      preLoaderRoute: typeof ApiPublicHooksAnalisarJogosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -493,6 +514,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   ApiPublicIngestRoute: ApiPublicIngestRoute,
+  ApiPublicHooksAnalisarJogosRoute: ApiPublicHooksAnalisarJogosRoute,
   ApiPublicHooksAutoBackupRoute: ApiPublicHooksAutoBackupRoute,
   ApiPublicHooksGerarBilhetesRoute: ApiPublicHooksGerarBilhetesRoute,
   ApiPublicHooksSyncFootballRoute: ApiPublicHooksSyncFootballRoute,
