@@ -268,6 +268,26 @@ function Index() {
     };
   }, [periodo]);
 
+  // Carrega as melhores entradas já analisadas pelo robô.
+  useEffect(() => {
+    if (!temAcesso) return;
+    let ativo = true;
+    setLoadingEntradas(true);
+    fetchEntradas()
+      .then((r) => {
+        if (ativo) setEntradas(r.entradas ?? []);
+      })
+      .catch(() => {
+        if (ativo) setEntradas([]);
+      })
+      .finally(() => {
+        if (ativo) setLoadingEntradas(false);
+      });
+    return () => {
+      ativo = false;
+    };
+  }, [temAcesso, fetchEntradas]);
+
   function podeUsarLiga(c: string) {
     return isStaff || ligaLiberada(planoCfg, c);
   }
