@@ -163,6 +163,7 @@ function traduzTermo(texto: string): string {
 function Index() {
   const router = useRouter();
   const run = useServerFn(gerarBilhete);
+  const fetchEntradas = useServerFn(getMelhoresEntradas);
   const iniciar = useServerFn(iniciarOperacao);
   const [iniciando, setIniciando] = useState(false);
   const { data: access, refetch: refetchAccess } = useAccess();
