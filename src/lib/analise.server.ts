@@ -241,12 +241,15 @@ export function diaSaoPaulo(now = new Date()): string {
 }
 
 // Retorna a análise do jogo: do cache (se existir para o dia) ou gera com a IA e salva.
+// Quando `somenteCache` é true (fluxo do cliente), NUNCA chama a IA: só lê o
+// cache já preenchido pelo robô a cada 5 min. Se não houver cache, retorna vazio.
 export async function obterAnalisePartida(
   supabaseAdmin: any,
   model: LanguageModel,
   partida: PartidaRow,
   casa: string,
   dia: string,
+  somenteCache = false,
 ): Promise<AnalisePartida> {
   // 1) Tenta o cache do dia.
   const { data: cached } = await supabaseAdmin
@@ -262,6 +265,11 @@ export async function obterAnalisePartida(
     if (Array.isArray(payload.picks) && payload.picks.length) {
       return payload;
     }
+  }
+
+  // Fluxo do cliente: não gera com IA, apenas usa o que o robô já salvou.
+  if (somenteCache) {
+    return { picks: [], analise: montarAnaliseSemIa(partida, casa).analise };
   }
 
   // 2) Sem cache válido: chama a IA e salva.
@@ -294,6 +302,7 @@ export async function analisarPartidas(
   casa: string,
   dia: string,
   concorrencia = 4,
+  somenteCache = false,
 ): Promise<{ resultado: Map<string, AnalisePartida>; erros: string[]; falhas: number }> {
   const resultado = new Map<string, AnalisePartida>();
   const erros: string[] = [];
@@ -304,8 +313,8 @@ export async function analisarPartidas(
       const idx = i++;
       const partida = partidas[idx];
       try {
-        if (idx > 0) await sleep(1200);
-        const analise = await obterAnalisePartida(supabaseAdmin, model, partida, casa, dia);
+        if (idx > 0 && !somenteCache) await sleep(1200);
+        const analise = await obterAnalisePartida(supabaseAdmin, model, partida, casa, dia, somenteCache);
         if (analise.picks.length) resultado.set(partida.id, analise);
       } catch (e) {
         falhas++;
