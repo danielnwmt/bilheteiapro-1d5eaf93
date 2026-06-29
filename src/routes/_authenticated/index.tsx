@@ -181,6 +181,7 @@ function Index() {
   const [janela, setJanela] = useState<{ url: string; title: string } | null>(null);
   const [entradas, setEntradas] = useState<MelhorEntrada[]>([]);
   const [loadingEntradas, setLoadingEntradas] = useState(false);
+  const [avisoOperacao, setAvisoOperacao] = useState<{ tipo: "ok" | "warning"; texto: string } | null>(null);
 
   const { byPlano } = usePlanos();
   const roles = access?.roles ?? [];
