@@ -101,6 +101,15 @@ function parseAiJson(text: string): Record<string, unknown> {
   }
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRateLimitError(error: unknown) {
+  const msg = error instanceof Error ? error.message : String(error ?? "");
+  return /too many requests|rate limit|resource_exhausted|429/i.test(msg);
+}
+
 function formatMatchDate(iso: string) {
   return new Intl.DateTimeFormat("pt-BR", {
     timeZone: "America/Sao_Paulo",
@@ -196,6 +205,31 @@ Responda SOMENTE com JSON válido neste formato:
   return { picks, analise };
 }
 
+function montarAnaliseSemIa(partida: PartidaRow, casa: string): AnalisePartida {
+  const oddsCasa = partida.odds
+    .filter((o) => normKey(o.casa) === normKey(casa) && o.valor >= 1.2 && o.valor <= 4.5)
+    .sort((a, b) => a.valor - b.valor)
+    .slice(0, 5);
+
+  return {
+    picks: oddsCasa.map((o) => ({
+      mercado: o.mercado || "Resultado Final",
+      selecao: o.selecao,
+      odd: o.valor,
+      confianca: 70,
+      justificativa: "Seleção baseada nas odds reais salvas; a IA atingiu o limite temporário de chamadas.",
+      external_odd_id: o.external_odd_id,
+    })),
+    analise: {
+      escanteios: "Aguardando nova análise da IA para estatísticas de escanteios.",
+      gols: "Aguardando nova análise da IA para estatísticas de gols.",
+      chutesAoGol: "Aguardando nova análise da IA para chutes ao gol.",
+      cartoesTimes: "Aguardando nova análise da IA para cartões dos times.",
+      cartoesArbitro: "Aguardando nova análise da IA para cartões do árbitro.",
+    },
+  };
+}
+
 // Calcula o dia (America/Sao_Paulo) no formato YYYY-MM-DD.
 export function diaSaoPaulo(now = new Date()): string {
   return new Intl.DateTimeFormat("en-CA", {
@@ -231,7 +265,13 @@ export async function obterAnalisePartida(
   }
 
   // 2) Sem cache válido: chama a IA e salva.
-  const analise = await analisarComIa(model, partida, casa);
+  let analise: AnalisePartida;
+  try {
+    analise = await analisarComIa(model, partida, casa);
+  } catch (e) {
+    if (!isRateLimitError(e)) throw e;
+    analise = montarAnaliseSemIa(partida, casa);
+  }
   if (analise.picks.length) {
     try {
       await supabaseAdmin
@@ -264,6 +304,7 @@ export async function analisarPartidas(
       const idx = i++;
       const partida = partidas[idx];
       try {
+        if (idx > 0) await sleep(1200);
         const analise = await obterAnalisePartida(supabaseAdmin, model, partida, casa, dia);
         if (analise.picks.length) resultado.set(partida.id, analise);
       } catch (e) {
