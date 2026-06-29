@@ -364,11 +364,27 @@ function Index() {
                 <Crown className="mr-1 h-3.5 w-3.5" /> {planoCfg?.nome ?? "Plano ativo"}
               </Badge>
             )}
+            {isStaff && (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={handleIniciarOperacao}
+                disabled={iniciando}
+              >
+                {iniciando ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Play className="mr-2 h-4 w-4" />
+                )}
+                {iniciando ? "Iniciando..." : "Iniciar operação"}
+              </Button>
+            )}
             {isAdmin && (
               <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/admin" })}>
                 <Users className="mr-2 h-4 w-4" /> Admin
               </Button>
             )}
+
             <AccentPicker compact />
             {(isStaff || !!planoCfg?.recursos?.planilhaBanca) && (
               <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/banca" })}>
