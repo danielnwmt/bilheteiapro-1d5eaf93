@@ -587,6 +587,35 @@ FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 CREATE INDEX IF NOT EXISTS idx_banca_depositos_user ON public.banca_depositos (user_id, data DESC);
 
+-- ============================================================
+--  Cache de análises da IA (robô de pré-análise).
+--  Faltava no schema local — sem ela o PostgREST retorna PGRST205
+--  e o cliente vê "Análises ainda sendo preparadas".
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.analise_cache (
+  id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  partida_id UUID NOT NULL,
+  dia DATE NOT NULL,
+  casa TEXT NOT NULL DEFAULT 'Betano',
+  payload JSONB NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  UNIQUE (partida_id, dia, casa)
+);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.analise_cache TO authenticated;
+GRANT SELECT ON public.analise_cache TO anon;
+GRANT ALL ON public.analise_cache TO service_role;
+
+ALTER TABLE public.analise_cache ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Analises legiveis" ON public.analise_cache;
+CREATE POLICY "Analises legiveis"
+ON public.analise_cache FOR SELECT
+USING (true);
+
+CREATE INDEX IF NOT EXISTS idx_analise_cache_dia ON public.analise_cache (dia, casa);
+
+
 INSERT INTO public.user_roles (user_id, role)
 SELECT id, 'admin'::public.app_role
 FROM auth.users
