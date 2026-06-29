@@ -325,6 +325,7 @@ function Index() {
 
   async function handleIniciarOperacao() {
     setIniciando(true);
+    setAvisoOperacao(null);
     toast.info("Iniciando operação: buscando jogos, odds e análises...");
     try {
       const r = await iniciar();
@@ -334,17 +335,42 @@ function Index() {
       }
       if (r.ok) {
         toast.success("Operação concluída! Já pode gerar bilhetes.");
+        setAvisoOperacao({ tipo: "ok", texto: "Operação concluída! Já pode gerar bilhetes." });
       } else {
         toast.warning("Operação concluída com avisos. Veja as etapas acima para entender a falha.");
+        setAvisoOperacao({
+          tipo: "warning",
+          texto: "Operação concluída com avisos. Veja as etapas (notificações) para entender a falha.",
+        });
+      }
+      // Recarrega as melhores entradas e avisa quando a IA termina de analisar.
+      setLoadingEntradas(true);
+      try {
+        const res = await fetchEntradas();
+        const lista = res.entradas ?? [];
+        setEntradas(lista);
+        if (lista.length > 0) {
+          toast.success(`A IA terminou de analisar os jogos — ${lista.length} entradas encontradas.`);
+          setAvisoOperacao({
+            tipo: "ok",
+            texto: `A IA terminou de analisar os jogos. ${lista.length} melhores entradas disponíveis abaixo.`,
+          });
+        }
+      } catch {
+        /* mantém o aviso anterior */
+      } finally {
+        setLoadingEntradas(false);
       }
     } catch (err: unknown) {
       console.error(err);
       const msg = err instanceof Error ? err.message : "Erro ao iniciar a operação.";
       toast.error(msg);
+      setAvisoOperacao({ tipo: "warning", texto: msg });
     } finally {
       setIniciando(false);
     }
   }
+
 
 
 
