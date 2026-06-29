@@ -441,3 +441,28 @@ BEGIN
       ('Betfair', NULL, 'https://www.google.com/search?q=betfair%20{jogo}');
   END IF;
 END $$;
+
+-- ============================================================
+--  Garante a tabela de cache de análises em instalações antigas
+--  e força o PostgREST a recarregar o schema (corrige PGRST205).
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.analise_cache (
+  id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  partida_id UUID NOT NULL,
+  dia DATE NOT NULL,
+  casa TEXT NOT NULL DEFAULT 'Betano',
+  payload JSONB NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  UNIQUE (partida_id, dia, casa)
+);
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.analise_cache TO authenticated;
+GRANT SELECT ON public.analise_cache TO anon;
+GRANT ALL ON public.analise_cache TO service_role;
+ALTER TABLE public.analise_cache ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Analises legiveis" ON public.analise_cache;
+CREATE POLICY "Analises legiveis" ON public.analise_cache FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Service role full access" ON public.analise_cache;
+CREATE POLICY "Service role full access" ON public.analise_cache FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE INDEX IF NOT EXISTS idx_analise_cache_dia ON public.analise_cache (dia, casa);
+
+NOTIFY pgrst, 'reload schema';
