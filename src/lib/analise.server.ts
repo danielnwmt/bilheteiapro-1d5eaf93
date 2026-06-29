@@ -155,8 +155,21 @@ Responda SOMENTE com JSON válido neste formato:
     const mercado = toText(p.mercado ?? p.market, "");
     const selecao = toText(p.selecao ?? p.palpite ?? p.selection, "");
     if (!selecao) continue;
-    // Casa com a odd real do banco.
-    const oddRow = oddsCasa.find((o) => normKey(o.selecao) === normKey(selecao));
+    // Casa com a odd real do banco. Primeiro tenta correspondência exata; se
+    // não achar (ex.: a IA escreveu "Vitória do Brasil" e a odd é "Brazil"),
+    // tenta correspondência parcial pelo mercado + seleção.
+    const selKey = normKey(selecao);
+    const merKey = normKey(mercado);
+    let oddRow = oddsCasa.find((o) => normKey(o.selecao) === selKey);
+    if (!oddRow) {
+      oddRow = oddsCasa.find((o) => {
+        const os = normKey(o.selecao);
+        const om = normKey(o.mercado);
+        const selMatch = os.includes(selKey) || selKey.includes(os);
+        const merMatch = !merKey || om.includes(merKey) || merKey.includes(om);
+        return selMatch && merMatch;
+      });
+    }
     if (!oddRow) continue;
     const chave = normKey(`${oddRow.mercado} ${oddRow.selecao}`);
     if (usados.has(chave)) continue;
