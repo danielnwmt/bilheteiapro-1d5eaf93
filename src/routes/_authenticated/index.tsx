@@ -302,7 +302,7 @@ function Index() {
     setIniciando(true);
     toast.info("Iniciando operação: buscando jogos, odds e análises...");
     try {
-      const r = await iniciar({ data: {} });
+      const r = await iniciar();
       for (const etapa of r.etapas) {
         if (etapa.ok) toast.success(`${etapa.etapa}: ${etapa.info}`);
         else toast.error(`${etapa.etapa}: ${etapa.info}`);
