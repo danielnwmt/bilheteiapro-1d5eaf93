@@ -232,6 +232,8 @@ export async function obterAnalisePartida(
 }
 
 // Roda várias análises com concorrência limitada (evita estourar a IA).
+// Retorna também os erros coletados para que a camada acima possa diferenciar
+// "nenhuma entrada" de "a IA falhou em todos os jogos".
 export async function analisarPartidas(
   supabaseAdmin: any,
   model: LanguageModel,
@@ -239,8 +241,10 @@ export async function analisarPartidas(
   casa: string,
   dia: string,
   concorrencia = 4,
-): Promise<Map<string, AnalisePartida>> {
+): Promise<{ resultado: Map<string, AnalisePartida>; erros: string[]; falhas: number }> {
   const resultado = new Map<string, AnalisePartida>();
+  const erros: string[] = [];
+  let falhas = 0;
   let i = 0;
   async function worker() {
     while (i < partidas.length) {
@@ -250,10 +254,13 @@ export async function analisarPartidas(
         const analise = await obterAnalisePartida(supabaseAdmin, model, partida, casa, dia);
         if (analise.picks.length) resultado.set(partida.id, analise);
       } catch (e) {
+        falhas++;
+        const msg = e instanceof Error ? e.message : String(e);
+        if (erros.length < 3) erros.push(msg);
         console.error("Falha ao analisar partida", partida.id, e);
       }
     }
   }
   await Promise.all(Array.from({ length: Math.min(concorrencia, partidas.length) }, worker));
-  return resultado;
+  return { resultado, erros, falhas };
 }
