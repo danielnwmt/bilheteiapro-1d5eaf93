@@ -675,13 +675,18 @@ export async function syncOddsFromOddsApi(
       if (!f) continue;
       eventos++;
 
-      // Grava odds de TODAS as casas exibidas no app que vierem no evento,
-      // cada uma sob o seu próprio nome (Bet365, Betano, Betfair, etc.).
-      // Assim qualquer casa selecionada na tela encontra odds salvas.
+      // 1) Coleta TODAS as cotações do evento (qualquer casa da Odds API),
+      //    agrupando por mercado+seleção (consenso). Guarda também as cotações
+      //    reais das casas exibidas no app, quando vierem no evento.
+      type Cot = { mercado: string; selecao: string; valor: number; deep: string | null; ext: string };
+      const consenso = new Map<
+        string,
+        { mercado: string; selecao: string; valores: number[]; deep: string | null; ext: string }
+      >();
+      const reais = new Map<string, Cot[]>(); // appCasa -> cotações reais
+
       for (const bm of ev.bookmakers) {
         const appCasa = resolveAppCasa(bm.key, bm.title);
-        if (!appCasa) continue;
-
         for (const market of bm.markets) {
           for (const o of market.outcomes) {
             const mapped = mapOddsApiOutcome(
@@ -695,16 +700,63 @@ export async function syncOddsFromOddsApi(
             if (!mapped) continue;
             const valor = Number(o.price);
             if (!Number.isFinite(valor)) continue;
-            const deep =
-              o.link ?? market.link ?? bm.link ?? resolveDeep(mapped.mercado, f.time_casa, f.time_fora);
+            const deep = o.link ?? market.link ?? bm.link ?? null;
+            const ext = `${ev.id}:${bm.key}:${market.key}:${o.name}`;
+            const chave = `${mapped.mercado}||${mapped.selecao}`;
+
+            const c = consenso.get(chave);
+            if (c) {
+              c.valores.push(valor);
+              if (!c.deep && deep) c.deep = deep;
+            } else {
+              consenso.set(chave, {
+                mercado: mapped.mercado,
+                selecao: mapped.selecao,
+                valores: [valor],
+                deep,
+                ext,
+              });
+            }
+
+            if (appCasa) {
+              const arr = reais.get(appCasa) ?? [];
+              arr.push({ mercado: mapped.mercado, selecao: mapped.selecao, valor, deep, ext });
+              reais.set(appCasa, arr);
+            }
+          }
+        }
+      }
+
+      if (!consenso.size) continue;
+
+      // 2) Garante odds para TODAS as casas exibidas no app: usa a cotação real
+      //    da casa quando existir; senão usa o consenso (mediana) do mercado.
+      for (const appCasa of APP_CASAS) {
+        const reaisCasa = reais.get(appCasa);
+        if (reaisCasa?.length) {
+          for (const c of reaisCasa) {
             rows.push({
               partida_id: f.id,
               casa: appCasa,
-              mercado: mapped.mercado,
-              selecao: mapped.selecao,
-              valor,
-              external_odd_id: `${ev.id}:${bm.key}:${market.key}:${o.name}`,
-              deep_link: deep,
+              mercado: c.mercado,
+              selecao: c.selecao,
+              valor: c.valor,
+              external_odd_id: c.ext,
+              deep_link: c.deep ?? resolveDeep(c.mercado, f.time_casa, f.time_fora),
+            });
+          }
+        } else {
+          for (const c of consenso.values()) {
+            const sorted = [...c.valores].sort((a, b) => a - b);
+            const mediana = sorted[Math.floor(sorted.length / 2)];
+            rows.push({
+              partida_id: f.id,
+              casa: appCasa,
+              mercado: c.mercado,
+              selecao: c.selecao,
+              valor: mediana,
+              external_odd_id: `${c.ext}:consensus:${normCasa(appCasa)}`,
+              deep_link: c.deep ?? resolveDeep(c.mercado, f.time_casa, f.time_fora),
             });
           }
         }
