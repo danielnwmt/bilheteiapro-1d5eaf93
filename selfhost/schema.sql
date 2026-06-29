@@ -587,6 +587,35 @@ FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 CREATE INDEX IF NOT EXISTS idx_banca_depositos_user ON public.banca_depositos (user_id, data DESC);
 
+-- ============================================================
+--  Cache de análises da IA (robô de pré-análise).
+--  Faltava no schema local — sem ela o PostgREST retorna PGRST205
+--  e o cliente vê "Análises ainda sendo preparadas".
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.analise_cache (
+  id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  partida_id UUID NOT NULL,
+  dia DATE NOT NULL,
+  casa TEXT NOT NULL DEFAULT 'Betano',
+  payload JSONB NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  UNIQUE (partida_id, dia, casa)
+);
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.analise_cache TO authenticated;
+GRANT SELECT ON public.analise_cache TO anon;
+GRANT ALL ON public.analise_cache TO service_role;
+
+ALTER TABLE public.analise_cache ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Analises legiveis" ON public.analise_cache;
+CREATE POLICY "Analises legiveis"
+ON public.analise_cache FOR SELECT
+USING (true);
+
+CREATE INDEX IF NOT EXISTS idx_analise_cache_dia ON public.analise_cache (dia, casa);
+
+
 INSERT INTO public.user_roles (user_id, role)
 SELECT id, 'admin'::public.app_role
 FROM auth.users
@@ -716,3 +745,25 @@ $$;
 
 REVOKE ALL ON FUNCTION public.admin_list_users() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_list_users() TO service_role;
+
+-- ============================================================
+--  Auto-reload do PostgREST quando o schema mudar (evita PGRST205).
+--  Recria o cache sempre que uma tabela/coluna é criada ou alterada,
+--  e força um reload imediato ao final desta migração.
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.pgrst_reload_schema()
+RETURNS event_trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  NOTIFY pgrst, 'reload schema';
+END;
+$$;
+
+DROP EVENT TRIGGER IF EXISTS pgrst_reload_on_ddl;
+CREATE EVENT TRIGGER pgrst_reload_on_ddl
+  ON ddl_command_end
+  EXECUTE FUNCTION public.pgrst_reload_schema();
+
+NOTIFY pgrst, 'reload schema';
+
