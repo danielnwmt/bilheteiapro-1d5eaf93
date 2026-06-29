@@ -330,9 +330,17 @@ function Index() {
   } as const;
 
   const casaAtual = CASAS.find((c) => c.id === casa)!;
-  const jogosFiltrados = jogos.filter(
-    (j) => campSel.length === 0 || (j.liga ? campSel.includes(j.liga) : false),
-  );
+  const jogosFiltrados = (() => {
+    const vistos = new Set<string>();
+    return jogos.filter((j) => {
+      if (campSel.length > 0 && !(j.liga ? campSel.includes(j.liga) : false)) return false;
+      // Evita jogos duplicados (API-Football e Odds API criam 2 linhas do mesmo jogo).
+      const chave = `${(j.time_casa || "").trim().toLowerCase()}|${(j.time_fora || "").trim().toLowerCase()}|${new Date(j.inicio).getTime()}`;
+      if (vistos.has(chave)) return false;
+      vistos.add(chave);
+      return true;
+    });
+  })();
   const premioPotencial = ticket ? (parseFloat(valorAposta) || 0) * ticket.oddTotal : 0;
   const riscoPct =
     ticket && ticket.picks.length
