@@ -745,3 +745,25 @@ $$;
 
 REVOKE ALL ON FUNCTION public.admin_list_users() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_list_users() TO service_role;
+
+-- ============================================================
+--  Auto-reload do PostgREST quando o schema mudar (evita PGRST205).
+--  Recria o cache sempre que uma tabela/coluna é criada ou alterada,
+--  e força um reload imediato ao final desta migração.
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.pgrst_reload_schema()
+RETURNS event_trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  NOTIFY pgrst, 'reload schema';
+END;
+$$;
+
+DROP EVENT TRIGGER IF EXISTS pgrst_reload_on_ddl;
+CREATE EVENT TRIGGER pgrst_reload_on_ddl
+  ON ddl_command_end
+  EXECUTE FUNCTION public.pgrst_reload_schema();
+
+NOTIFY pgrst, 'reload schema';
+
