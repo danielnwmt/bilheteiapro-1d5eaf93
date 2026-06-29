@@ -635,7 +635,6 @@ export async function syncOddsFromOddsApi(
     porSport.set(sport, arr);
   }
 
-  const casaNorm = normCasa(casa);
   const resolveDeep = await buildDeepLinkResolver(supabase, casa);
 
   const rows: Array<{
