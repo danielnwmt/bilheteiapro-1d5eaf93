@@ -298,6 +298,31 @@ function Index() {
     }
   }
 
+  async function handleIniciarOperacao() {
+    setIniciando(true);
+    toast.info("Iniciando operação: buscando jogos, odds e análises...");
+    try {
+      const r = await iniciar({ data: {} });
+      for (const etapa of r.etapas) {
+        if (etapa.ok) toast.success(`${etapa.etapa}: ${etapa.info}`);
+        else toast.error(`${etapa.etapa}: ${etapa.info}`);
+      }
+      if (r.ok) {
+        toast.success("Operação concluída! Já pode gerar bilhetes.");
+      } else {
+        toast.warning("Operação concluída com avisos. Veja as etapas acima para entender a falha.");
+      }
+    } catch (err: unknown) {
+      console.error(err);
+      const msg = err instanceof Error ? err.message : "Erro ao iniciar a operação.";
+      toast.error(msg);
+    } finally {
+      setIniciando(false);
+    }
+  }
+
+
+
   const riscoColor = {
     baixo: "bg-primary/20 text-primary border-primary/30",
     medio: "bg-accent/20 text-accent border-accent/30",
