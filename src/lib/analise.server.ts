@@ -302,6 +302,7 @@ export async function analisarPartidas(
   casa: string,
   dia: string,
   concorrencia = 4,
+  somenteCache = false,
 ): Promise<{ resultado: Map<string, AnalisePartida>; erros: string[]; falhas: number }> {
   const resultado = new Map<string, AnalisePartida>();
   const erros: string[] = [];
@@ -312,8 +313,8 @@ export async function analisarPartidas(
       const idx = i++;
       const partida = partidas[idx];
       try {
-        if (idx > 0) await sleep(1200);
-        const analise = await obterAnalisePartida(supabaseAdmin, model, partida, casa, dia);
+        if (idx > 0 && !somenteCache) await sleep(1200);
+        const analise = await obterAnalisePartida(supabaseAdmin, model, partida, casa, dia, somenteCache);
         if (analise.picks.length) resultado.set(partida.id, analise);
       } catch (e) {
         falhas++;
