@@ -610,59 +610,115 @@ function Index() {
           </form>
         </Card>
 
-        <Card className="mt-8 border-border/60 bg-card p-6 md:p-8">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <h2 className="flex items-center gap-2 text-lg font-bold">
-              <CalendarDays className="h-5 w-5 text-primary" />
-              {periodo === "aovivo"
-                ? "Jogos ao vivo"
-                : periodo === "amanha"
-                ? "Jogos de amanhã"
-                : periodo === "semana"
-                ? "Jogos da semana"
-                : "Jogos do dia"}
-            </h2>
-            {!loadingJogos && (
-              <Badge variant="secondary">{jogosFiltrados.length} jogos</Badge>
-            )}
-          </div>
+        <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_360px]">
+          <Card className="border-border/60 bg-card p-6 md:p-8">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h2 className="flex items-center gap-2 text-lg font-bold">
+                <CalendarDays className="h-5 w-5 text-primary" />
+                {periodo === "aovivo"
+                  ? "Jogos ao vivo"
+                  : periodo === "amanha"
+                  ? "Jogos de amanhã"
+                  : periodo === "semana"
+                  ? "Jogos da semana"
+                  : "Jogos do dia"}
+              </h2>
+              {!loadingJogos && (
+                <Badge variant="secondary">{jogosFiltrados.length} jogos</Badge>
+              )}
+            </div>
 
-          {loadingJogos ? (
-            <div className="flex items-center justify-center py-10 text-muted-foreground">
-              <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando jogos...
-            </div>
-          ) : jogosFiltrados.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              Nenhum jogo encontrado para este período. Os jogos são atualizados automaticamente.
-            </p>
-          ) : (
-            <div className="divide-y divide-border/60">
-              {jogosFiltrados.map((j) => (
-                <div key={j.id} className="flex items-center gap-3 py-3">
-                  <div className="w-16 shrink-0 text-sm font-semibold text-primary">
-                    {j.status === "ao_vivo" ? (
-                      <span className="flex items-center gap-1">🔴 AO VIVO</span>
-                    ) : (
-                      new Date(j.inicio).toLocaleTimeString("pt-BR", {
-                        timeZone: "America/Sao_Paulo",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
-                    )}
+            {loadingJogos ? (
+              <div className="flex items-center justify-center py-10 text-muted-foreground">
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando jogos...
+              </div>
+            ) : jogosFiltrados.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                Nenhum jogo encontrado para este período. Os jogos são atualizados automaticamente.
+              </p>
+            ) : (
+              <div className="divide-y divide-border/60">
+                {jogosFiltrados.map((j) => (
+                  <div key={j.id} className="flex items-center gap-3 py-3">
+                    <div className="w-16 shrink-0 text-sm font-semibold text-primary">
+                      {j.status === "ao_vivo" ? (
+                        <span className="flex items-center gap-1">🔴 AO VIVO</span>
+                      ) : (
+                        new Date(j.inicio).toLocaleTimeString("pt-BR", {
+                          timeZone: "America/Sao_Paulo",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">
+                        {j.time_casa} <span className="text-muted-foreground">x</span> {j.time_fora}
+                      </p>
+                      {j.liga && (
+                        <p className="truncate text-xs text-muted-foreground">{j.liga}</p>
+                      )}
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">
-                      {j.time_casa} <span className="text-muted-foreground">x</span> {j.time_fora}
-                    </p>
-                    {j.liga && (
-                      <p className="truncate text-xs text-muted-foreground">{j.liga}</p>
-                    )}
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
+            )}
+          </Card>
+
+          <Card className="h-fit border-primary/30 bg-card p-6 md:p-8 lg:sticky lg:top-6">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h2 className="flex items-center gap-2 text-lg font-bold">
+                <Flame className="h-5 w-5 text-primary" /> Melhores entradas
+              </h2>
+              {!loadingEntradas && entradas.length > 0 && (
+                <Badge variant="secondary">{entradas.length}</Badge>
+              )}
             </div>
-          )}
-        </Card>
+
+            {loadingEntradas ? (
+              <div className="flex items-center justify-center py-10 text-muted-foreground">
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando...
+              </div>
+            ) : entradas.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                As melhores entradas analisadas pela IA aparecem aqui. Aguarde a análise automática.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {entradas.map((e, i) => (
+                  <div key={`${e.jogo}-${i}`} className="rounded-lg border border-border/70 bg-muted/20 p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold">{e.jogo}</p>
+                        <p className="truncate text-[11px] text-muted-foreground">
+                          {e.liga ?? "—"} ·{" "}
+                          {new Date(e.inicio).toLocaleTimeString("pt-BR", {
+                            timeZone: "America/Sao_Paulo",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </p>
+                      </div>
+                      <span className="shrink-0 font-display text-base font-bold text-primary">
+                        {e.odd.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between gap-2 border-t border-border/50 pt-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-primary">{traduzTermo(e.selecao)}</p>
+                        <p className="truncate text-[10px] text-muted-foreground">{traduzTermo(e.mercado)}</p>
+                      </div>
+                      <Badge className="shrink-0 border border-primary/30 bg-primary/15 text-[10px] text-primary">
+                        {e.confianca}%
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
+
 
 
 
