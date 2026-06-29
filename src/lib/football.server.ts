@@ -509,6 +509,22 @@ const LEAGUE_NAME_TO_ODDS_SPORT: Record<string, string> = {
   "Copa do Mundo": "soccer_fifa_world_cup",
 };
 
+// Casas exibidas no app. A The Odds API usa keys/títulos próprios (ex.:
+// "betfair_ex_uk"), então casamos por inclusão do nome normalizado.
+const APP_CASAS = ["Bet365", "Betano", "Superbet", "KTO", "Sportingbet", "Betfair"];
+
+// Resolve o nome de casa do app a partir de um bookmaker da The Odds API.
+// Retorna null quando a casa não é uma das exibidas no app.
+function resolveAppCasa(bmKey: string, bmTitle: string): string | null {
+  const k = normCasa(bmKey);
+  const t = normCasa(bmTitle);
+  for (const app of APP_CASAS) {
+    const a = normCasa(app);
+    if (k === a || t === a || k.includes(a) || t.includes(a)) return app;
+  }
+  return null;
+}
+
 interface OddsApiOutcome {
   name: string;
   price: number;
@@ -619,7 +635,6 @@ export async function syncOddsFromOddsApi(
     porSport.set(sport, arr);
   }
 
-  const casaNorm = normCasa(casa);
   const resolveDeep = await buildDeepLinkResolver(supabase, casa);
 
   const rows: Array<{
@@ -660,35 +675,38 @@ export async function syncOddsFromOddsApi(
       if (!f) continue;
       eventos++;
 
-      const bm =
-        ev.bookmakers.find((b) => normCasa(b.key) === casaNorm || normCasa(b.title) === casaNorm) ??
-        ev.bookmakers[0];
-      if (!bm) continue;
+      // Grava odds de TODAS as casas exibidas no app que vierem no evento,
+      // cada uma sob o seu próprio nome (Bet365, Betano, Betfair, etc.).
+      // Assim qualquer casa selecionada na tela encontra odds salvas.
+      for (const bm of ev.bookmakers) {
+        const appCasa = resolveAppCasa(bm.key, bm.title);
+        if (!appCasa) continue;
 
-      for (const market of bm.markets) {
-        for (const o of market.outcomes) {
-          const mapped = mapOddsApiOutcome(
-            market.key,
-            o,
-            ev.home_team,
-            ev.away_team,
-            f.time_casa,
-            f.time_fora,
-          );
-          if (!mapped) continue;
-          const valor = Number(o.price);
-          if (!Number.isFinite(valor)) continue;
-          const deep =
-            o.link ?? market.link ?? bm.link ?? resolveDeep(mapped.mercado, f.time_casa, f.time_fora);
-          rows.push({
-            partida_id: f.id,
-            casa,
-            mercado: mapped.mercado,
-            selecao: mapped.selecao,
-            valor,
-            external_odd_id: `${ev.id}:${bm.key}:${market.key}:${o.name}`,
-            deep_link: deep,
-          });
+        for (const market of bm.markets) {
+          for (const o of market.outcomes) {
+            const mapped = mapOddsApiOutcome(
+              market.key,
+              o,
+              ev.home_team,
+              ev.away_team,
+              f.time_casa,
+              f.time_fora,
+            );
+            if (!mapped) continue;
+            const valor = Number(o.price);
+            if (!Number.isFinite(valor)) continue;
+            const deep =
+              o.link ?? market.link ?? bm.link ?? resolveDeep(mapped.mercado, f.time_casa, f.time_fora);
+            rows.push({
+              partida_id: f.id,
+              casa: appCasa,
+              mercado: mapped.mercado,
+              selecao: mapped.selecao,
+              valor,
+              external_odd_id: `${ev.id}:${bm.key}:${market.key}:${o.name}`,
+              deep_link: deep,
+            });
+          }
         }
       }
     }
