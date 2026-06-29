@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { gerarBilhete } from "@/lib/ticket.functions";
+import { iniciarOperacao } from "@/lib/access.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { useRouter } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Sparkles, Target, TrendingUp, Trophy, Building2, ExternalLink, ListChecks, LogOut, Lock, Crown, Users, Wallet, CalendarDays, UserCircle } from "lucide-react";
+import { Loader2, Sparkles, Target, TrendingUp, Trophy, Building2, ExternalLink, ListChecks, LogOut, Lock, Crown, Users, Wallet, CalendarDays, UserCircle, Play } from "lucide-react";
 import { toast } from "sonner";
 import logo from "@/assets/bilheteia-logo.png";
 import { useAccess } from "@/hooks/useAccess";
@@ -161,6 +162,8 @@ function traduzTermo(texto: string): string {
 function Index() {
   const router = useRouter();
   const run = useServerFn(gerarBilhete);
+  const iniciar = useServerFn(iniciarOperacao);
+  const [iniciando, setIniciando] = useState(false);
   const { data: access, refetch: refetchAccess } = useAccess();
   const [oddAlvo, setOddAlvo] = useState("5");
   const [valorAposta, setValorAposta] = useState("20");
@@ -295,6 +298,31 @@ function Index() {
     }
   }
 
+  async function handleIniciarOperacao() {
+    setIniciando(true);
+    toast.info("Iniciando operação: buscando jogos, odds e análises...");
+    try {
+      const r = await iniciar();
+      for (const etapa of r.etapas) {
+        if (etapa.ok) toast.success(`${etapa.etapa}: ${etapa.info}`);
+        else toast.error(`${etapa.etapa}: ${etapa.info}`);
+      }
+      if (r.ok) {
+        toast.success("Operação concluída! Já pode gerar bilhetes.");
+      } else {
+        toast.warning("Operação concluída com avisos. Veja as etapas acima para entender a falha.");
+      }
+    } catch (err: unknown) {
+      console.error(err);
+      const msg = err instanceof Error ? err.message : "Erro ao iniciar a operação.";
+      toast.error(msg);
+    } finally {
+      setIniciando(false);
+    }
+  }
+
+
+
   const riscoColor = {
     baixo: "bg-primary/20 text-primary border-primary/30",
     medio: "bg-accent/20 text-accent border-accent/30",
@@ -336,11 +364,27 @@ function Index() {
                 <Crown className="mr-1 h-3.5 w-3.5" /> {planoCfg?.nome ?? "Plano ativo"}
               </Badge>
             )}
+            {isStaff && (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={handleIniciarOperacao}
+                disabled={iniciando}
+              >
+                {iniciando ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Play className="mr-2 h-4 w-4" />
+                )}
+                {iniciando ? "Iniciando..." : "Iniciar operação"}
+              </Button>
+            )}
             {isAdmin && (
               <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/admin" })}>
                 <Users className="mr-2 h-4 w-4" /> Admin
               </Button>
             )}
+
             <AccentPicker compact />
             {(isStaff || !!planoCfg?.recursos?.planilhaBanca) && (
               <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/banca" })}>
