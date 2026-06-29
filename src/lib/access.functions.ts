@@ -1536,3 +1536,71 @@ export const chamarApiManual = createServerFn({ method: "POST" })
     }
   });
 
+// Inicia a operação manualmente: busca jogos, busca odds e roda a pré-análise
+// da IA — bypassando os intervalos do cron. Retorna um diagnóstico claro de
+// cada etapa para mostrar exatamente onde está a falha.
+export const iniciarOperacao = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { userId, claims } = context;
+    const base = restBase();
+    const roles = await assertStaff(base, userId, getAuthEmail(claims));
+    if (!roles.includes("admin") && !roles.includes("operador")) {
+      throw new Error("Acesso restrito");
+    }
+
+    const etapas: Array<{ etapa: string; ok: boolean; info: string }> = [];
+
+    // 1) Jogos (API-Football)
+    let jogosHoje = 0;
+    try {
+      const { syncFixtures } = await import("./football.server");
+      jogosHoje = await syncFixtures("hoje");
+      try {
+        jogosHoje += await syncFixtures("aovivo");
+      } catch {
+        /* ao vivo é opcional */
+      }
+      etapas.push({ etapa: "Jogos", ok: true, info: `${jogosHoje} jogos atualizados.` });
+    } catch (e: any) {
+      etapas.push({ etapa: "Jogos", ok: false, info: e?.message ?? "Falha ao buscar jogos." });
+    }
+
+    // 2) Odds (The Odds API por padrão)
+    let oddsCount = 0;
+    try {
+      const { syncOddsFromOddsApi } = await import("./football.server");
+      const r = await syncOddsFromOddsApi("betano");
+      oddsCount = r.odds;
+      etapas.push({
+        etapa: "Odds",
+        ok: oddsCount > 0,
+        info:
+          oddsCount > 0
+            ? `${oddsCount} odds salvas (${r.eventos} eventos / ${r.ligas} ligas).`
+            : `Nenhuma odd encontrada (${r.eventos} eventos casados, ${r.chamadas} chamadas). Verifique se há jogos do dia com odds na API.`,
+      });
+    } catch (e: any) {
+      etapas.push({ etapa: "Odds", ok: false, info: e?.message ?? "Falha ao buscar odds." });
+    }
+
+    // 3) Pré-análise da IA (preenche analise_cache)
+    let analisados = 0;
+    try {
+      const { preAnalisarTodos } = await import("./pre-analise.server");
+      const r = await preAnalisarTodos();
+      analisados = r.analisados;
+      etapas.push({
+        etapa: "Análise IA",
+        ok: r.analisados > 0 || r.jaEmCache > 0,
+        info: `${r.analisados} novas análises, ${r.jaEmCache} já em cache (de ${r.jogos} jogos).`,
+      });
+    } catch (e: any) {
+      etapas.push({ etapa: "Análise IA", ok: false, info: e?.message ?? "Falha na análise da IA." });
+    }
+
+    const ok = etapas.every((e) => e.ok);
+    return { ok, jogosHoje, oddsCount, analisados, etapas };
+  });
+
+
