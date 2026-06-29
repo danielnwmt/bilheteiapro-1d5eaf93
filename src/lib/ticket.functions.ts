@@ -292,19 +292,23 @@ export const gerarBilhete = createServerFn({ method: "POST" })
     // fica salvo em analise_cache e é reaproveitado para jogos que ainda não
     // começaram, sem chamar a IA de novo.
     const dia = diaSaoPaulo(now);
-    const aAnalisar = rows.slice(0, 30);
+    const aAnalisar = rows.slice(0, 10);
     const { resultado: analises, erros: errosAnalise, falhas } = await analisarPartidas(
       supabaseAdmin,
       aiModel,
       aAnalisar as unknown as AnalisePartidaRow[],
       data.casa,
       dia,
+      1,
     );
 
     // Se a IA falhou em TODOS os jogos, mostra o motivo real (chave inválida,
     // limite de uso, modelo errado, etc.) em vez de "Nenhuma entrada".
     if (!analises.size && falhas >= aAnalisar.length && errosAnalise.length) {
-      throw new Error(`A IA não conseguiu analisar os jogos. Verifique a chave/limite da IA no painel. Detalhe: ${errosAnalise[0]}`);
+      const detalhe = /too many requests|rate limit|resource_exhausted|429/i.test(errosAnalise[0])
+        ? "A IA atingiu o limite de chamadas agora. Aguarde alguns minutos ou use uma chave com limite maior."
+        : `Detalhe: ${errosAnalise[0]}`;
+      throw new Error(`A IA não conseguiu analisar os jogos. ${detalhe}`);
     }
 
     const mercadoOk = (mercado: string, selecao: string) => {
