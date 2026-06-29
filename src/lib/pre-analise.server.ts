@@ -14,7 +14,7 @@ const APP_CASAS = ["Bet365", "Betano", "Superbet", "KTO", "Sportingbet", "Betfai
 // Limite de chamadas de IA por execução do cron (evita estourar o limite/429).
 // Como o cache é diário, cada par jogo+casa só é analisado uma vez por dia;
 // as execuções seguintes só completam o que faltou.
-const BUDGET_POR_RUN = 12;
+const BUDGET_POR_RUN = 18;
 
 function normKey(v: string) {
   return v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
