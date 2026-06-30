@@ -281,26 +281,22 @@ export const gerarBilhete = createServerFn({ method: "POST" })
       );
     }
 
-    // Gerar bilhete NÃO chama API-Football. Usa somente odds já salvas no banco.
-    // Se a casa escolhida não tiver odds, usa automaticamente a casa que tiver
-    // mais jogos cobertos (as odds são consenso e valem para qualquer casa).
-    let comCasa = rows.filter((r) => r.odds.some((o) => normKey(o.casa) === normKey(data.casa)));
-    if (!comCasa.length) {
-      const cobertura = new Map<string, number>();
-      for (const r of rows) {
-        const casas = new Set(r.odds.map((o) => o.casa));
-        for (const c of casas) cobertura.set(c, (cobertura.get(c) ?? 0) + 1);
-      }
-      const melhorCasa = [...cobertura.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
-      if (melhorCasa) {
-        data.casa = melhorCasa;
-        comCasa = rows.filter((r) => r.odds.some((o) => normKey(o.casa) === normKey(data.casa)));
-      }
+    // Gerar bilhete NÃO chama API-Football e NÃO depende de uma casa específica.
+    // Usa qualquer odd já salva no banco (as odds são consenso e valem para
+    // qualquer casa). Escolhe automaticamente a casa com mais jogos cobertos
+    // apenas para ler as odds/análises — o bilhete serve para qualquer casa.
+    const comOdds = rows.filter((r) => r.odds.length > 0);
+    if (!comOdds.length) {
+      throw new Error("Os jogos desse período ainda não têm odds salvas. Aguarde a sincronização automática configurada no painel.");
     }
-    rows = comCasa;
-    if (!rows.length) {
-      throw new Error(`Os jogos desse período ainda não têm odds salvas. Aguarde a sincronização automática configurada no painel.`);
+    const cobertura = new Map<string, number>();
+    for (const r of comOdds) {
+      const casas = new Set(r.odds.map((o) => o.casa));
+      for (const c of casas) cobertura.set(c, (cobertura.get(c) ?? 0) + 1);
     }
+    const melhorCasa = [...cobertura.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+    if (melhorCasa) data.casa = melhorCasa;
+    rows = comOdds;
 
     // ---- Análise por jogo (somente cache) ----
     // A IA NÃO é chamada aqui. O robô (cron a cada 5 min) já analisou todos os
