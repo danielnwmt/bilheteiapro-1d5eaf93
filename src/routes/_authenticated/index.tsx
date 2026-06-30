@@ -971,15 +971,8 @@ function Index() {
               >
                 Copiar bilhete
               </Button>
-              <Button
-                type="button"
-                className="font-semibold"
-                onClick={() => setJanela({ url: casaAtual.url, title: casaAtual.nome })}
-              >
-                Abrir {casaAtual.nome} <ExternalLink className="ml-2 h-4 w-4" />
-              </Button>
               <p className="text-xs text-muted-foreground">
-                As casas de aposta não permitem montar múltiplas via link. Use "Abrir jogo na {casaAtual.nome}" em cada entrada para buscar o jogo, adicione à sua sacola e finalize como múltipla na {casaAtual.nome}.
+                Este bilhete vale para qualquer casa de aposta. Use "Abrir jogo" em cada entrada para localizar o jogo na sua casa preferida, adicione à sacola e finalize como múltipla com o valor da odd escolhida.
               </p>
             </div>
           </Card>
