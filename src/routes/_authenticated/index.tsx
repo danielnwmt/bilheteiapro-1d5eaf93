@@ -796,12 +796,12 @@ function Index() {
                         variant="outline"
                         onClick={() =>
                           setJanela({
-                            url: p.deepLink ?? casaAtual.search(p.jogo),
-                            title: `${casaAtual.nome} — ${p.jogo}`,
+                            url: p.deepLink ?? `https://www.google.com/search?q=${encodeURIComponent(`${p.jogo} odds aposta`)}`,
+                            title: p.jogo,
                           })
                         }
                       >
-                        Abrir jogo na {casaAtual.nome} <ExternalLink className="ml-2 h-3.5 w-3.5" />
+                        Abrir jogo <ExternalLink className="ml-2 h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </div>
