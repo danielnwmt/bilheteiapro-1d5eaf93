@@ -338,7 +338,7 @@ function Index() {
     alto: "bg-destructive/20 text-destructive border-destructive/30",
   } as const;
 
-  const casaAtual = CASAS.find((c) => c.id === casa)!;
+  
   const jogosFiltrados = (() => {
     const vistos = new Set<string>();
     return jogos.filter((j) => {
