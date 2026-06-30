@@ -7,6 +7,19 @@ import { registrarChamada } from "./api-usage.server";
 
 const API_BASE = "https://v3.football.api-sports.io";
 
+// Remove odds duplicadas no MESMO lote pela chave de conflito do upsert.
+// Sem isso o Postgres lança "ON CONFLICT DO UPDATE command cannot affect row
+// a second time" quando o mesmo jogo/casa/mercado/seleção aparece 2x no lote.
+function dedupeOdds<T extends { partida_id: string; casa: string; mercado: string; selecao: string }>(
+  rows: T[],
+): T[] {
+  const map = new Map<string, T>();
+  for (const r of rows) {
+    map.set(`${r.partida_id}|${r.casa}|${r.mercado}|${r.selecao}`, r);
+  }
+  return Array.from(map.values());
+}
+
 // Mapeia o ID de liga da API-Football -> nome usado no app (coluna "liga").
 const LEAGUE_ID_TO_NAME: Record<number, string> = {
   71: "Brasileirão Série A",
@@ -323,7 +336,7 @@ export async function syncOdds(
 
   const { error } = await supabase
     .from("odds")
-    .upsert(rows, { onConflict: "partida_id,casa,mercado,selecao" });
+    .upsert(dedupeOdds(rows), { onConflict: "partida_id,casa,mercado,selecao" });
 
   if (error) throw new Error(`Erro ao gravar odds: ${error.message}`);
 
@@ -479,7 +492,7 @@ export async function syncOddsByLeagueToday(
 
   const { error } = await supabase
     .from("odds")
-    .upsert(rows, { onConflict: "partida_id,casa,mercado,selecao" });
+    .upsert(dedupeOdds(rows), { onConflict: "partida_id,casa,mercado,selecao" });
 
   if (error) throw new Error(`Erro ao gravar odds: ${error.message}`);
 
@@ -819,7 +832,7 @@ export async function syncOddsFromOddsApi(
 
   const { error } = await supabase
     .from("odds")
-    .upsert(rows, { onConflict: "partida_id,casa,mercado,selecao" });
+    .upsert(dedupeOdds(rows), { onConflict: "partida_id,casa,mercado,selecao" });
   if (error) throw new Error(`Erro ao gravar odds: ${error.message}`);
 
   return { ligas: sportsToQuery.length, chamadas, eventos, odds: rows.length };
