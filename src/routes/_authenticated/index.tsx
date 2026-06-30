@@ -66,48 +66,6 @@ type JogoDia = {
   status: string;
 };
 
-const gsearch = (casa: string) => (q: string) =>
-  `https://www.google.com/search?q=${encodeURIComponent(`${casa} ${q}`)}`;
-
-const CASAS = [
-  {
-    id: "bet365",
-    nome: "Bet365",
-    url: "https://www.bet365.bet.br/",
-    search: gsearch("bet365"),
-  },
-  {
-    id: "betano",
-    nome: "Betano",
-    url: "https://www.betano.bet.br/sport/futebol/",
-    search: gsearch("betano"),
-  },
-  {
-    id: "superbet",
-    nome: "Superbet",
-    url: "https://superbet.bet.br/apostas/futebol",
-    search: gsearch("superbet"),
-  },
-  {
-    id: "kto",
-    nome: "KTO",
-    url: "https://www.kto.bet.br/sports/pre-game/Soccer-1/",
-    search: gsearch("kto"),
-  },
-  {
-    id: "sportingbet",
-    nome: "Sportingbet",
-    url: "https://sports.sportingbet.bet.br/pt-br/sports/futebol-4",
-    search: gsearch("sportingbet"),
-  },
-  {
-    id: "betfair",
-    nome: "Betfair",
-    url: "https://www.betfair.bet.br/sport/futebol",
-    search: gsearch("betfair"),
-  },
-] as const;
-
 const CAMPEONATOS = [
   "Brasileirão Série A",
   "Brasileirão Série B",
@@ -170,7 +128,7 @@ function Index() {
   const [oddAlvo, setOddAlvo] = useState("5");
   const [valorAposta, setValorAposta] = useState("20");
   const [periodo, setPeriodo] = useState<"hoje" | "amanha" | "semana" | "aovivo">("hoje");
-  const [casa, setCasa] = useState<(typeof CASAS)[number]["id"]>("bet365");
+  
   const [campSel, setCampSel] = useState<string[]>([]);
   const [mercSel, setMercSel] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -312,7 +270,7 @@ function Index() {
     setLoading(true);
     setTicket(null);
     try {
-      const r = await run({ data: { oddAlvo: odd, periodo, campeonatos: campSel, mercados: mercSel, casa: casaAtual.nome } });
+      const r = await run({ data: { oddAlvo: odd, periodo, campeonatos: campSel, mercados: mercSel } });
       setTicket(r);
     } catch (err: unknown) {
       console.error(err);
@@ -380,7 +338,7 @@ function Index() {
     alto: "bg-destructive/20 text-destructive border-destructive/30",
   } as const;
 
-  const casaAtual = CASAS.find((c) => c.id === casa)!;
+  
   const jogosFiltrados = (() => {
     const vistos = new Set<string>();
     return jogos.filter((j) => {
@@ -796,12 +754,12 @@ function Index() {
                         variant="outline"
                         onClick={() =>
                           setJanela({
-                            url: p.deepLink ?? casaAtual.search(p.jogo),
-                            title: `${casaAtual.nome} — ${p.jogo}`,
+                            url: p.deepLink ?? `https://www.google.com/search?q=${encodeURIComponent(`${p.jogo} odds aposta`)}`,
+                            title: p.jogo,
                           })
                         }
                       >
-                        Abrir jogo na {casaAtual.nome} <ExternalLink className="ml-2 h-3.5 w-3.5" />
+                        Abrir jogo <ExternalLink className="ml-2 h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </div>
@@ -862,7 +820,7 @@ function Index() {
                       <p className="text-xs font-bold uppercase text-primary">Supermúltipla</p>
                       <span className="text-lg">🙂</span>
                     </div>
-                    <p className="mt-1 text-[11px] text-muted-foreground">Bilhete pronto para copiar e conferir na {casaAtual.nome}.</p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">Bilhete pronto para copiar e conferir em qualquer casa de aposta.</p>
                   </div>
 
                   <div className="mt-4 grid grid-cols-2 gap-2">
@@ -971,15 +929,8 @@ function Index() {
               >
                 Copiar bilhete
               </Button>
-              <Button
-                type="button"
-                className="font-semibold"
-                onClick={() => setJanela({ url: casaAtual.url, title: casaAtual.nome })}
-              >
-                Abrir {casaAtual.nome} <ExternalLink className="ml-2 h-4 w-4" />
-              </Button>
               <p className="text-xs text-muted-foreground">
-                As casas de aposta não permitem montar múltiplas via link. Use "Abrir jogo na {casaAtual.nome}" em cada entrada para buscar o jogo, adicione à sua sacola e finalize como múltipla na {casaAtual.nome}.
+                Este bilhete vale para qualquer casa de aposta. Use "Abrir jogo" em cada entrada para localizar o jogo na sua casa preferida, adicione à sacola e finalize como múltipla com o valor da odd escolhida.
               </p>
             </div>
           </Card>
