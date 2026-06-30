@@ -297,12 +297,17 @@ function Index() {
       }
       if (r.ok) {
         toast.success("Operação concluída! Já pode gerar bilhetes.");
-        setAvisoOperacao({ tipo: "ok", texto: "Operação concluída! Já pode gerar bilhetes." });
+        setAvisoOperacao({
+          tipo: "ok",
+          texto: "Operação concluída! Já pode gerar bilhetes.",
+          etapas: r.etapas,
+        });
       } else {
-        toast.warning("Operação concluída com avisos. Veja as etapas acima para entender a falha.");
+        toast.warning("Operação concluída com avisos. Veja o detalhe de cada etapa abaixo.");
         setAvisoOperacao({
           tipo: "warning",
-          texto: "Operação concluída com avisos. Veja as etapas (notificações) para entender a falha.",
+          texto: "Operação concluída com avisos. Veja o detalhe de cada etapa abaixo.",
+          etapas: r.etapas,
         });
       }
       // Recarrega as melhores entradas e avisa quando a IA termina de analisar.
