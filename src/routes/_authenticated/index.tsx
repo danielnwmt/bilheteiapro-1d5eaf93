@@ -318,10 +318,11 @@ function Index() {
         setEntradas(lista);
         if (lista.length > 0) {
           toast.success(`A IA terminou de analisar os jogos — ${lista.length} entradas encontradas.`);
-          setAvisoOperacao({
+          setAvisoOperacao((prev) => ({
             tipo: "ok",
             texto: `A IA terminou de analisar os jogos. ${lista.length} melhores entradas disponíveis abaixo.`,
-          });
+            etapas: prev?.etapas,
+          }));
         }
       } catch {
         /* mantém o aviso anterior */
