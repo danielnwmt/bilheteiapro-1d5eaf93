@@ -66,48 +66,6 @@ type JogoDia = {
   status: string;
 };
 
-const gsearch = (casa: string) => (q: string) =>
-  `https://www.google.com/search?q=${encodeURIComponent(`${casa} ${q}`)}`;
-
-const CASAS = [
-  {
-    id: "bet365",
-    nome: "Bet365",
-    url: "https://www.bet365.bet.br/",
-    search: gsearch("bet365"),
-  },
-  {
-    id: "betano",
-    nome: "Betano",
-    url: "https://www.betano.bet.br/sport/futebol/",
-    search: gsearch("betano"),
-  },
-  {
-    id: "superbet",
-    nome: "Superbet",
-    url: "https://superbet.bet.br/apostas/futebol",
-    search: gsearch("superbet"),
-  },
-  {
-    id: "kto",
-    nome: "KTO",
-    url: "https://www.kto.bet.br/sports/pre-game/Soccer-1/",
-    search: gsearch("kto"),
-  },
-  {
-    id: "sportingbet",
-    nome: "Sportingbet",
-    url: "https://sports.sportingbet.bet.br/pt-br/sports/futebol-4",
-    search: gsearch("sportingbet"),
-  },
-  {
-    id: "betfair",
-    nome: "Betfair",
-    url: "https://www.betfair.bet.br/sport/futebol",
-    search: gsearch("betfair"),
-  },
-] as const;
-
 const CAMPEONATOS = [
   "Brasileirão Série A",
   "Brasileirão Série B",
