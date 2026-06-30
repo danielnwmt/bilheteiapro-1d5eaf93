@@ -832,7 +832,7 @@ export async function syncOddsFromOddsApi(
 
   const { error } = await supabase
     .from("odds")
-    .upsert(rows, { onConflict: "partida_id,casa,mercado,selecao" });
+    .upsert(dedupeOdds(rows), { onConflict: "partida_id,casa,mercado,selecao" });
   if (error) throw new Error(`Erro ao gravar odds: ${error.message}`);
 
   return { ligas: sportsToQuery.length, chamadas, eventos, odds: rows.length };
