@@ -534,27 +534,6 @@ function Index() {
             </div>
 
 
-            <div>
-              <Label className="mb-2 flex items-center gap-2 text-sm">
-                <Building2 className="h-4 w-4 text-primary" /> Casa de aposta
-              </Label>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-6">
-                {CASAS.map((c) => (
-                  <button
-                    type="button"
-                    key={c.id}
-                    onClick={() => setCasa(c.id)}
-                    className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
-                      casa === c.id
-                        ? "border-primary bg-primary/15 text-primary"
-                        : "border-border bg-input/40 text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {c.nome}
-                  </button>
-                ))}
-              </div>
-            </div>
 
             <div>
               <Label className="mb-2 flex items-center gap-2 text-sm">
