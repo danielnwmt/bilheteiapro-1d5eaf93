@@ -862,7 +862,7 @@ function Index() {
                       <p className="text-xs font-bold uppercase text-primary">Supermúltipla</p>
                       <span className="text-lg">🙂</span>
                     </div>
-                    <p className="mt-1 text-[11px] text-muted-foreground">Bilhete pronto para copiar e conferir na {casaAtual.nome}.</p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">Bilhete pronto para copiar e conferir em qualquer casa de aposta.</p>
                   </div>
 
                   <div className="mt-4 grid grid-cols-2 gap-2">
