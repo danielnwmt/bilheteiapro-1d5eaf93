@@ -651,18 +651,32 @@ function Index() {
 
             {avisoOperacao && (
               <div
-                className={`mb-4 flex items-start gap-2 rounded-md border p-3 text-xs ${
+                className={`mb-4 rounded-md border p-3 text-xs ${
                   avisoOperacao.tipo === "ok"
                     ? "border-primary/30 bg-primary/10 text-primary"
                     : "border-accent/40 bg-accent/10 text-accent-foreground"
                 }`}
               >
-                {avisoOperacao.tipo === "ok" ? (
-                  <Sparkles className="mt-0.5 h-4 w-4 shrink-0" />
-                ) : (
-                  <TrendingUp className="mt-0.5 h-4 w-4 shrink-0" />
+                <div className="flex items-start gap-2">
+                  {avisoOperacao.tipo === "ok" ? (
+                    <Sparkles className="mt-0.5 h-4 w-4 shrink-0" />
+                  ) : (
+                    <TrendingUp className="mt-0.5 h-4 w-4 shrink-0" />
+                  )}
+                  <span>{avisoOperacao.texto}</span>
+                </div>
+                {avisoOperacao.etapas && avisoOperacao.etapas.length > 0 && (
+                  <ul className="mt-2 space-y-1 border-t border-current/20 pt-2">
+                    {avisoOperacao.etapas.map((et) => (
+                      <li key={et.etapa} className="flex items-start gap-1.5">
+                        <span className="shrink-0">{et.ok ? "✅" : "⚠️"}</span>
+                        <span>
+                          <span className="font-semibold">{et.etapa}:</span> {et.info}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
                 )}
-                <span>{avisoOperacao.texto}</span>
               </div>
             )}
 
