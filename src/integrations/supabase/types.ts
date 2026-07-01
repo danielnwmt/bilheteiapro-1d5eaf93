@@ -346,6 +346,7 @@ export type Database = {
       }
       partidas: {
         Row: {
+          arbitro: string | null
           created_at: string
           external_id: string | null
           flashscore_id: string | null
@@ -358,6 +359,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          arbitro?: string | null
           created_at?: string
           external_id?: string | null
           flashscore_id?: string | null
@@ -370,6 +372,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          arbitro?: string | null
           created_at?: string
           external_id?: string | null
           flashscore_id?: string | null
