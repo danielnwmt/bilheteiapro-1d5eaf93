@@ -4,6 +4,7 @@
 // evitando chamadas repetidas à IA no mesmo dia.
 import { generateText } from "ai";
 import type { LanguageModel } from "ai";
+import type { EstatisticasResumo } from "./football.server";
 
 export type OddRow = {
   casa: string;
@@ -22,7 +23,9 @@ export type PartidaRow = {
   inicio: string;
   status: string;
   odds: OddRow[];
+  estatisticas?: EstatisticasResumo | null;
 };
+
 
 export type PickAnalise = {
   mercado: string;
@@ -131,13 +134,27 @@ async function analisarComIa(model: LanguageModel, partida: PartidaRow, casa: st
 Analise UM único jogo e recomende as melhores seleções para apostar, usando SOMENTE as odds reais listadas (casa "${casa}").
 Regras:
 - Use exatamente o mercado/seleção/odd da lista. Nunca invente seleções nem odds.
-- Para cada seleção recomendada informe a confiança real (0 a 100) e uma justificativa curta em português.
+- Baseie a confiança e as justificativas nas ESTATÍSTICAS REAIS fornecidas (forma recente, médias de gols feitos/sofridos, probabilidades e dica da casa). Se não houver estatísticas, use apenas as odds.
+- Para cada seleção recomendada informe a confiança real (0 a 100) e uma justificativa curta em português citando os números reais.
 - Recomende de 1 a 5 seleções, das mais seguras para as mais arriscadas.
 - Nunca recomende seleções contraditórias do mesmo mercado.
-- Forneça também estatísticas estimadas do jogo (curtas, com números): escanteios, gols, chutes ao gol, cartões dos times e cartões do árbitro.`;
+- Nas estatísticas do jogo (escanteios, gols, chutes ao gol, cartões) prefira os números reais fornecidos; só estime o que não estiver disponível.`;
+
+  const est = partida.estatisticas;
+  const estTxt = est
+    ? `Estatísticas reais (API-Football):
+- Forma recente (últimos 5): ${partida.time_casa} ${est.formaCasa ?? "?"} / ${partida.time_fora} ${est.formaFora ?? "?"}
+- Gols feitos (média): ${partida.time_casa} ${est.golsFeitosCasa ?? "?"} / ${partida.time_fora} ${est.golsFeitosFora ?? "?"}
+- Gols sofridos (média): ${partida.time_casa} ${est.golsSofridosCasa ?? "?"} / ${partida.time_fora} ${est.golsSofridosFora ?? "?"}
+- Probabilidade (casa/empate/fora): ${est.percent.casa ?? "?"} / ${est.percent.empate ?? "?"} / ${est.percent.fora ?? "?"}
+- Gols previstos: ${partida.time_casa} ${est.golsPrev.casa ?? "?"} / ${partida.time_fora} ${est.golsPrev.fora ?? "?"}
+- Tendência de gols: ${est.underOver ?? "?"}
+- Dica da casa: ${est.advice ?? "?"}`
+    : "Estatísticas reais: não disponíveis para este jogo.";
 
   const prompt = `Jogo: ${jogo}${partida.liga ? ` | ${partida.liga}` : ""}
 Início: ${formatMatchDate(partida.inicio)}
+${estTxt}
 Odds disponíveis (${casa}): ${oddsTxt}
 
 Responda SOMENTE com JSON válido neste formato:
@@ -145,6 +162,7 @@ Responda SOMENTE com JSON válido neste formato:
   "picks": [{ "mercado": "mercado", "selecao": "seleção", "odd": 1.85, "confianca": 78, "justificativa": "motivo curto" }],
   "analise": { "escanteios": "média ~9.5, linha +8.5", "gols": "média 2.7 gols", "chutesAoGol": "Casa 5.2 / Fora 4.1", "cartoesTimes": "Casa 2.1 / Fora 1.8", "cartoesArbitro": "árbitro média 4.3 cartões/jogo" }
 }`;
+
 
   const { text } = await generateText({
     model,
