@@ -601,7 +601,8 @@ function Index() {
           </form>
         </Card>
 
-        <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_360px]">
+        <div className="mt-8 flex flex-col gap-8">
+        <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
           <Card className="border-border/60 bg-card p-6 md:p-8">
             <div className="mb-4 flex items-center justify-between gap-3">
               <h2 className="flex items-center gap-2 text-lg font-bold">
@@ -746,7 +747,7 @@ function Index() {
 
 
         {ticket && (
-          <Card className="mt-8 overflow-hidden border-primary/30 bg-card">
+          <Card className="order-first overflow-hidden border-primary/30 bg-card">
             <div className="border-b border-border/60 bg-primary/5 p-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -979,6 +980,8 @@ function Index() {
             </div>
           </Card>
         )}
+        </div>
+
 
         <p className="mt-8 text-center text-xs text-muted-foreground">
           Aposte com responsabilidade. Conteúdo apenas informativo.
