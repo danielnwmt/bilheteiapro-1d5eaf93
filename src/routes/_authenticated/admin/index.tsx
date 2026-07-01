@@ -130,6 +130,9 @@ function AdminDashboard() {
             <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/admin/configuracoes" })}>
               <Settings className="mr-2 h-4 w-4" /> Planos
             </Button>
+            <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/admin/ssl" })}>
+              <ShieldCheck className="mr-2 h-4 w-4" /> SSL
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm">
