@@ -247,6 +247,7 @@ function Index() {
   const run = useServerFn(gerarBilhete);
   const fetchEntradas = useServerFn(getMelhoresEntradas);
   const iniciar = useServerFn(iniciarOperacao);
+  const fetchSalvos = useServerFn(listarBilhetes);
   const [iniciando, setIniciando] = useState(false);
   const { data: access, refetch: refetchAccess } = useAccess();
   const [oddAlvo, setOddAlvo] = useState("5");
