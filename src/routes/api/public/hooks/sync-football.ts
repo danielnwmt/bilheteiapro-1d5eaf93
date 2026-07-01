@@ -119,9 +119,22 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
             }
           }
         } catch (e) {
+          const msg = String(e);
+          // Chave da API-Football não configurada: não é falha do robô — apenas
+          // avisa (evita erro 500 repetido no cron a cada 7 min).
+          if (msg.includes("Missing API_FOOTBALL_KEY")) {
+            return Response.json({
+              ok: true,
+              hasLive,
+              skipped: { API_FOOTBALL_KEY: "chave não configurada no painel de APIs" },
+              fixturesHoje,
+              fixturesAoVivo,
+              oddsCount,
+            });
+          }
           console.error("Erro no sync agendado:", e);
           return Response.json(
-            { ok: false, error: String(e) },
+            { ok: false, error: msg },
             { status: 500 },
           );
         }
