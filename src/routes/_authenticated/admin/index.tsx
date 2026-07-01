@@ -104,7 +104,7 @@ function AdminDashboard() {
     onSuccess: () =>
       toast.success("Atualização iniciada! O servidor vai reiniciar em 1-2 minutos.", { duration: 6000 }),
     onError: (e: any) =>
-      toast.error(e?.message ?? "Erro ao atualizar o sistema", { duration: 12000 }),
+      toast.error(limparErroUI(e?.message, "Erro ao atualizar o sistema"), { duration: 12000 }),
   });
 
   const iniciar = useServerFn(iniciarOperacao);
