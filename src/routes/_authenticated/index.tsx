@@ -363,13 +363,13 @@ function Index() {
             }).format(d);
           };
           const endOffset = periodo === "semana" ? 7 : periodo === "amanha" ? 1 : 0;
-          // "Hoje" só mostra jogos que ainda não começaram (a partir de agora).
+          // Mantém visíveis os jogos que começaram há pouco (em andamento),
+          // evitando que somem da lista assim que dá o horário de início.
+          const agoraMenos = new Date(Date.now() - 3.5 * 60 * 60 * 1000).toISOString();
           const startBound =
             periodo === "amanha"
               ? `${spDate(1)}T00:00:00-03:00`
-              : periodo === "semana"
-                ? new Date().toISOString()
-                : new Date().toISOString();
+              : agoraMenos;
           q = q
             .gte("inicio", startBound)
             .lte("inicio", `${spDate(endOffset)}T23:59:59-03:00`)
