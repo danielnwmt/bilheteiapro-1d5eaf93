@@ -1465,16 +1465,8 @@ export const testApiKey = createServerFn({ method: "POST" })
         };
       }
 
-      if (chave === "ODDS_API_KEY") {
-        const res = await fetch(`https://api.the-odds-api.com/v4/sports?apiKey=${encodeURIComponent(valor)}`);
-        if (!res.ok) {
-          return { ok: false, error: `The Odds API ${res.status}: ${await res.text()}` };
-        }
-        const remaining = res.headers.get("x-requests-remaining");
-        return { ok: true, info: remaining ? `Chave válida. Requisições restantes: ${remaining}.` : "Chave válida." };
-      }
-
       if (chave === "GEMINI_API_KEY") {
+
         const res = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(valor)}`,
         );
