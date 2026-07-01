@@ -1041,6 +1041,83 @@ function Index() {
           onClose={() => setJanela(null)}
         />
       )}
+
+      <Dialog open={!!estatJogo} onOpenChange={(o) => !o && setEstatJogo(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-base">
+              {estatJogo ? `${estatJogo.time_casa} x ${estatJogo.time_fora}` : "Estatísticas"}
+            </DialogTitle>
+          </DialogHeader>
+          {estatJogo?.liga && (
+            <p className="-mt-2 text-xs text-muted-foreground">{estatJogo.liga}</p>
+          )}
+
+          {loadingEstat ? (
+            <div className="flex items-center justify-center py-8 text-muted-foreground">
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando estatísticas...
+            </div>
+          ) : !estatPayload ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              Estatísticas ainda não coletadas para este jogo. Elas são atualizadas automaticamente pela operação.
+            </p>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3 text-center">
+                <div className="rounded-md border border-border/60 bg-muted/30 p-3">
+                  <p className="truncate text-xs font-semibold">{estatJogo?.time_casa}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Forma (últ. 10)</p>
+                  <p className="text-sm font-medium">{estatPayload.formaCasa ?? "—"}</p>
+                </div>
+                <div className="rounded-md border border-border/60 bg-muted/30 p-3">
+                  <p className="truncate text-xs font-semibold">{estatJogo?.time_fora}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Forma (últ. 10)</p>
+                  <p className="text-sm font-medium">{estatPayload.formaFora ?? "—"}</p>
+                </div>
+              </div>
+
+              <div className="space-y-2 rounded-md border border-border/60 p-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Gols feitos (média)</span>
+                  <span className="font-medium">{estatPayload.golsFeitosCasa ?? "—"} / {estatPayload.golsFeitosFora ?? "—"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Gols sofridos (média)</span>
+                  <span className="font-medium">{estatPayload.golsSofridosCasa ?? "—"} / {estatPayload.golsSofridosFora ?? "—"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Probabilidade (C/E/F)</span>
+                  <span className="font-medium">{estatPayload.percent.casa ?? "—"} / {estatPayload.percent.empate ?? "—"} / {estatPayload.percent.fora ?? "—"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Gols previstos</span>
+                  <span className="font-medium">{estatPayload.golsPrev.casa ?? "—"} / {estatPayload.golsPrev.fora ?? "—"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Tendência de gols</span>
+                  <span className="font-medium">{estatPayload.underOver ?? "—"}</span>
+                </div>
+              </div>
+
+              <div className="space-y-2 rounded-md border border-border/60 p-3 text-sm">
+                <p className="text-xs font-semibold uppercase text-muted-foreground">Cartões</p>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Média por time</span>
+                  <span className="font-medium">{estatPayload.cartoesCasa ?? "—"} / {estatPayload.cartoesFora ?? "—"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Média no confronto</span>
+                  <span className="font-medium">{estatPayload.cartoesConfronto ?? "—"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Árbitro</span>
+                  <span className="font-medium">{estatJogo?.arbitro ?? "A definir"}</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }
