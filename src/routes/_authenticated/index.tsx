@@ -671,7 +671,12 @@ function Index() {
             ) : (
               <div className="divide-y divide-border/60">
                 {jogosFiltrados.map((j) => (
-                  <div key={j.id} className="flex items-center gap-3 py-3">
+                  <button
+                    key={j.id}
+                    type="button"
+                    onClick={() => abrirEstatisticas(j)}
+                    className="flex w-full items-center gap-3 py-3 text-left transition-colors hover:bg-muted/40"
+                  >
                     <div className="w-16 shrink-0 text-sm font-semibold text-primary">
                       {j.status === "ao_vivo" ? (
                         <span className="flex items-center gap-1">🔴 AO VIVO</span>
@@ -691,7 +696,8 @@ function Index() {
                         <p className="truncate text-xs text-muted-foreground">{j.liga}</p>
                       )}
                     </div>
-                  </div>
+                    <TrendingUp className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  </button>
                 ))}
               </div>
             )}
