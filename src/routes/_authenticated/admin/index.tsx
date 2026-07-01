@@ -29,6 +29,12 @@ import { toast } from "sonner";
 import { usePlanos } from "@/hooks/usePlanos";
 import { AccentPicker } from "@/components/AccentPicker";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   LineChart,
   Line,
   XAxis,
@@ -124,28 +130,35 @@ function AdminDashboard() {
             <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/admin/configuracoes" })}>
               <Settings className="mr-2 h-4 w-4" /> Planos
             </Button>
-            <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/admin/apis" })}>
-              <KeyRound className="mr-2 h-4 w-4" /> APIs
-            </Button>
             <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/admin/ssl" })}>
               <ShieldCheck className="mr-2 h-4 w-4" /> SSL
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              title="Backup do sistema"
-              onClick={() => router.navigate({ to: "/admin/backup" })}
-            >
-              <Cog className="mr-2 h-4 w-4" /> Backup
-            </Button>
-            <Button variant="outline" size="sm" disabled={mutDeploy.isPending} onClick={() => mutDeploy.mutate()}>
-              {mutDeploy.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="mr-2 h-4 w-4" />
-              )}
-              Atualizar sistema
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Cog className="mr-2 h-4 w-4" /> Configurações
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => router.navigate({ to: "/admin/apis" })}>
+                  <KeyRound className="mr-2 h-4 w-4" /> APIs
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.navigate({ to: "/admin/backup" })}>
+                  <Cog className="mr-2 h-4 w-4" /> Backup
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={mutDeploy.isPending}
+                  onClick={() => mutDeploy.mutate()}
+                >
+                  {mutDeploy.isPending ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                  )}
+                  Atualizar sistema
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button size="sm" onClick={() => router.navigate({ to: "/" })}>
               Modo cliente
             </Button>
