@@ -134,7 +134,7 @@ async function analisarComIa(model: LanguageModel, partida: PartidaRow, casa: st
 Analise UM único jogo e recomende as melhores seleções para apostar, usando SOMENTE as odds reais listadas (casa "${casa}").
 Regras:
 - Use exatamente o mercado/seleção/odd da lista. Nunca invente seleções nem odds.
-- Baseie a confiança e as justificativas nas ESTATÍSTICAS REAIS fornecidas (forma recente, médias de gols feitos/sofridos, probabilidades e dica da casa). Se não houver estatísticas, use apenas as odds.
+- Baseie a confiança e as justificativas nas ESTATÍSTICAS REAIS fornecidas (forma recente, médias de gols feitos/sofridos, probabilidades e tendência de gols). Se não houver estatísticas, use apenas as odds.
 - Para cada seleção recomendada informe a confiança real (0 a 100) e uma justificativa curta em português citando os números reais.
 - Recomende de 1 a 5 seleções, das mais seguras para as mais arriscadas.
 - Nunca recomende seleções contraditórias do mesmo mercado.
