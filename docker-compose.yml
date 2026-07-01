@@ -54,13 +54,13 @@ services:
       - app
     environment:
       APP_PORT: ${APP_PORT:-3000}
-      CRON_SECRET: ${CRON_SECRET}
+      CRON_SECRET: ${CRON_SECRET:-local-cron-secret}
     entrypoint:
       - /bin/sh
       - -c
       - |
         echo "[cron] iniciado — verifica a cada 60s (busca jogos, odds e roda a IA)";
-        H="x-cron-secret: ${CRON_SECRET}";
+        H="x-cron-secret: $${CRON_SECRET:-local-cron-secret}";
         while true; do
           # 1) Jogos + odds (respeita o intervalo interno da chave).
           curl -s -X POST -H "$$H" "http://app:${APP_PORT:-3000}/api/public/hooks/sync-football" >/dev/null 2>&1 || true;
