@@ -761,10 +761,25 @@ BEGIN
 END;
 $$;
 
+
+-- ============================================================
+--  Presença online: heartbeat do usuário logado (last_seen).
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.touch_last_seen()
+RETURNS void
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+  UPDATE public.profiles SET last_seen = now() WHERE id = auth.uid();
+$$;
+GRANT EXECUTE ON FUNCTION public.touch_last_seen() TO authenticated;
+
 DROP EVENT TRIGGER IF EXISTS pgrst_reload_on_ddl;
 CREATE EVENT TRIGGER pgrst_reload_on_ddl
   ON ddl_command_end
   EXECUTE FUNCTION public.pgrst_reload_schema();
 
 NOTIFY pgrst, 'reload schema';
+
 
