@@ -5,6 +5,7 @@ CREATE TABLE public.partidas (
   liga text,
   time_casa text NOT NULL,
   time_fora text NOT NULL,
+  arbitro text,
   inicio timestamptz NOT NULL,
   status text NOT NULL DEFAULT 'agendado',
   created_at timestamptz NOT NULL DEFAULT now(),
