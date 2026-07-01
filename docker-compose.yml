@@ -30,6 +30,7 @@ services:
       SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY:-}
       SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY:-}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
+      CRON_SECRET: ${CRON_SECRET:-}
       PORT: ${APP_PORT:-3000}
       # Arquivo-gatilho do botão "Atualizar sistema" (compartilhado com o host).
       DEPLOY_TRIGGER_FILE: /opt/app/deploy-trigger/request
