@@ -243,9 +243,7 @@ function AdminDashboard() {
               />
             </div>
 
-            <div className="mb-6">
-              <AccentPicker />
-            </div>
+
 
 
 
