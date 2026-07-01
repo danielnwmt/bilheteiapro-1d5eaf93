@@ -19,6 +19,7 @@ import { ligaLiberada } from "@/lib/planos";
 import { usePlanos } from "@/hooks/usePlanos";
 import { AccentPicker } from "@/components/AccentPicker";
 import { FloatingBrowser } from "@/components/FloatingBrowser";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
