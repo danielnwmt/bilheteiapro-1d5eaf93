@@ -258,6 +258,7 @@ function Index() {
   const [mercSel, setMercSel] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [ticket, setTicket] = useState<Ticket | null>(null);
+  const [salvos, setSalvos] = useState<Awaited<ReturnType<typeof listarBilhetes>>>([]);
   const [currentEmail, setCurrentEmail] = useState("");
   const [jogos, setJogos] = useState<JogoDia[]>([]);
   const [loadingJogos, setLoadingJogos] = useState(false);
