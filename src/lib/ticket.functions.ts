@@ -515,12 +515,31 @@ export const gerarBilhete = createServerFn({ method: "POST" })
       throw new Error("A IA não retornou um bilhete válido. Tente novamente.");
     }
 
-    // Persiste os palpites (best-effort) via service role
+    // Persiste o bilhete + palpites (best-effort) via service role
     try {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const avgConf = picks.length
+        ? Math.round(picks.reduce((s, p) => s + (p.confianca ?? 0), 0) / picks.length)
+        : 0;
+      const { data: bilheteRow, error: bilheteErr } = await supabaseAdmin
+        .from("bilhetes")
+        .insert({
+          user_id: context.userId,
+          resumo: resumoBase,
+          odd_total: oddTotal,
+          risco: ticket.risco,
+          confianca: avgConf,
+          observacoes,
+          periodo: data.periodo ?? null,
+          tipo: "padrao",
+        })
+        .select("id")
+        .single();
+      if (bilheteErr) throw bilheteErr;
+
       const toInsert = picks
         .filter((p) => p._partidaId)
         .map((p) => ({
+          bilhete_id: bilheteRow!.id,
           partida_id: p._partidaId!,
           mercado: p.mercado,
           selecao: p.selecao,
@@ -531,8 +550,47 @@ export const gerarBilhete = createServerFn({ method: "POST" })
         }));
       if (toInsert.length) await supabaseAdmin.from("palpites").insert(toInsert);
     } catch (e) {
-      console.error("Falha ao salvar palpites", e);
+      console.error("Falha ao salvar bilhete", e);
     }
 
     return parsed.data;
   });
+
+// ---- Lista os bilhetes salvos do usuário logado ----
+export const listarBilhetes = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: bilhetes, error } = await supabaseAdmin
+      .from("bilhetes")
+      .select("id, resumo, odd_total, risco, confianca, observacoes, periodo, created_at")
+      .eq("user_id", context.userId)
+      .order("created_at", { ascending: false })
+      .limit(30);
+    if (error) throw error;
+
+    const ids = (bilhetes ?? []).map((b) => b.id);
+    let palpitesByBilhete: Record<string, any[]> = {};
+    if (ids.length) {
+      const { data: palpites } = await supabaseAdmin
+        .from("palpites")
+        .select("bilhete_id, mercado, selecao, odd, confianca")
+        .in("bilhete_id", ids);
+      for (const p of palpites ?? []) {
+        if (!p.bilhete_id) continue;
+        (palpitesByBilhete[p.bilhete_id] ??= []).push(p);
+      }
+    }
+
+    return (bilhetes ?? []).map((b) => ({
+      id: b.id,
+      resumo: b.resumo,
+      oddTotal: Number(b.odd_total),
+      risco: b.risco,
+      confianca: Number(b.confianca),
+      periodo: b.periodo,
+      createdAt: b.created_at,
+      picks: palpitesByBilhete[b.id] ?? [],
+    }));
+  });
+

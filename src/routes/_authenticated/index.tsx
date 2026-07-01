@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { gerarBilhete } from "@/lib/ticket.functions";
+import { gerarBilhete, listarBilhetes } from "@/lib/ticket.functions";
 import { getMelhoresEntradas, type MelhorEntrada } from "@/lib/entradas.functions";
 import { iniciarOperacao } from "@/lib/access.functions";
 import { supabase } from "@/integrations/supabase/client";
@@ -247,6 +247,7 @@ function Index() {
   const run = useServerFn(gerarBilhete);
   const fetchEntradas = useServerFn(getMelhoresEntradas);
   const iniciar = useServerFn(iniciarOperacao);
+  const fetchSalvos = useServerFn(listarBilhetes);
   const [iniciando, setIniciando] = useState(false);
   const { data: access, refetch: refetchAccess } = useAccess();
   const [oddAlvo, setOddAlvo] = useState("5");
@@ -257,6 +258,7 @@ function Index() {
   const [mercSel, setMercSel] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [ticket, setTicket] = useState<Ticket | null>(null);
+  const [salvos, setSalvos] = useState<Awaited<ReturnType<typeof listarBilhetes>>>([]);
   const [currentEmail, setCurrentEmail] = useState("");
   const [jogos, setJogos] = useState<JogoDia[]>([]);
   const [loadingJogos, setLoadingJogos] = useState(false);
@@ -411,6 +413,18 @@ function Index() {
     };
   }, [temAcesso, fetchEntradas]);
 
+  function carregarSalvos() {
+    fetchSalvos()
+      .then((r) => setSalvos(r ?? []))
+      .catch(() => {});
+  }
+
+  useEffect(() => {
+    if (!temAcesso) return;
+    carregarSalvos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [temAcesso]);
+
   function podeUsarLiga(c: string) {
     return isStaff || ligaLiberada(planoCfg, c);
   }
@@ -436,6 +450,7 @@ function Index() {
     try {
       const r = await run({ data: { oddAlvo: odd, periodo, campeonatos: campSel, mercados: mercSel } });
       setTicket(r);
+      carregarSalvos();
     } catch (err: unknown) {
       console.error(err);
       const msg = err instanceof Error ? err.message : "Erro ao gerar bilhete.";
@@ -1153,6 +1168,43 @@ function Index() {
           </Card>
         )}
         </div>
+
+        {temAcesso && salvos.length > 0 && (
+          <div className="mt-8">
+            <h2 className="mb-3 text-lg font-bold">Meus bilhetes salvos</h2>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {salvos.map((b) => (
+                <Card key={b.id} className="p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-semibold">
+                      Odd total: <span className="text-primary">{b.oddTotal.toFixed(2)}</span>
+                    </p>
+                    <Badge variant="secondary">
+                      {new Date(b.createdAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                    </Badge>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                    <span>{b.picks.length} {b.picks.length === 1 ? "seleção" : "seleções"}</span>
+                    <span>· Confiança {Math.round(b.confianca)}%</span>
+                    <span>· Risco {b.risco}</span>
+                  </div>
+                  {b.picks.length > 0 && (
+                    <ul className="mt-3 space-y-1 text-xs">
+                      {b.picks.map((p: any, i: number) => (
+                        <li key={i} className="flex justify-between gap-2">
+                          <span className="truncate">{traduzTermo(p.mercado)}: {traduzTermo(p.selecao)}</span>
+                          <span className="shrink-0 font-medium">@ {Number(p.odd).toFixed(2)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
+
 
 
         <p className="mt-8 text-center text-xs text-muted-foreground">
