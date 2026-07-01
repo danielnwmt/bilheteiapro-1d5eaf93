@@ -53,18 +53,20 @@ services:
       - app
     environment:
       APP_PORT: ${APP_PORT:-3000}
+      CRON_SECRET: ${CRON_SECRET}
     entrypoint:
       - /bin/sh
       - -c
       - |
         echo "[cron] iniciado — verifica a cada 60s (busca jogos, odds e roda a IA)";
+        H="x-cron-secret: ${CRON_SECRET}";
         while true; do
           # 1) Jogos + odds (respeita o intervalo interno da chave).
-          curl -s -X POST "http://app:${APP_PORT:-3000}/api/public/hooks/sync-football" >/dev/null 2>&1 || true;
+          curl -s -X POST -H "$$H" "http://app:${APP_PORT:-3000}/api/public/hooks/sync-football" >/dev/null 2>&1 || true;
           # 2) Odds diárias (The Odds API) como reforço.
-          curl -s -X POST "http://app:${APP_PORT:-3000}/api/public/hooks/sync-odds-diario" >/dev/null 2>&1 || true;
+          curl -s -X POST -H "$$H" "http://app:${APP_PORT:-3000}/api/public/hooks/sync-odds-diario" >/dev/null 2>&1 || true;
           # 3) IA analisa os jogos com odds e preenche o analise_cache.
-          curl -s -X POST "http://app:${APP_PORT:-3000}/api/public/hooks/analisar-jogos" >/dev/null 2>&1 || true;
+          curl -s -X POST -H "$$H" "http://app:${APP_PORT:-3000}/api/public/hooks/analisar-jogos" >/dev/null 2>&1 || true;
           sleep 60;
         done
 
