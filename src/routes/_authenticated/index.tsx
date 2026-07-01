@@ -829,8 +829,9 @@ function Index() {
               <h2 className="flex items-center gap-2 text-lg font-bold">
                 <Flame className="h-5 w-5 text-primary" /> Melhores entradas
               </h2>
-              {!loadingEntradas && entradas.length > 0 && (
-                <Badge variant="secondary">{entradas.length}</Badge>
+              {!loadingEntradas && entradasFiltradas.length > 0 && (
+                <Badge variant="secondary">{entradasFiltradas.length}</Badge>
+
               )}
             </div>
 
