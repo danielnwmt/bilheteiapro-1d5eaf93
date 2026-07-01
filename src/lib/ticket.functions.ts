@@ -577,6 +577,7 @@ export const listarBilhetes = createServerFn({ method: "GET" })
         .select("bilhete_id, mercado, selecao, odd, confianca")
         .in("bilhete_id", ids);
       for (const p of palpites ?? []) {
+        if (!p.bilhete_id) continue;
         (palpitesByBilhete[p.bilhete_id] ??= []).push(p);
       }
     }
