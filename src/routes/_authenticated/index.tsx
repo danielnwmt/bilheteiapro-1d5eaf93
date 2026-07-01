@@ -331,7 +331,11 @@ function Index() {
       }
     } catch (err: unknown) {
       console.error(err);
-      const msg = err instanceof Error ? err.message : "Erro ao iniciar a operação.";
+      let msg = err instanceof Error ? err.message : "Erro ao iniciar a operação.";
+      // Evita vazar HTML de erros de gateway (ex.: "504 Gateway Time-out").
+      if (/<html|<!doctype|gateway time-?out/i.test(msg)) {
+        msg = "O servidor demorou demais para responder. Tente novamente em instantes.";
+      }
       toast.error(msg);
       setAvisoOperacao({ tipo: "warning", texto: msg });
     } finally {
