@@ -148,8 +148,7 @@ Regras:
 - Gols sofridos (média): ${partida.time_casa} ${est.golsSofridosCasa ?? "?"} / ${partida.time_fora} ${est.golsSofridosFora ?? "?"}
 - Probabilidade (casa/empate/fora): ${est.percent.casa ?? "?"} / ${est.percent.empate ?? "?"} / ${est.percent.fora ?? "?"}
 - Gols previstos: ${partida.time_casa} ${est.golsPrev.casa ?? "?"} / ${partida.time_fora} ${est.golsPrev.fora ?? "?"}
-- Tendência de gols: ${est.underOver ?? "?"}
-- Dica da casa: ${est.advice ?? "?"}`
+- Tendência de gols: ${est.underOver ?? "?"}`
     : "Estatísticas reais: não disponíveis para este jogo.";
 
   const prompt = `Jogo: ${jogo}${partida.liga ? ` | ${partida.liga}` : ""}
