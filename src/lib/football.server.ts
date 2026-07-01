@@ -366,7 +366,7 @@ export async function syncOdds(
     if (!bm) continue;
 
     for (const bet of bm.bets) {
-      if (!WANTED_BETS.has(bet.name.toLowerCase())) continue;
+      if (!betQuerido(bet.name)) continue;
       for (const val of bet.values) {
         const mapped = mapBetValue(bet.name, val.value, f.time_casa, f.time_fora);
         if (!mapped) continue;
@@ -681,7 +681,7 @@ export async function syncOddsByLeagueToday(
         if (!bm) continue;
 
         for (const bet of bm.bets) {
-          if (!WANTED_BETS.has(bet.name.toLowerCase())) continue;
+          if (!betQuerido(bet.name)) continue;
           for (const val of bet.values) {
             const mapped = mapBetValue(bet.name, val.value, f.time_casa, f.time_fora);
             if (!mapped) continue;
