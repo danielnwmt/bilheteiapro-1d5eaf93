@@ -1540,15 +1540,12 @@ export const chamarApiManual = createServerFn({ method: "POST" })
 
     try {
       if (data.chave === "API_FOOTBALL_KEY") {
-        const { syncFixtures } = await import("./football.server");
+        const { syncFixtures, syncOddsByLeagueToday } = await import("./football.server");
         const n = await syncFixtures("hoje");
-        return { ok: true, info: `API-Football chamada. ${n} jogos atualizados.` };
+        const r = await syncOddsByLeagueToday("betano");
+        return { ok: true, info: `API-Football chamada. ${n} jogos e ${r.odds} odds atualizados.` };
       }
-      if (data.chave === "ODDS_API_KEY") {
-        const { syncOddsFromOddsApi } = await import("./football.server");
-        const r = await syncOddsFromOddsApi("betano");
-        return { ok: true, info: `The Odds API chamada. ${r.odds} odds atualizadas.` };
-      }
+
       if (data.chave === "GEMINI_API_KEY") {
         const { getAiModel } = await import("./ai-gateway.server");
         const { generateText } = await import("ai");
