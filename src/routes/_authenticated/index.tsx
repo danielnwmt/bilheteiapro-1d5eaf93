@@ -1109,8 +1109,12 @@ function Index() {
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Tendência de gols</span>
                   <span className="font-medium">{estatPayload.underOver ?? "—"}</span>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Média de escanteios</span>
+                  <span className="font-medium">{estatEscanteios ?? "—"}</span>
                 </div>
               </div>
+
 
               <div className="space-y-2 rounded-md border border-border/60 p-3 text-sm">
                 <p className="text-xs font-semibold uppercase text-muted-foreground">Cartões</p>
