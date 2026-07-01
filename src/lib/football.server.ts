@@ -59,7 +59,7 @@ function datesForPeriodo(periodo: Periodo): string[] {
 }
 
 interface ApiFixture {
-  fixture: { id: number; date: string; status: { short: string } };
+  fixture: { id: number; date: string; status: { short: string }; referee?: string | null };
   league: { id: number; name: string };
   teams: { home: { name: string }; away: { name: string } };
 }
@@ -129,6 +129,7 @@ export async function syncFixtures(periodo: Periodo): Promise<number> {
       time_fora: f.teams.away.name,
       inicio: f.fixture.date,
       status: STATUS_MAP[f.fixture.status.short] ?? "agendado",
+      arbitro: f.fixture.referee ?? null,
     }));
 
   if (!rows.length) return 0;
