@@ -126,10 +126,12 @@ services:
     ports:
       - "${APP_PORT}:3000"
 
-  # ---------- Agendador (cron) — sincroniza jogos/odds sozinho ----------
+  # ---------- Agendador (cron) — sincroniza jogos/odds e roda a IA sozinho ----------
   # Sem isto, o banco fica vazio e cada clique em "Buscar jogos e gerar
   # bilhete" cai no fallback e bate na API-Football. Com o cron, os jogos
-  # já ficam no banco e o clique não consome chamadas de API.
+  # e as odds já ficam no banco e a IA preenche o analise_cache — que é de
+  # onde o cliente lê as entradas (sem o cron, aparece "Nenhuma entrada
+  # encontrada" porque a análise nunca roda).
   cron:
     image: curlimages/curl:8.10.1
     container_name: bia-cron
@@ -142,7 +144,12 @@ services:
       - |
         echo "[cron] iniciado — verifica a cada 60s e respeita o intervalo da chave";
         while true; do
+          # 1) Jogos + odds (respeita o intervalo interno da chave).
           curl -s -X POST http://app:3000/api/public/hooks/sync-football >/dev/null 2>&1 || true;
+          # 2) Odds diárias (The Odds API) como reforço.
+          curl -s -X POST http://app:3000/api/public/hooks/sync-odds-diario >/dev/null 2>&1 || true;
+          # 3) IA analisa os jogos com odds e preenche o analise_cache.
+          curl -s -X POST http://app:3000/api/public/hooks/analisar-jogos >/dev/null 2>&1 || true;
           sleep 60;
         done
 
