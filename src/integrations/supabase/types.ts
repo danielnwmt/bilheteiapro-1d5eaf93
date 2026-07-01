@@ -153,6 +153,7 @@ export type Database = {
           tipo: string
           updated_at: string
           url_deeplink: string | null
+          user_id: string | null
         }
         Insert: {
           casa?: string
@@ -167,6 +168,7 @@ export type Database = {
           tipo?: string
           updated_at?: string
           url_deeplink?: string | null
+          user_id?: string | null
         }
         Update: {
           casa?: string
@@ -181,6 +183,7 @@ export type Database = {
           tipo?: string
           updated_at?: string
           url_deeplink?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
