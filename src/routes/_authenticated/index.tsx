@@ -785,7 +785,7 @@ function Index() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">
-                        {j.time_casa} <span className="text-muted-foreground">x</span> {j.time_fora}
+                        {traduzPaises(j.time_casa)} <span className="text-muted-foreground">x</span> {traduzPaises(j.time_fora)}
                       </p>
                       {j.liga && (
                         <p className="truncate text-xs text-muted-foreground">{j.liga}</p>
@@ -1141,7 +1141,7 @@ function Index() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-base">
-              {estatJogo ? `${estatJogo.time_casa} x ${estatJogo.time_fora}` : "Estatísticas"}
+              {estatJogo ? `${traduzPaises(estatJogo.time_casa)} x ${traduzPaises(estatJogo.time_fora)}` : "Estatísticas"}
             </DialogTitle>
           </DialogHeader>
           {estatJogo?.liga && (
@@ -1160,12 +1160,12 @@ function Index() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3 text-center">
                 <div className="rounded-md border border-border/60 bg-muted/30 p-3">
-                  <p className="truncate text-xs font-semibold">{estatJogo?.time_casa}</p>
+                  <p className="truncate text-xs font-semibold">{estatJogo ? traduzPaises(estatJogo.time_casa) : ""}</p>
                   <p className="mt-1 text-xs text-muted-foreground">Forma (últ. 10)</p>
                   <p className="text-sm font-medium">{estatPayload.formaCasa ?? "—"}</p>
                 </div>
                 <div className="rounded-md border border-border/60 bg-muted/30 p-3">
-                  <p className="truncate text-xs font-semibold">{estatJogo?.time_fora}</p>
+                  <p className="truncate text-xs font-semibold">{estatJogo ? traduzPaises(estatJogo.time_fora) : ""}</p>
                   <p className="mt-1 text-xs text-muted-foreground">Forma (últ. 10)</p>
                   <p className="text-sm font-medium">{estatPayload.formaFora ?? "—"}</p>
                 </div>
