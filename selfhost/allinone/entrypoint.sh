@@ -143,6 +143,7 @@ export SUPABASE_PUBLISHABLE_KEY="$ANON_KEY"
 export SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
 export SUPABASE_PROJECT_ID="local"
 export INGEST_SECRET="${INGEST_SECRET:-local-ingest-secret}"
+export CRON_SECRET="${CRON_SECRET:-local-cron-secret}"
 export HOST=127.0.0.1
 export PORT="$APP_INTERNAL_PORT"
 echo ">> Iniciando app..."
