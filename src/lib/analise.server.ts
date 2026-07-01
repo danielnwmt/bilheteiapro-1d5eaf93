@@ -243,12 +243,18 @@ Responda SOMENTE com JSON válido neste formato:
   }
 
   const a = (raw.analise ?? {}) as Record<string, unknown>;
+  const real = analiseDeEstatisticas(partida);
+  const semDados = /^sem dados|^aguardando/i;
+  const pick = (v: unknown, r: string) => {
+    const t = toText(v, "");
+    return t && !semDados.test(t) ? t : r;
+  };
   const analise: AnaliseJogoStats = {
-    escanteios: toText(a.escanteios ?? a.corners, "Sem dados de escanteios."),
-    gols: toText(a.gols ?? a.goals, "Sem dados de gols."),
-    chutesAoGol: toText(a.chutesAoGol ?? a.chutes ?? a.shotsOnTarget, "Sem dados de chutes ao gol."),
-    cartoesTimes: toText(a.cartoesTimes ?? a.cartoes, "Sem dados de cartões dos times."),
-    cartoesArbitro: toText(a.cartoesArbitro ?? a.arbitro, "Sem dados do árbitro."),
+    escanteios: pick(a.escanteios ?? a.corners, real.escanteios),
+    gols: pick(a.gols ?? a.goals, real.gols),
+    chutesAoGol: pick(a.chutesAoGol ?? a.chutes ?? a.shotsOnTarget, real.chutesAoGol),
+    cartoesTimes: pick(a.cartoesTimes ?? a.cartoes, real.cartoesTimes),
+    cartoesArbitro: pick(a.cartoesArbitro ?? a.arbitro, real.cartoesArbitro),
   };
 
   return { picks, analise };
