@@ -1536,6 +1536,30 @@ export const chamarApiManual = createServerFn({ method: "POST" })
     }
   });
 
+// Transforma mensagens de erro cruas (ex.: HTML de "504 Gateway Time-out" do
+// nginx) em texto curto e legível em português, para nunca vazar HTML na tela.
+function limparErro(raw: unknown, fallback: string): string {
+  let msg = raw instanceof Error ? raw.message : String(raw ?? "");
+  msg = msg.trim();
+  if (!msg) return fallback;
+  // Respostas de gateway/proxy costumam vir como página HTML.
+  if (/<html|<!doctype|<head|<body/i.test(msg) || /gateway time-?out/i.test(msg)) {
+    if (/504|gateway time-?out/i.test(msg)) {
+      return "O servidor demorou demais para responder (tempo esgotado). Tente novamente em instantes.";
+    }
+    if (/502|bad gateway/i.test(msg)) {
+      return "O servidor de dados está indisponível no momento. Tente novamente em instantes.";
+    }
+    if (/503|service unavailable/i.test(msg)) {
+      return "Serviço temporariamente indisponível. Tente novamente em instantes.";
+    }
+    // Remove todas as tags e normaliza espaços.
+    const texto = msg.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+    return texto.slice(0, 160) || fallback;
+  }
+  return msg.length > 200 ? `${msg.slice(0, 200)}…` : msg;
+}
+
 // Inicia a operação manualmente: busca jogos, busca odds e roda a pré-análise
 // da IA — bypassando os intervalos do cron. Retorna um diagnóstico claro de
 // cada etapa para mostrar exatamente onde está a falha.
