@@ -345,6 +345,119 @@ export async function syncOdds(
   return rows.length;
 }
 
+// ---------- Coleta de estatísticas reais (API-Football /predictions) ----------
+
+interface ApiPredTeam {
+  last_5?: {
+    form?: string | null;
+    goals?: {
+      for?: { total?: number | null; average?: string | null } | null;
+      against?: { total?: number | null; average?: string | null } | null;
+    } | null;
+  } | null;
+}
+
+interface ApiPredResponse {
+  predictions?: {
+    winner?: { name?: string | null; comment?: string | null } | null;
+    under_over?: string | null;
+    goals?: { home?: string | null; away?: string | null } | null;
+    advice?: string | null;
+    percent?: { home?: string; draw?: string; away?: string } | null;
+  } | null;
+  teams?: { home?: ApiPredTeam | null; away?: ApiPredTeam | null } | null;
+}
+
+// Resumo compacto das estatísticas reais salvo em estatisticas.payload e enviado à IA.
+export interface EstatisticasResumo {
+  advice: string | null;
+  underOver: string | null;
+  golsPrev: { casa: string | null; fora: string | null };
+  percent: { casa: string | null; empate: string | null; fora: string | null };
+  formaCasa: string | null;
+  formaFora: string | null;
+  golsFeitosCasa: string | null;
+  golsSofridosCasa: string | null;
+  golsFeitosFora: string | null;
+  golsSofridosFora: string | null;
+}
+
+async function apiGetPredictions(fixtureId: string, key: string): Promise<ApiPredResponse[]> {
+  await registrarChamada("API_FOOTBALL_KEY");
+  const res = await fetch(`${API_BASE}/predictions?fixture=${fixtureId}`, {
+    headers: { "x-apisports-key": key },
+  });
+  if (!res.ok) throw new Error(`API-Football predictions ${res.status}`);
+  const json = (await res.json()) as { errors?: unknown; response?: ApiPredResponse[] };
+  const hasErr =
+    json.errors && (Array.isArray(json.errors) ? json.errors.length : Object.keys(json.errors).length);
+  if (hasErr) throw new Error(`API-Football predictions erro: ${JSON.stringify(json.errors)}`);
+  return json.response ?? [];
+}
+
+function resumirPredicao(p: ApiPredResponse): EstatisticasResumo {
+  const pr = p.predictions ?? {};
+  const h = p.teams?.home?.last_5 ?? {};
+  const a = p.teams?.away?.last_5 ?? {};
+  return {
+    advice: pr.advice ?? null,
+    underOver: pr.under_over ?? null,
+    golsPrev: { casa: pr.goals?.home ?? null, fora: pr.goals?.away ?? null },
+    percent: { casa: pr.percent?.home ?? null, empate: pr.percent?.draw ?? null, fora: pr.percent?.away ?? null },
+    formaCasa: h.form ?? null,
+    formaFora: a.form ?? null,
+    golsFeitosCasa: h.goals?.for?.average ?? null,
+    golsSofridosCasa: h.goals?.against?.average ?? null,
+    golsFeitosFora: a.goals?.for?.average ?? null,
+    golsSofridosFora: a.goals?.against?.average ?? null,
+  };
+}
+
+/**
+ * Coleta estatísticas reais (endpoint /predictions da API-Football) para as
+ * partidas indicadas e grava em public.estatisticas (tipo "predicoes").
+ * 1 chamada por jogo. Retorna quantos jogos tiveram estatísticas salvas.
+ */
+export async function syncEstatisticas(
+  fixtures: Array<{ id: string; external_id: string | null }>,
+  maxFixtures = 60,
+): Promise<number> {
+  const key = await getConfigKey("API_FOOTBALL_KEY");
+  if (!key) throw new Error("Missing API_FOOTBALL_KEY");
+
+  const targets = fixtures.filter((f) => f.external_id).slice(0, maxFixtures);
+  if (!targets.length) return 0;
+
+  const supabase = createClient<Database>(
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false, autoRefreshToken: false } },
+  );
+
+  const rows: Array<{ partida_id: string; tipo: string; payload: EstatisticasResumo }> = [];
+  for (const f of targets) {
+    try {
+      const resp = await apiGetPredictions(String(f.external_id), key);
+      const entry = resp[0];
+      if (!entry) continue;
+      rows.push({ partida_id: f.id, tipo: "predicoes", payload: resumirPredicao(entry) });
+    } catch (e) {
+      console.error("Falha ao buscar estatísticas da partida", f.external_id, e);
+    }
+  }
+
+  if (!rows.length) return 0;
+
+  const { error } = await supabase
+    .from("estatisticas")
+    .upsert(rows, { onConflict: "partida_id,tipo" });
+  if (error) throw new Error(`Erro ao gravar estatísticas: ${error.message}`);
+
+  return rows.length;
+}
+
+
+
 // ---------- Coleta de odds 1x por dia, por liga ----------
 
 // Mapa reverso: nome da liga (app) -> id da API-Football.
