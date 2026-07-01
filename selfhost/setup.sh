@@ -129,6 +129,7 @@ if [ ! -f "$ENV_FILE" ]; then
   JWT_SECRET="$(rand 32)"
   POSTGRES_PASSWORD="$(rand 16)"
   INGEST_SECRET="$(rand 24)"
+  CRON_SECRET="$(rand 32)"
   ANON_KEY="$(make_jwt anon "$JWT_SECRET")"
   SERVICE_ROLE_KEY="$(make_jwt service_role "$JWT_SECRET")"
   SUPABASE_PUBLIC_URL="http://${PUBHOST}:${SUPABASE_PORT}"
