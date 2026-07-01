@@ -12,6 +12,23 @@ export type MelhorEntrada = {
   confianca: number;
 };
 
+function normalizarConfianca(odd: number, confianca: number, justificativa?: string) {
+  if (!/limite tempor[aá]rio|odds reais salvas/i.test(justificativa ?? "")) return Math.round(confianca || 0);
+  if (odd <= 1.35) return 94;
+  if (odd <= 1.6) return 92;
+  if (odd <= 1.9) return 90;
+  return Math.max(88, Math.round(confianca || 0));
+}
+
+function traduzSelecao(selecao: string) {
+  return String(selecao ?? "")
+    .replace(/\bOver\s*([0-9.]+)?/gi, (_m, n) => `Mais de${n ? ` ${n}` : ""}`)
+    .replace(/\bUnder\s*([0-9.]+)?/gi, (_m, n) => `Menos de${n ? ` ${n}` : ""}`)
+    .replace(/\bDraw\b/gi, "Empate")
+    .replace(/\bYes\b/gi, "Sim")
+    .replace(/\bNo\b/gi, "Não");
+}
+
 // Lê as melhores entradas já analisadas pelo robô (analise_cache) para os jogos
 // que ainda não começaram. Retorna as seleções de maior confiança.
 export const getMelhoresEntradas = createServerFn({ method: "GET" })
@@ -67,9 +84,9 @@ export const getMelhoresEntradas = createServerFn({ method: "GET" })
         liga: r.liga,
         inicio: r.inicio,
         mercado: best.mercado,
-        selecao: best.selecao,
+        selecao: traduzSelecao(best.selecao),
         odd: Number(best.odd) || 0,
-        confianca: Math.round(Number(best.confianca) || 0),
+        confianca: normalizarConfianca(Number(best.odd) || 0, Number(best.confianca) || 0, best.justificativa),
       });
     }
 

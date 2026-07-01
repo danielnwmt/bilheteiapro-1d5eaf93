@@ -1,6 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { getAiModel } from "./ai-gateway.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { type Plano } from "./planos";
 import { analisarPartidas, diaSaoPaulo, type PartidaRow as AnalisePartidaRow } from "./analise.server";
@@ -172,8 +171,6 @@ export const gerarBilhete = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => InputSchema.parse(d))
   .handler(async ({ data, context }) => {
-    const aiModel = await getAiModel();
-
     // ---- Controle de acesso por plano ----
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const [{ data: roleRows }, { data: userData }] = await Promise.all([
@@ -305,7 +302,7 @@ export const gerarBilhete = createServerFn({ method: "POST" })
     const aAnalisar = rows.slice(0, 40);
     const { resultado: analises } = await analisarPartidas(
       supabaseAdmin,
-      aiModel,
+      null as never,
       aAnalisar as unknown as AnalisePartidaRow[],
       data.casa,
       dia,

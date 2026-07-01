@@ -124,6 +124,36 @@ function formatMatchDate(iso: string) {
   }).format(new Date(iso));
 }
 
+function traduzSelecaoCache(selecao: string) {
+  return selecao
+    .replace(/\bOver\s*([0-9.]+)?/gi, (_m, n) => `Mais de${n ? ` ${n}` : ""}`)
+    .replace(/\bUnder\s*([0-9.]+)?/gi, (_m, n) => `Menos de${n ? ` ${n}` : ""}`)
+    .replace(/\bDraw\b/gi, "Empate")
+    .replace(/\bYes\b/gi, "Sim")
+    .replace(/\bNo\b/gi, "Não");
+}
+
+function confiancaPorOddSegura(odd: number) {
+  if (odd <= 1.35) return 94;
+  if (odd <= 1.6) return 92;
+  if (odd <= 1.9) return 90;
+  return 88;
+}
+
+function normalizarAnaliseCache(payload: AnalisePartida): AnalisePartida {
+  return {
+    ...payload,
+    picks: (payload.picks ?? []).map((p) => {
+      const fallbackPorLimite = /limite tempor[aá]rio|odds reais salvas/i.test(p.justificativa ?? "");
+      return {
+        ...p,
+        selecao: traduzSelecaoCache(p.selecao),
+        confianca: fallbackPorLimite ? Math.max(p.confianca ?? 0, confiancaPorOddSegura(Number(p.odd) || 0)) : p.confianca,
+      };
+    }),
+  };
+}
+
 // Chama a IA para analisar UM jogo a partir das odds reais da casa.
 async function analisarComIa(model: LanguageModel, partida: PartidaRow, casa: string): Promise<AnalisePartida> {
   const oddsCasa = partida.odds.filter((o) => normKey(o.casa) === normKey(casa));
@@ -233,9 +263,9 @@ function montarAnaliseSemIa(partida: PartidaRow, casa: string): AnalisePartida {
   return {
     picks: oddsCasa.map((o) => ({
       mercado: o.mercado || "Resultado Final",
-      selecao: o.selecao,
+      selecao: traduzSelecaoCache(o.selecao),
       odd: o.valor,
-      confianca: 70,
+      confianca: confiancaPorOddSegura(o.valor),
       justificativa: "Seleção baseada nas odds reais salvas; a IA atingiu o limite temporário de chamadas.",
       external_odd_id: o.external_odd_id,
     })),
@@ -280,7 +310,7 @@ export async function obterAnalisePartida(
     .maybeSingle();
 
   if (cached?.payload) {
-    const payload = cached.payload as AnalisePartida;
+    const payload = normalizarAnaliseCache(cached.payload as AnalisePartida);
     if (Array.isArray(payload.picks) && payload.picks.length) {
       return payload;
     }
@@ -298,7 +328,7 @@ export async function obterAnalisePartida(
       .limit(1)
       .maybeSingle();
     if (outra?.payload) {
-      const payload = outra.payload as AnalisePartida;
+      const payload = normalizarAnaliseCache(outra.payload as AnalisePartida);
       if (Array.isArray(payload.picks) && payload.picks.length) {
         return payload;
       }
