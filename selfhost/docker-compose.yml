@@ -139,18 +139,21 @@ services:
     restart: always
     depends_on:
       - app
+    environment:
+      CRON_SECRET: ${CRON_SECRET}
     entrypoint:
       - /bin/sh
       - -c
       - |
         echo "[cron] iniciado — verifica a cada 60s e respeita o intervalo da chave";
+        H="x-cron-secret: ${CRON_SECRET}";
         while true; do
           # 1) Jogos + odds (respeita o intervalo interno da chave).
-          curl -s -X POST http://app:3000/api/public/hooks/sync-football >/dev/null 2>&1 || true;
+          curl -s -X POST -H "$$H" http://app:3000/api/public/hooks/sync-football >/dev/null 2>&1 || true;
           # 2) Odds diárias (The Odds API) como reforço.
-          curl -s -X POST http://app:3000/api/public/hooks/sync-odds-diario >/dev/null 2>&1 || true;
+          curl -s -X POST -H "$$H" http://app:3000/api/public/hooks/sync-odds-diario >/dev/null 2>&1 || true;
           # 3) IA analisa os jogos com odds e preenche o analise_cache.
-          curl -s -X POST http://app:3000/api/public/hooks/analisar-jogos >/dev/null 2>&1 || true;
+          curl -s -X POST -H "$$H" http://app:3000/api/public/hooks/analisar-jogos >/dev/null 2>&1 || true;
           sleep 60;
         done
 
