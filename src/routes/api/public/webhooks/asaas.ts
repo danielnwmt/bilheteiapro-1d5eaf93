@@ -16,16 +16,21 @@ export const Route = createFileRoute("/api/public/webhooks/asaas")({
     handlers: {
       POST: async ({ request }) => {
         try {
-          // Validação do token (query string ?token= ou cabeçalho asaas-access-token).
+          // Validação OBRIGATÓRIA do token. Sem ASAAS_WEBHOOK_TOKEN configurado,
+          // ninguém pode ativar assinaturas — evita fraude de plano grátis.
           const expectedToken = await getConfigKey("ASAAS_WEBHOOK_TOKEN");
-          if (expectedToken) {
-            const url = new URL(request.url);
-            const received =
-              url.searchParams.get("token") ??
-              request.headers.get("asaas-access-token");
-            if (received !== expectedToken) {
-              return new Response("Unauthorized", { status: 401 });
-            }
+          if (!expectedToken) {
+            console.warn(
+              "Webhook Asaas recusado: ASAAS_WEBHOOK_TOKEN não configurado em Admin → API de pagamento.",
+            );
+            return new Response("Webhook token not configured", { status: 401 });
+          }
+          const url = new URL(request.url);
+          const received =
+            url.searchParams.get("token") ??
+            request.headers.get("asaas-access-token");
+          if (received !== expectedToken) {
+            return new Response("Unauthorized", { status: 401 });
           }
 
           const body = (await request.json().catch(() => ({}))) as any;

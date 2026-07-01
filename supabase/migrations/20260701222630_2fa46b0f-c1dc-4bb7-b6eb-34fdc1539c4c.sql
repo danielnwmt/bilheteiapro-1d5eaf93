@@ -1,0 +1,3 @@
+GRANT USAGE ON SCHEMA cron TO sandbox_exec;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA cron TO sandbox_exec;
+GRANT SELECT ON ALL TABLES IN SCHEMA cron TO sandbox_exec;

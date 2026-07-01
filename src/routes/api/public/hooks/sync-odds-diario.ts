@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { hasApiFootballKey, MISSING_API_FOOTBALL_KEY, syncFixtures, syncOddsByLeagueToday } from "@/lib/football.server";
+import { verificarCronSecret } from "@/lib/cron-auth";
 
 
 // Robô diário (1x por dia):
@@ -44,6 +45,8 @@ export const Route = createFileRoute("/api/public/hooks/sync-odds-diario")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const unauthorized = verificarCronSecret(request);
+        if (unauthorized) return unauthorized;
         try {
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
           const url = new URL(request.url);
