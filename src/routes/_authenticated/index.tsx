@@ -200,6 +200,22 @@ function traduzPaises(texto: string): string {
   return out;
 }
 
+// Normaliza nomes de time/jogo para comparar partidas iguais vindas de fontes
+// diferentes (ex.: "DR Congo" x "Congo DR"): traduz, remove acentos, pontuação
+// e ordena as palavras para não depender da ordem.
+function normNome(s: string): string {
+  return traduzPaises(s || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9 ]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .sort()
+    .join("");
+}
+
+
 function traduzTermo(texto: string): string {
   if (!texto) return texto;
   return traduzPaises(texto)
