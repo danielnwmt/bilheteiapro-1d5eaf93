@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { syncFixtures, syncOddsByLeagueToday } from "@/lib/football.server";
+import { hasApiFootballKey, MISSING_API_FOOTBALL_KEY, syncFixtures, syncOddsByLeagueToday } from "@/lib/football.server";
 
 
 // Robô diário (1x por dia):
@@ -52,6 +52,19 @@ export const Route = createFileRoute("/api/public/hooks/sync-odds-diario")({
           const footballSync = await podeSincronizar(supabaseAdmin, "football", "API_FOOTBALL_KEY", now);
           const skipped: Record<string, string> = {};
 
+          if (!(await hasApiFootballKey())) {
+            return Response.json({
+              ok: true,
+              casa,
+              skipped: { API_FOOTBALL_KEY: "chave não configurada em Configurações → APIs" },
+              requiresConfig: true,
+              fixturesHoje: 0,
+              ligas: 0,
+              chamadas: 0,
+              odds: 0,
+            });
+          }
+
           // API-Football: garante as partidas do dia E coleta as odds por liga.
           let fixturesHoje = 0;
           let result = { ligas: 0, chamadas: 0, odds: 0 };
@@ -69,10 +82,11 @@ export const Route = createFileRoute("/api/public/hooks/sync-odds-diario")({
           return Response.json({ ok: true, casa, skipped, fixturesHoje, ...result });
         } catch (e) {
           const msg = String(e);
-          if (msg.includes("Missing API_FOOTBALL_KEY")) {
+          if (msg.includes(MISSING_API_FOOTBALL_KEY)) {
             return Response.json({
               ok: true,
-              skipped: { API_FOOTBALL_KEY: "chave não configurada no painel de APIs" },
+              skipped: { API_FOOTBALL_KEY: "chave não configurada em Configurações → APIs" },
+              requiresConfig: true,
             });
           }
           console.error("Erro no robô diário de odds:", e);

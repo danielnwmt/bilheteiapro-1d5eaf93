@@ -6,7 +6,7 @@ import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { getAiModel } from "./ai-gateway.server";
 import { obterAnalisePartida, diaSaoPaulo, type PartidaRow } from "./analise.server";
-import { syncEstatisticas, type EstatisticasResumo } from "./football.server";
+import { hasApiFootballKey, syncEstatisticas, type EstatisticasResumo } from "./football.server";
 
 // Casas exibidas no app. A análise é feita por casa porque os picks usam as
 // odds reais daquela casa.
@@ -40,12 +40,14 @@ export interface PreAnaliseResult {
   jaEmCache: number;
   estatisticas: number;
   budget: number;
+  avisos?: string[];
 }
 
 
 export async function preAnalisarTodos(): Promise<PreAnaliseResult> {
   const supabase = admin();
   const model = await getAiModel();
+  const avisos: string[] = [];
   const now = Date.now();
   const dia = diaSaoPaulo(new Date(now));
 
@@ -112,7 +114,11 @@ export async function preAnalisarTodos(): Promise<PreAnaliseResult> {
   const semStats = candidatos
     .filter((c) => c.partida.external_id && !statsMap.has(c.partida.id))
     .map((c) => ({ id: c.partida.id, external_id: c.partida.external_id }));
-  if (semStats.length) {
+  const apiFootballConfigurada = await hasApiFootballKey();
+  if (semStats.length && !apiFootballConfigurada) {
+    avisos.push("API-Football não configurada; estatísticas reais pausadas.");
+  }
+  if (semStats.length && apiFootballConfigurada) {
     try {
       estatisticas = await syncEstatisticas(semStats);
       const { data: novos } = await supabase
@@ -128,7 +134,7 @@ export async function preAnalisarTodos(): Promise<PreAnaliseResult> {
       // Chave da API-Football não configurada: não é erro do robô — apenas
       // segue sem estatísticas (evita poluir os logs dezenas de vezes/hora).
       if (msg.includes("Missing API_FOOTBALL_KEY")) {
-        console.warn("pre-analise: API_FOOTBALL_KEY não configurada — seguindo sem estatísticas");
+        avisos.push("API-Football não configurada; estatísticas reais pausadas.");
       } else {
         console.error("pre-analise: falha ao coletar estatísticas", e);
       }
@@ -159,6 +165,7 @@ export async function preAnalisarTodos(): Promise<PreAnaliseResult> {
     jaEmCache: candidatos.length - pendentes.length,
     estatisticas,
     budget: BUDGET_POR_RUN,
+    avisos,
   };
 }
 

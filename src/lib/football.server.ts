@@ -6,6 +6,17 @@ import { getConfigKey } from "./system-config.server";
 import { registrarChamada } from "./api-usage.server";
 
 const API_BASE = "https://v3.football.api-sports.io";
+export const MISSING_API_FOOTBALL_KEY = "Missing API_FOOTBALL_KEY";
+
+export async function hasApiFootballKey(): Promise<boolean> {
+  return Boolean(await getConfigKey("API_FOOTBALL_KEY"));
+}
+
+async function getApiFootballKey(): Promise<string> {
+  const key = await getConfigKey("API_FOOTBALL_KEY");
+  if (!key) throw new Error(MISSING_API_FOOTBALL_KEY);
+  return key;
+}
 
 // Remove odds duplicadas no MESMO lote pela chave de conflito do upsert.
 // Sem isso o Postgres lança "ON CONFLICT DO UPDATE command cannot affect row
@@ -98,8 +109,7 @@ const STATUS_MAP: Record<string, string> = {
  * Retorna a quantidade de partidas sincronizadas.
  */
 export async function syncFixtures(periodo: Periodo): Promise<number> {
-  const key = await getConfigKey("API_FOOTBALL_KEY");
-  if (!key) throw new Error("Missing API_FOOTBALL_KEY");
+  const key = await getApiFootballKey();
 
   const fixtures: ApiFixture[] = [];
   if (periodo === "aovivo") {
@@ -327,8 +337,7 @@ export async function syncOdds(
   casa: string,
   maxFixtures = 12,
 ): Promise<number> {
-  const key = await getConfigKey("API_FOOTBALL_KEY");
-  if (!key) throw new Error("Missing API_FOOTBALL_KEY");
+  const key = await getApiFootballKey();
 
   const targets = fixtures.filter((f) => f.external_id).slice(0, maxFixtures);
   if (!targets.length) return 0;
@@ -529,8 +538,7 @@ export async function syncEstatisticas(
   fixtures: Array<{ id: string; external_id: string | null }>,
   maxFixtures = 60,
 ): Promise<number> {
-  const key = await getConfigKey("API_FOOTBALL_KEY");
-  if (!key) throw new Error("Missing API_FOOTBALL_KEY");
+  const key = await getApiFootballKey();
 
   const targets = fixtures.filter((f) => f.external_id).slice(0, maxFixtures);
   if (!targets.length) return 0;
@@ -590,8 +598,7 @@ function seasonForDate(dateStr: string): number {
 export async function syncOddsByLeagueToday(
   casa: string = "betano",
 ): Promise<{ ligas: number; chamadas: number; odds: number }> {
-  const key = await getConfigKey("API_FOOTBALL_KEY");
-  if (!key) throw new Error("Missing API_FOOTBALL_KEY");
+  const key = await getApiFootballKey();
 
   const supabase = createClient<Database>(
     process.env.SUPABASE_URL!,
