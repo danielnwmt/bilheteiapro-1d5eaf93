@@ -124,7 +124,14 @@ export async function preAnalisarTodos(): Promise<PreAnaliseResult> {
         statsMap.set(String((s as any).partida_id), (s as any).payload as EstatisticasResumo);
       }
     } catch (e) {
-      console.error("pre-analise: falha ao coletar estatísticas", e);
+      const msg = String(e);
+      // Chave da API-Football não configurada: não é erro do robô — apenas
+      // segue sem estatísticas (evita poluir os logs dezenas de vezes/hora).
+      if (msg.includes("Missing API_FOOTBALL_KEY")) {
+        console.warn("pre-analise: API_FOOTBALL_KEY não configurada — seguindo sem estatísticas");
+      } else {
+        console.error("pre-analise: falha ao coletar estatísticas", e);
+      }
     }
   }
 
