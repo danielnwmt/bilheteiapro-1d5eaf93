@@ -253,15 +253,22 @@ function mapBetValue(betName: string, rawValue: unknown, jogoCasa: string, jogoF
   }
   // Escanteios (Corners Over/Under, Total Corners)
   if (bn.includes("corner")) {
-    const num = value.replace(/[^0-9.]/g, "");
-    const lado = v.startsWith("over") ? "Mais de" : v.startsWith("under") ? "Menos de" : value;
-    return { mercado: "Escanteios", selecao: num ? `${lado} ${num} escanteios` : lado };
+    if (v.startsWith("over") || v.startsWith("under")) {
+      const num = value.replace(/[^0-9.]/g, "");
+      const lado = v.startsWith("over") ? "Mais de" : "Menos de";
+      return { mercado: "Escanteios", selecao: num ? `${lado} ${num} escanteios` : lado };
+    }
+    // Handicap/linha (ex.: "Home +1.5") — o número já está no valor, não duplica.
+    return { mercado: "Escanteios", selecao: `${value} escanteios` };
   }
   // Cartões (Cards Over/Under, Total Cards)
   if (bn.includes("card")) {
-    const num = value.replace(/[^0-9.]/g, "");
-    const lado = v.startsWith("over") ? "Mais de" : v.startsWith("under") ? "Menos de" : value;
-    return { mercado: "Cartões", selecao: num ? `${lado} ${num} cartões` : lado };
+    if (v.startsWith("over") || v.startsWith("under")) {
+      const num = value.replace(/[^0-9.]/g, "");
+      const lado = v.startsWith("over") ? "Mais de" : "Menos de";
+      return { mercado: "Cartões", selecao: num ? `${lado} ${num} cartões` : lado };
+    }
+    return { mercado: "Cartões", selecao: `${value} cartões` };
   }
   // Handicap Asiático
   if (bn.includes("asian handicap") || bn === "handicap") {
