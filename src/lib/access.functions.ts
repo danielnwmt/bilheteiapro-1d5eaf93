@@ -1626,8 +1626,8 @@ export const iniciarOperacao = createServerFn({ method: "POST" })
     // 2) Odds (API-Football)
     let oddsCount = 0;
     try {
-      const { syncOddsByLeagueToday } = await import("./football.server");
-      const r = await syncOddsByLeagueToday("betano");
+      const { syncOddsByLeagueDias } = await import("./football.server");
+      const r = await syncOddsByLeagueDias("betano", 8);
       oddsCount = r.odds;
       etapas.push({
         etapa: "Odds",
