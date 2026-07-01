@@ -93,6 +93,46 @@ export async function preAnalisarTodos(): Promise<PreAnaliseResult> {
 
   const pendentes = candidatos.filter((c) => !cacheSet.has(c.partida.id));
 
+  // Coleta estatísticas reais (API-Football /predictions) dos jogos que serão
+  // analisados e ainda não têm estatísticas salvas. 1 chamada por jogo.
+  const partidaIds = candidatos.map((c) => c.partida.id);
+  const statsMap = new Map<string, EstatisticasResumo>();
+  if (partidaIds.length) {
+    const { data: statsExist } = await supabase
+      .from("estatisticas")
+      .select("partida_id, payload")
+      .eq("tipo", "predicoes")
+      .in("partida_id", partidaIds);
+    for (const s of statsExist ?? []) {
+      statsMap.set(String((s as any).partida_id), (s as any).payload as EstatisticasResumo);
+    }
+  }
+
+  let estatisticas = 0;
+  const semStats = candidatos
+    .filter((c) => c.partida.external_id && !statsMap.has(c.partida.id))
+    .map((c) => ({ id: c.partida.id, external_id: c.partida.external_id }));
+  if (semStats.length) {
+    try {
+      estatisticas = await syncEstatisticas(semStats);
+      const { data: novos } = await supabase
+        .from("estatisticas")
+        .select("partida_id, payload")
+        .eq("tipo", "predicoes")
+        .in("partida_id", partidaIds);
+      for (const s of novos ?? []) {
+        statsMap.set(String((s as any).partida_id), (s as any).payload as EstatisticasResumo);
+      }
+    } catch (e) {
+      console.error("pre-analise: falha ao coletar estatísticas", e);
+    }
+  }
+
+  // Anexa as estatísticas reais a cada jogo (usadas no prompt da IA).
+  for (const c of candidatos) {
+    c.partida.estatisticas = statsMap.get(c.partida.id) ?? null;
+  }
+
   let analisados = 0;
   for (const c of pendentes) {
     if (analisados >= BUDGET_POR_RUN) break;
@@ -110,6 +150,8 @@ export async function preAnalisarTodos(): Promise<PreAnaliseResult> {
     jogos: rows.length,
     analisados,
     jaEmCache: candidatos.length - pendentes.length,
+    estatisticas,
     budget: BUDGET_POR_RUN,
   };
 }
+
