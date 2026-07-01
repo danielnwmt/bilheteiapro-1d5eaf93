@@ -363,24 +363,22 @@ export const gerarBilhete = createServerFn({ method: "POST" })
       throw new Error("Nenhuma entrada encontrada para esse filtro. Tente outro período ou campeonato.");
     }
 
-    // ---- Monta o bilhete (sem nova chamada de IA) para chegar perto da odd alvo ----
+    // ---- Monta o bilhete (sem nova chamada de IA) para chegar o mais perto
+    // possível da odd alvo. A cada passo escolhemos a seleção que aproxima o
+    // produto atual da odd alvo. Assim odds alvo diferentes geram bilhetes
+    // diferentes (antes alvos próximos, ex.: 4 e 5, caíam no mesmo bilhete). ----
     const target = data.oddAlvo;
     const low = target * 0.85;
-    const high = target * 1.15;
-    const bests: Cand[] = [];
-    const extras: Cand[] = [];
-    for (const lista of porJogo.values()) {
-      bests.push(lista[0]);
-      for (let k = 1; k < lista.length; k++) extras.push(lista[k]);
-    }
-    bests.sort((a, b) => b.confianca - a.confianca);
-    extras.sort((a, b) => b.confianca - a.confianca);
+
+    const candidatos: Cand[] = [];
+    for (const lista of porJogo.values()) for (const p of lista) candidatos.push(p);
 
     const chosen: Cand[] = [];
     const usedMarket = new Set<string>();
     let prod = 1;
+    const marketKey = (p: Cand) => `${p._partidaId}::${normKey(p.mercado)}`;
     const tryAdd = (p: Cand) => {
-      const mk = `${p._partidaId}::${normKey(p.mercado)}`;
+      const mk = marketKey(p);
       if (usedMarket.has(mk)) return false;
       chosen.push(p);
       usedMarket.add(mk);
@@ -388,32 +386,31 @@ export const gerarBilhete = createServerFn({ method: "POST" })
       return true;
     };
 
-    // Fase 1: melhor seleção de cada jogo, sem estourar o teto.
-    for (const p of bests) {
-      if (prod >= low) break;
-      if (prod * p.odd <= high) tryAdd(p);
-    }
-    // Fase 2: mercados extras do mesmo jogo, se ainda abaixo da margem.
-    if (prod < low) {
-      for (const p of extras) {
-        if (prod >= low) break;
-        if (prod * p.odd <= high) tryAdd(p);
+    // Passo a passo: adiciona a seleção que deixa o produto mais próximo da
+    // odd alvo. Para quando nenhuma seleção conseguir aproximar mais.
+    while (true) {
+      const distAtual = Math.abs(target - prod);
+      let melhor: Cand | null = null;
+      let melhorDist = distAtual;
+      for (const p of candidatos) {
+        if (usedMarket.has(marketKey(p))) continue;
+        const d = Math.abs(target - prod * p.odd);
+        if (
+          d < melhorDist - 1e-9 ||
+          (Math.abs(d - melhorDist) <= 1e-9 && melhor && p.confianca > melhor.confianca)
+        ) {
+          melhor = p;
+          melhorDist = d;
+        }
       }
+      if (!melhor) break;
+      tryAdd(melhor);
     }
-    // Fase 3: garante pelo menos 1 seleção.
+
+    // Garante pelo menos 1 seleção (odd alvo muito baixa).
     if (!chosen.length) {
-      const all = [...bests, ...extras].sort((a, b) => b.confianca - a.confianca);
+      const all = [...candidatos].sort((a, b) => b.confianca - a.confianca);
       if (all[0]) tryAdd(all[0]);
-    }
-    // Fase 4: ainda abaixo da margem -> aproxima usando as odds maiores.
-    if (prod < low) {
-      const restantes = [...bests, ...extras]
-        .filter((p) => !chosen.includes(p))
-        .sort((a, b) => b.odd - a.odd);
-      for (const p of restantes) {
-        if (prod >= low) break;
-        tryAdd(p);
-      }
     }
 
     // Tabela de tradução de deep links
