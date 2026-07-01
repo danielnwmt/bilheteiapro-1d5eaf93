@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { syncFixtures, syncOddsFromOddsApi } from "@/lib/football.server";
-import { getConfigKey } from "@/lib/system-config.server";
+
 
 // Robô diário (1x por dia):
 // API 1 (API-Football) atualiza as partidas/ligas do dia.
