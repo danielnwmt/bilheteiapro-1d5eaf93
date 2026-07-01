@@ -438,6 +438,7 @@ export type Database = {
           data_nascimento: string | null
           email: string | null
           id: string
+          last_seen: string | null
           nome: string | null
           telefone: string | null
           updated_at: string
@@ -448,6 +449,7 @@ export type Database = {
           data_nascimento?: string | null
           email?: string | null
           id: string
+          last_seen?: string | null
           nome?: string | null
           telefone?: string | null
           updated_at?: string
@@ -458,6 +460,7 @@ export type Database = {
           data_nascimento?: string | null
           email?: string | null
           id?: string
+          last_seen?: string | null
           nome?: string | null
           telefone?: string | null
           updated_at?: string
@@ -579,6 +582,7 @@ export type Database = {
         }[]
       }
       increment_api_usage: { Args: { _chave: string }; Returns: undefined }
+      touch_last_seen: { Args: never; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "operador" | "cliente"
