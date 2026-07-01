@@ -413,6 +413,18 @@ function Index() {
     };
   }, [temAcesso, fetchEntradas]);
 
+  function carregarSalvos() {
+    fetchSalvos()
+      .then((r) => setSalvos(r ?? []))
+      .catch(() => {});
+  }
+
+  useEffect(() => {
+    if (!temAcesso) return;
+    carregarSalvos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [temAcesso]);
+
   function podeUsarLiga(c: string) {
     return isStaff || ligaLiberada(planoCfg, c);
   }
