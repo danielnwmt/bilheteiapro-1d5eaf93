@@ -227,7 +227,9 @@ function mapBetValue(betName: string, value: string, jogoCasa: string, jogoFora:
   }
   // Goals Over/Under
   if (bn === "goals over/under" || bn === "over/under") {
-    return { mercado: "Total de Gols", selecao: value };
+    const num = value.replace(/[^0-9.]/g, "");
+    const lado = v.startsWith("over") ? "Mais de" : v.startsWith("under") ? "Menos de" : value;
+    return { mercado: "Total de Gols", selecao: num ? `${lado} ${num}` : lado };
   }
   // Both Teams to Score
   if (bn === "both teams to score" || bn === "btts") {
