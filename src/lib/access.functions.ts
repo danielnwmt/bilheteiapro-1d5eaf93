@@ -576,6 +576,30 @@ export const getMyAccess = createServerFn({ method: "GET" })
     };
   });
 
+// Heartbeat: marca o usuário como online. Chamado periodicamente pelo app.
+export const registrarPresenca = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { userId } = context;
+    try {
+      const { error } = await context.supabase.rpc("touch_last_seen");
+      if (error) {
+        // Fallback direto (self-host / RLS): grava via service-role.
+        const base = tryRestBase();
+        if (base) {
+          await restWrite(base, "profiles", {
+            method: "PATCH",
+            query: { id: `eq.${userId}` },
+            body: JSON.stringify({ last_seen: new Date().toISOString() }),
+          });
+        }
+      }
+    } catch (err) {
+      console.error("registrarPresenca: falhou", err);
+    }
+    return { ok: true };
+  });
+
 export const getMyProfile = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
