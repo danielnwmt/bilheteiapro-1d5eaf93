@@ -104,6 +104,8 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
             footballReservado = await reservarSync(supabaseAdmin, "football", now);
             if (footballReservado) {
               fixturesHoje = await syncFixtures("hoje");
+              // Também busca os jogos de amanhã para o filtro "amanhã".
+              fixturesHoje += await syncFixtures("amanha");
               if (hasLive) {
                 fixturesAoVivo = await syncFixtures("aovivo");
               }
