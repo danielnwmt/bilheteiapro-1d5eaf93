@@ -1587,7 +1587,7 @@ export const iniciarOperacao = createServerFn({ method: "POST" })
       }
       etapas.push({ etapa: "Jogos", ok: true, info: `${jogosHoje} jogos atualizados.` });
     } catch (e: any) {
-      etapas.push({ etapa: "Jogos", ok: false, info: e?.message ?? "Falha ao buscar jogos." });
+      etapas.push({ etapa: "Jogos", ok: false, info: limparErro(e, "Falha ao buscar jogos.") });
     }
 
     // 2) Odds (The Odds API por padrão)
@@ -1605,7 +1605,7 @@ export const iniciarOperacao = createServerFn({ method: "POST" })
             : `Nenhuma odd encontrada (${r.eventos} eventos casados, ${r.chamadas} chamadas). Verifique se há jogos do dia com odds na API.`,
       });
     } catch (e: any) {
-      etapas.push({ etapa: "Odds", ok: false, info: e?.message ?? "Falha ao buscar odds." });
+      etapas.push({ etapa: "Odds", ok: false, info: limparErro(e, "Falha ao buscar odds.") });
     }
 
     // 3) Pré-análise da IA (preenche analise_cache)
@@ -1620,7 +1620,7 @@ export const iniciarOperacao = createServerFn({ method: "POST" })
         info: `${r.analisados} novas análises, ${r.jaEmCache} já em cache (de ${r.jogos} jogos).`,
       });
     } catch (e: any) {
-      etapas.push({ etapa: "Análise IA", ok: false, info: e?.message ?? "Falha na análise da IA." });
+      etapas.push({ etapa: "Análise IA", ok: false, info: limparErro(e, "Falha na análise da IA.") });
     }
 
     const ok = etapas.every((e) => e.ok);
