@@ -359,6 +359,12 @@ function Index() {
     alto: "bg-destructive/20 text-destructive border-destructive/30",
   } as const;
 
+  const riscoAviso = {
+    baixo: "Risco baixo: seleções de alta confiança e odd combinada moderada. Boa chance de acerto.",
+    medio: "Risco médio: combinação equilibrada. Há chance de acerto, mas com incerteza natural das apostas.",
+    alto: "Risco alto: odd elevada e/ou seleções com mais incerteza. Quanto maior a odd, mais jogos precisam acertar juntos — aposte com cautela.",
+  } as const;
+
   
   const jogosFiltrados = (() => {
     const vistos = new Set<string>();
