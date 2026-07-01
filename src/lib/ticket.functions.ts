@@ -11,7 +11,7 @@ const InputSchema = z.object({
   campeonatos: z.array(z.string()).optional().default([]),
   mercados: z.array(z.string()).optional().default([]),
   casa: z.string().optional().default("Betano"),
-  minConfianca: z.number().min(0).max(100).optional().default(0),
+  minConfianca: z.number().min(0).max(100).optional().default(90),
 });
 
 const PickSchema = z.object({
