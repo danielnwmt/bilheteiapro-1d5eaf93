@@ -68,6 +68,7 @@ const PIE_COLORS = [
 const EMPTY_STATS = {
   totalClientes: 0,
   ativos: 0,
+  online: 0,
   cortesias: 0,
   inativos: 0,
   porPlano: { start: 0, pro: 0, elite: 0, cortesia: 0, sem: 0 },
