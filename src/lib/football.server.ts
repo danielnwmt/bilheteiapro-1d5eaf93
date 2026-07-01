@@ -593,7 +593,7 @@ function mapOddsApiOutcome(
     if (name === "draw") return { mercado: "Resultado Final", selecao: "Empate" };
   }
   if (k === "totals") {
-    const lado = name.startsWith("over") ? "Over" : name.startsWith("under") ? "Under" : o.name;
+    const lado = name.startsWith("over") ? "Mais de" : name.startsWith("under") ? "Menos de" : o.name;
     const pt = o.point != null ? ` ${o.point}` : "";
     return { mercado: "Total de Gols", selecao: `${lado}${pt}` };
   }
