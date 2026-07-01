@@ -1,7 +1,7 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { getClientStats } from "@/lib/access.functions";
+import { getClientStats, iniciarOperacao } from "@/lib/access.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -21,6 +21,9 @@ import {
   ShoppingCart,
   DollarSign,
   Wallet,
+  Play,
+
+
 
 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
@@ -93,6 +96,26 @@ function AdminDashboard() {
       toast.error(e?.message ?? "Erro ao atualizar o sistema", { duration: 12000 }),
   });
 
+  const iniciar = useServerFn(iniciarOperacao);
+  const mutOperacao = useMutation({
+    mutationFn: () => iniciar(),
+    onSuccess: (r: any) => {
+      const falhas = (r?.etapas ?? []).filter((e: any) => !e.ok);
+      if (falhas.length === 0) {
+        toast.success("Operação concluída! Jogos, odds e análises atualizados.", { duration: 6000 });
+      } else {
+        toast.warning(
+          "Operação concluída com avisos: " + falhas.map((e: any) => `${e.etapa}: ${e.info}`).join(" | "),
+          { duration: 12000 },
+        );
+      }
+    },
+    onError: (e: any) =>
+      toast.error(e?.message ?? "Erro ao iniciar a operação", { duration: 12000 }),
+  });
+
+
+
 
 
   const { data: stats, isLoading } = useQuery({
@@ -140,6 +163,17 @@ function AdminDashboard() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  disabled={mutOperacao.isPending}
+                  onClick={() => mutOperacao.mutate()}
+                >
+                  {mutOperacao.isPending ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Play className="mr-2 h-4 w-4" />
+                  )}
+                  Iniciar operação
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => router.navigate({ to: "/admin/apis" })}>
                   <KeyRound className="mr-2 h-4 w-4" /> APIs
                 </DropdownMenuItem>
