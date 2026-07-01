@@ -29,6 +29,12 @@ import { toast } from "sonner";
 import { usePlanos } from "@/hooks/usePlanos";
 import { AccentPicker } from "@/components/AccentPicker";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   LineChart,
   Line,
   XAxis,
