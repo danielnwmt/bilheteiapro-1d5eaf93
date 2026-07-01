@@ -122,7 +122,7 @@ function AdminDashboard() {
       }
     },
     onError: (e: any) =>
-      toast.error(e?.message ?? "Erro ao iniciar a operação", { duration: 12000 }),
+      toast.error(limparErroUI(e?.message, "Erro ao iniciar a operação"), { duration: 12000 }),
   });
 
   // Cronômetro do tempo de execução da operação
