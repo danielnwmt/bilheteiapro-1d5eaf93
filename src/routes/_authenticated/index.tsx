@@ -871,14 +871,15 @@ function Index() {
               <div className="flex items-center justify-center py-10 text-muted-foreground">
                 <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando...
               </div>
-            ) : entradas.length === 0 ? (
+            ) : entradasFiltradas.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">
                 As melhores entradas analisadas pela IA aparecem aqui. Aguarde a análise automática.
               </p>
             ) : (
               <div className="space-y-3">
-                {entradas.map((e, i) => (
+                {entradasFiltradas.map((e, i) => (
                   <div key={`${e.jogo}-${i}`} className="rounded-lg border border-border/70 bg-muted/20 p-3">
+
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold">{traduzPaises(e.jogo)}</p>
