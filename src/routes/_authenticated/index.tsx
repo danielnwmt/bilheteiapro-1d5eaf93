@@ -891,14 +891,15 @@ function Index() {
                     Odd total: <span className="text-primary">{ticket.oddTotal.toFixed(2)}</span>
                   </h2>
                 </div>
-                <Badge className={`${riscoColor[ticket.risco]} border px-3 py-1 text-xs uppercase`}>
-                  Risco {ticket.risco} · {riscoPct}%
+                <Badge className={`${chanceColor[chanceNivel]} border px-3 py-1 text-xs uppercase`}>
+                  Chance de acerto · {chancePct}%
                 </Badge>
               </div>
               <p className="mt-3 text-sm text-muted-foreground">{ticket.resumo}</p>
-              <div className={`mt-3 rounded-lg border p-3 text-sm ${riscoColor[ticket.risco]}`}>
-                {riscoAviso[ticket.risco]}
+              <div className={`mt-3 rounded-lg border p-3 text-sm ${chanceColor[chanceNivel]}`}>
+                {chanceAviso[chanceNivel]}
               </div>
+
             </div>
 
             <div className="grid gap-0 lg:grid-cols-[1fr_320px]">
