@@ -73,8 +73,10 @@ export const Route = createFileRoute("/api/public/hooks/sync-odds-diario")({
           let result = { ligas: 0, chamadas: 0, odds: 0 };
           if (footballSync.ok) {
             if (await reservarSync(supabaseAdmin, "football", now)) {
-              fixturesHoje = await syncFixtures("hoje");
-              result = await syncOddsByLeagueToday(casa);
+              // Garante as partidas da SEMANA inteira (hoje + próximos 7 dias)
+              // e coleta as odds de todos esses dias.
+              fixturesHoje = await syncFixtures("semana");
+              result = await syncOddsByLeagueDias(casa, 8);
             } else {
               skipped.API_FOOTBALL_KEY = "controle de intervalo indisponível";
             }
