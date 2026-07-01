@@ -466,3 +466,22 @@ CREATE POLICY "Service role full access" ON public.analise_cache FOR ALL TO serv
 CREATE INDEX IF NOT EXISTS idx_analise_cache_dia ON public.analise_cache (dia, casa);
 
 NOTIFY pgrst, 'reload schema';
+
+-- ============================================================
+--  Presença online (contador "Usuários online agora").
+--  Adiciona a coluna last_seen e a função touch_last_seen em
+--  instalações antigas que não tinham esse recurso.
+-- ============================================================
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_seen timestamptz;
+
+CREATE OR REPLACE FUNCTION public.touch_last_seen()
+RETURNS void
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+  UPDATE public.profiles SET last_seen = now() WHERE id = auth.uid();
+$$;
+GRANT EXECUTE ON FUNCTION public.touch_last_seen() TO authenticated;
+
+NOTIFY pgrst, 'reload schema';
