@@ -169,6 +169,11 @@ FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 -- Campo de esporte na banca em instalações antigas.
 ALTER TABLE public.banca_entradas ADD COLUMN IF NOT EXISTS esporte text NOT NULL DEFAULT 'futebol';
 
+-- Campo de árbitro nas partidas: necessário para salvar estatísticas do confronto.
+-- Sem ele, instalações locais antigas retornam:
+-- "Could not find the 'arbitro' column of 'partidas' in the schema cache".
+ALTER TABLE public.partidas ADD COLUMN IF NOT EXISTS arbitro text;
+
 -- GoTrue quebra em algumas instalações antigas quando colunas de token estão NULL.
 DO $$
 BEGIN
