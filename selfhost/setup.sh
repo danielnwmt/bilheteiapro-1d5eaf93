@@ -166,6 +166,7 @@ if ! env_has_value JWT_SECRET; then save_later_jwt="$(rand 32)"; echo "JWT_SECRE
 set -a; . "$ENV_FILE"; set +a
 if ! env_has_value POSTGRES_PASSWORD; then echo "POSTGRES_PASSWORD=$(rand 16)" >> "$ENV_FILE"; fi
 if ! env_has_value INGEST_SECRET; then echo "INGEST_SECRET=$(rand 24)" >> "$ENV_FILE"; fi
+if ! env_has_value CRON_SECRET; then echo "CRON_SECRET=$(rand 32)" >> "$ENV_FILE"; fi
 if ! env_has_value ADMIN_EMAIL; then echo "ADMIN_EMAIL=contato@protenexus.com" >> "$ENV_FILE"; fi
 if ! env_has_value ADMIN_PASSWORD; then echo "ADMIN_PASSWORD=admin.1234" >> "$ENV_FILE"; fi
 if ! env_has_value SUPABASE_PORT; then echo "SUPABASE_PORT=8000" >> "$ENV_FILE"; fi
