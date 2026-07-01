@@ -262,6 +262,26 @@ function AdminDashboard() {
               />
             </div>
 
+            <div className="mb-8">
+              <Card className="border-primary/40 bg-card p-5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span className="relative flex h-2.5 w-2.5">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
+                      <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-primary" />
+                    </span>
+                    Clientes online agora
+                  </div>
+                  <Wifi className="h-5 w-5 text-primary" />
+                </div>
+                <p className="mt-2 text-3xl font-bold">{stats?.online ?? 0}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Logados e ativos nos últimos 5 minutos.
+                </p>
+              </Card>
+            </div>
+
+
             <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
               <StatCard
                 icon={ShoppingCart}
