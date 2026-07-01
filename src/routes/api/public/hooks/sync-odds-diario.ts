@@ -1,17 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { syncFixtures, syncOddsFromOddsApi } from "@/lib/football.server";
+import { syncFixtures, syncOddsByLeagueToday } from "@/lib/football.server";
 
 
 // Robô diário (1x por dia):
-// API 1 (API-Football) atualiza as partidas/ligas do dia.
-// API 2 (The Odds API) coleta as odds + deep links das casas.
+// API-Football atualiza as partidas/ligas do dia E coleta as odds.
 const CASA_PADRAO = "betano";
-// Intervalo fixo de execução para todas as APIs: a cada 7 minutos.
+// Intervalo fixo de execução: a cada 7 minutos.
 const INTERVALO_FIXO_MIN = 7;
 
 async function getIntervaloMin(_chave: string): Promise<number> {
   return INTERVALO_FIXO_MIN;
 }
+
 
 async function podeSincronizar(supabaseAdmin: any, id: string, chave: string, now: number) {
   const { data: state, error } = await supabaseAdmin
