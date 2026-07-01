@@ -23,6 +23,8 @@ import {
   DollarSign,
   Wallet,
   Play,
+  Wifi,
+
 
 
 
