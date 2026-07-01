@@ -237,7 +237,9 @@ function traduzTermo(texto: string): string {
     .replace(/\bFirst Half\b/gi, "1º Tempo")
     .replace(/\bSecond Half\b/gi, "2º Tempo")
     .replace(/\bWinner\b/gi, "Vencedor")
-    .replace(/\bMatch Winner\b/gi, "Resultado Final");
+    .replace(/\bMatch Winner\b/gi, "Resultado Final")
+    // Remove número duplicado de handicap (ex.: "Casa +1.5 1.5 escanteios" -> "Casa +1.5 escanteios")
+    .replace(/([+-]\d+(?:\.\d+)?)\s+\d+(?:\.\d+)?/g, "$1");
 }
 
 function Index() {
