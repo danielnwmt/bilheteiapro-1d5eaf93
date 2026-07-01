@@ -88,6 +88,16 @@ function AdminDashboard() {
     router.navigate({ to: "/auth", replace: true });
   }
 
+  // Limpa mensagens de erro HTML (ex.: 504 Gateway Time-out do nginx)
+  const limparErroUI = (raw: unknown, fallback: string): string => {
+    const msg = typeof raw === "string" ? raw : (raw as any)?.message ?? "";
+    if (!msg) return fallback;
+    if (/504|gateway time-?out/i.test(msg))
+      return "A operação demorou demais e expirou (504). Os dados são processados em segundo plano — aguarde alguns minutos e verifique novamente.";
+    if (/<\/?[a-z][\s\S]*>/i.test(msg)) return fallback;
+    return msg;
+  };
+
   const atualizar = useServerFn(deploySystem);
   const mutDeploy = useMutation({
     mutationFn: () => atualizar(),
