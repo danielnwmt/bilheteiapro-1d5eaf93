@@ -514,16 +514,34 @@ function Index() {
 
 
   const jogosFiltrados = (() => {
+    // Normaliza o nome do time para comparar jogos iguais vindos de fontes
+    // diferentes (ex.: "DR Congo" x "Congo DR"): traduz, remove acentos,
+    // pontuação e ordena as palavras.
+    const normNome = (s: string) =>
+      traduzPaises(s || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9 ]/g, " ")
+        .split(/\s+/)
+        .filter(Boolean)
+        .sort()
+        .join("");
+
     const vistos = new Set<string>();
     return jogos.filter((j) => {
       if (campSel.length > 0 && !(j.liga ? campSel.includes(j.liga) : false)) return false;
-      // Evita jogos duplicados (API-Football e Odds API criam 2 linhas do mesmo jogo).
-      const chave = `${(j.time_casa || "").trim().toLowerCase()}|${(j.time_fora || "").trim().toLowerCase()}|${new Date(j.inicio).getTime()}`;
+      // Evita jogos duplicados (fontes diferentes criam 2 linhas do mesmo jogo).
+      // Agrupa o horário por hora para tolerar pequenas diferenças entre fontes.
+      const hora = Math.round(new Date(j.inicio).getTime() / (60 * 60 * 1000));
+      const dupla = [normNome(j.time_casa), normNome(j.time_fora)].sort().join("|");
+      const chave = `${dupla}|${hora}`;
       if (vistos.has(chave)) return false;
       vistos.add(chave);
       return true;
     });
   })();
+
   const premioPotencial = ticket ? (parseFloat(valorAposta) || 0) * ticket.oddTotal : 0;
 
 
