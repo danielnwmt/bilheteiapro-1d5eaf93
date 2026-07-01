@@ -306,7 +306,7 @@ const WANTED_BETS_KEYWORDS = [
 ];
 
 function betQuerido(name: string): boolean {
-  const n = name.toLowerCase();
+  const n = String(name ?? "").toLowerCase();
   return WANTED_BETS_KEYWORDS.some((k) => n.includes(k));
 }
 
