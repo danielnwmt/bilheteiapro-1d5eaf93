@@ -147,6 +147,7 @@ function AdminDashboard() {
             <h1 className="text-2xl font-bold">Painel do administrador</h1>
           </div>
           <div className="flex flex-wrap gap-2">
+            <AccentPicker compact />
             <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/admin/usuarios" })}>
               <Users className="mr-2 h-4 w-4" /> Clientes
             </Button>
