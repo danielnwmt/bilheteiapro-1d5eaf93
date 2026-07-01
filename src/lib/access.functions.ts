@@ -1568,6 +1568,10 @@ function limparErro(raw: unknown, fallback: string): string {
   let msg = raw instanceof Error ? raw.message : String(raw ?? "");
   msg = msg.trim();
   if (!msg) return fallback;
+  // Limite de requisições (429): a chave funciona, mas atingiu o limite do plano.
+  if (/429|too many requests|rate limit|quota|resource has been exhausted/i.test(msg)) {
+    return "A IA atingiu o limite de requisições no momento (chave válida). Aguarde alguns minutos e tente novamente.";
+  }
   // Respostas de gateway/proxy costumam vir como página HTML.
   if (/<html|<!doctype|<head|<body/i.test(msg) || /gateway time-?out/i.test(msg)) {
     if (/504|gateway time-?out/i.test(msg)) {
