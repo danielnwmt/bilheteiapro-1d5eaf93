@@ -45,6 +45,8 @@ export const Route = createFileRoute("/api/public/hooks/sync-odds-diario")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const unauthorized = verificarCronSecret(request);
+        if (unauthorized) return unauthorized;
         try {
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
           const url = new URL(request.url);
