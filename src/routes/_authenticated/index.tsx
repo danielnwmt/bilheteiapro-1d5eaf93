@@ -118,9 +118,91 @@ const MERCADOS = [
 const ADMIN_EMAIL = "contato@protenexus.com";
 
 // Traduz termos em inglês que vêm da API (Over/Under, etc.) para português.
+const PAISES: Record<string, string> = {
+  "England": "Inglaterra",
+  "Spain": "Espanha",
+  "Germany": "Alemanha",
+  "Italy": "Itália",
+  "France": "França",
+  "Netherlands": "Holanda",
+  "Belgium": "Bélgica",
+  "Portugal": "Portugal",
+  "Croatia": "Croácia",
+  "Switzerland": "Suíça",
+  "Poland": "Polônia",
+  "Denmark": "Dinamarca",
+  "Sweden": "Suécia",
+  "Norway": "Noruega",
+  "Austria": "Áustria",
+  "Scotland": "Escócia",
+  "Wales": "País de Gales",
+  "Ireland": "Irlanda",
+  "Serbia": "Sérvia",
+  "Turkey": "Turquia",
+  "Greece": "Grécia",
+  "Ukraine": "Ucrânia",
+  "Czech Republic": "República Tcheca",
+  "Czechia": "Tchéquia",
+  "Russia": "Rússia",
+  "Hungary": "Hungria",
+  "Romania": "Romênia",
+  "Finland": "Finlândia",
+  "Iceland": "Islândia",
+  "Slovakia": "Eslováquia",
+  "Slovenia": "Eslovênia",
+  "Argentina": "Argentina",
+  "Brazil": "Brasil",
+  "Uruguay": "Uruguai",
+  "Colombia": "Colômbia",
+  "Chile": "Chile",
+  "Peru": "Peru",
+  "Paraguay": "Paraguai",
+  "Ecuador": "Equador",
+  "Bolivia": "Bolívia",
+  "Venezuela": "Venezuela",
+  "Mexico": "México",
+  "United States": "Estados Unidos",
+  "USA": "EUA",
+  "Canada": "Canadá",
+  "Costa Rica": "Costa Rica",
+  "Panama": "Panamá",
+  "Honduras": "Honduras",
+  "Japan": "Japão",
+  "South Korea": "Coreia do Sul",
+  "Korea Republic": "Coreia do Sul",
+  "Australia": "Austrália",
+  "Saudi Arabia": "Arábia Saudita",
+  "Qatar": "Catar",
+  "Iran": "Irã",
+  "Iraq": "Iraque",
+  "China": "China",
+  "Morocco": "Marrocos",
+  "Egypt": "Egito",
+  "Nigeria": "Nigéria",
+  "Senegal": "Senegal",
+  "Cameroon": "Camarões",
+  "Ghana": "Gana",
+  "Ivory Coast": "Costa do Marfim",
+  "Algeria": "Argélia",
+  "Tunisia": "Tunísia",
+  "South Africa": "África do Sul",
+  "DR Congo": "RD Congo",
+  "Bosnia & Herzegovina": "Bósnia e Herzegovina",
+  "Bosnia and Herzegovina": "Bósnia e Herzegovina",
+  "New Zealand": "Nova Zelândia",
+};
+
+function traduzPaises(texto: string): string {
+  let out = texto;
+  for (const [en, pt] of Object.entries(PAISES)) {
+    out = out.replace(new RegExp(`\\b${en.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "g"), pt);
+  }
+  return out;
+}
+
 function traduzTermo(texto: string): string {
   if (!texto) return texto;
-  return texto
+  return traduzPaises(texto)
     .replace(/\bOver\b/gi, "Mais de")
     .replace(/\bUnder\b/gi, "Menos de")
     .replace(/\bGoals?\b/gi, "Gols")
