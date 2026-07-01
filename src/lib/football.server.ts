@@ -245,10 +245,47 @@ function mapBetValue(betName: string, value: string, jogoCasa: string, jogoFora:
     };
     return { mercado: "Dupla Chance", selecao: map[v] ?? value };
   }
+  // Draw No Bet / Empate Anula
+  if (bn === "draw no bet" || bn === "dnb") {
+    if (v === "home") return { mercado: "Empate Anula (DNB)", selecao: `Vitória ${jogoCasa}` };
+    if (v === "away") return { mercado: "Empate Anula (DNB)", selecao: `Vitória ${jogoFora}` };
+  }
+  // Escanteios (Corners Over/Under, Total Corners)
+  if (bn.includes("corner")) {
+    const num = value.replace(/[^0-9.]/g, "");
+    const lado = v.startsWith("over") ? "Mais de" : v.startsWith("under") ? "Menos de" : value;
+    return { mercado: "Escanteios", selecao: num ? `${lado} ${num} escanteios` : lado };
+  }
+  // Cartões (Cards Over/Under, Total Cards)
+  if (bn.includes("card")) {
+    const num = value.replace(/[^0-9.]/g, "");
+    const lado = v.startsWith("over") ? "Mais de" : v.startsWith("under") ? "Menos de" : value;
+    return { mercado: "Cartões", selecao: num ? `${lado} ${num} cartões` : lado };
+  }
+  // Handicap Asiático
+  if (bn.includes("asian handicap") || bn === "handicap") {
+    return { mercado: "Handicap Asiático", selecao: value };
+  }
+  // Placar Exato (Exact/Correct Score)
+  if (bn === "exact score" || bn === "correct score") {
+    return { mercado: "Placar Exato", selecao: value };
+  }
+  // Gols no 1º Tempo (Goals Over/Under First Half)
+  if (bn.includes("first half") && (bn.includes("over") || bn.includes("goals"))) {
+    const num = value.replace(/[^0-9.]/g, "");
+    const lado = v.startsWith("over") ? "Mais de" : v.startsWith("under") ? "Menos de" : value;
+    return { mercado: "Gols no 1º Tempo", selecao: num ? `${lado} ${num} (1ºT)` : lado };
+  }
+  // Time Marca Gol (To Score / Team To Score)
+  if (bn.includes("to score")) {
+    if (bn.includes("home") || v === "home") return { mercado: "Time Marca Gol", selecao: `${jogoCasa} marca` };
+    if (bn.includes("away") || v === "away") return { mercado: "Time Marca Gol", selecao: `${jogoFora} marca` };
+    return { mercado: "Time Marca Gol", selecao: v === "yes" ? "Sim" : v === "no" ? "Não" : value };
+  }
   return null;
 }
 
-const WANTED_BETS = new Set([
+const WANTED_BETS_KEYWORDS = [
   "match winner",
   "1x2",
   "fulltime result",
@@ -257,7 +294,20 @@ const WANTED_BETS = new Set([
   "both teams to score",
   "btts",
   "double chance",
-]);
+  "draw no bet",
+  "corner",
+  "card",
+  "asian handicap",
+  "exact score",
+  "correct score",
+  "first half",
+  "to score",
+];
+
+function betQuerido(name: string): boolean {
+  const n = name.toLowerCase();
+  return WANTED_BETS_KEYWORDS.some((k) => n.includes(k));
+}
 
 /**
  * Busca odds reais na API-Football para as partidas indicadas e grava em "odds".
