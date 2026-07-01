@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { syncFixtures, syncOdds, syncOddsFromOddsApi } from "@/lib/football.server";
-import { getApiFlow } from "@/lib/system-config.server";
+import { syncFixtures, syncOdds } from "@/lib/football.server";
+
 
 // Janela (min) para considerar um jogo "acontecendo agora" mesmo sem status ao_vivo.
 const LIVE_WINDOW_MIN = 150; // ~2h30 de duração de jogo
