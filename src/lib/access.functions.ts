@@ -1612,23 +1612,24 @@ export const iniciarOperacao = createServerFn({ method: "POST" })
       etapas.push({ etapa: "Jogos", ok: false, info: limparErro(e, "Falha ao buscar jogos.") });
     }
 
-    // 2) Odds (The Odds API por padrão)
+    // 2) Odds (API-Football)
     let oddsCount = 0;
     try {
-      const { syncOddsFromOddsApi } = await import("./football.server");
-      const r = await syncOddsFromOddsApi("betano");
+      const { syncOddsByLeagueToday } = await import("./football.server");
+      const r = await syncOddsByLeagueToday("betano");
       oddsCount = r.odds;
       etapas.push({
         etapa: "Odds",
         ok: oddsCount > 0,
         info:
           oddsCount > 0
-            ? `${oddsCount} odds salvas (${r.eventos} eventos / ${r.ligas} ligas).`
-            : `Nenhuma odd encontrada (${r.eventos} eventos casados, ${r.chamadas} chamadas). Verifique se há jogos do dia com odds na API.`,
+            ? `${oddsCount} odds salvas (${r.ligas} ligas / ${r.chamadas} chamadas).`
+            : `Nenhuma odd encontrada (${r.ligas} ligas, ${r.chamadas} chamadas). Verifique se há jogos do dia com odds na API.`,
       });
     } catch (e: any) {
       etapas.push({ etapa: "Odds", ok: false, info: limparErro(e, "Falha ao buscar odds.") });
     }
+
 
     // 3) Pré-análise da IA (preenche analise_cache)
     let analisados = 0;
