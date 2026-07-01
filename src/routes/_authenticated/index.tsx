@@ -601,7 +601,8 @@ function Index() {
           </form>
         </Card>
 
-        <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_360px]">
+        <div className="mt-8 flex flex-col gap-8">
+        <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
           <Card className="border-border/60 bg-card p-6 md:p-8">
             <div className="mb-4 flex items-center justify-between gap-3">
               <h2 className="flex items-center gap-2 text-lg font-bold">
