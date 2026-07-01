@@ -1612,13 +1612,13 @@ export const iniciarOperacao = createServerFn({ method: "POST" })
     let jogosHoje = 0;
     try {
       const { syncFixtures } = await import("./football.server");
-      jogosHoje = await syncFixtures("hoje");
+      jogosHoje = await syncFixtures("semana");
       try {
         jogosHoje += await syncFixtures("aovivo");
       } catch {
         /* ao vivo é opcional */
       }
-      etapas.push({ etapa: "Jogos", ok: true, info: `${jogosHoje} jogos atualizados.` });
+      etapas.push({ etapa: "Jogos", ok: true, info: `${jogosHoje} jogos atualizados (semana).` });
     } catch (e: any) {
       etapas.push({ etapa: "Jogos", ok: false, info: limparErro(e, "Falha ao buscar jogos.") });
     }
