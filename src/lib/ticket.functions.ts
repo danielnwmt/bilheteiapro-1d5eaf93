@@ -368,7 +368,6 @@ export const gerarBilhete = createServerFn({ method: "POST" })
     // produto atual da odd alvo. Assim odds alvo diferentes geram bilhetes
     // diferentes (antes alvos próximos, ex.: 4 e 5, caíam no mesmo bilhete). ----
     const target = data.oddAlvo;
-    const low = target * 0.85;
 
     const candidatos: Cand[] = [];
     for (const lista of porJogo.values()) for (const p of lista) candidatos.push(p);
