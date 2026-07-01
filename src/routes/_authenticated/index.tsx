@@ -200,6 +200,22 @@ function traduzPaises(texto: string): string {
   return out;
 }
 
+// Normaliza nomes de time/jogo para comparar partidas iguais vindas de fontes
+// diferentes (ex.: "DR Congo" x "Congo DR"): traduz, remove acentos, pontuação
+// e ordena as palavras para não depender da ordem.
+function normNome(s: string): string {
+  return traduzPaises(s || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9 ]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .sort()
+    .join("");
+}
+
+
 function traduzTermo(texto: string): string {
   if (!texto) return texto;
   return traduzPaises(texto)
@@ -517,14 +533,32 @@ function Index() {
     const vistos = new Set<string>();
     return jogos.filter((j) => {
       if (campSel.length > 0 && !(j.liga ? campSel.includes(j.liga) : false)) return false;
-      // Evita jogos duplicados (API-Football e Odds API criam 2 linhas do mesmo jogo).
-      const chave = `${(j.time_casa || "").trim().toLowerCase()}|${(j.time_fora || "").trim().toLowerCase()}|${new Date(j.inicio).getTime()}`;
+      // Evita jogos duplicados (fontes diferentes criam 2 linhas do mesmo jogo).
+      // Agrupa o horário por hora para tolerar pequenas diferenças entre fontes.
+      const hora = Math.round(new Date(j.inicio).getTime() / (60 * 60 * 1000));
+      const dupla = [normNome(j.time_casa), normNome(j.time_fora)].sort().join("|");
+      const chave = `${dupla}|${hora}`;
       if (vistos.has(chave)) return false;
       vistos.add(chave);
       return true;
     });
   })();
+
+  // Remove entradas duplicadas do mesmo jogo/mercado/seleção (mesma partida
+  // vinda de fontes diferentes gera linhas repetidas). Mantém a de maior odd.
+  const entradasFiltradas = (() => {
+    const melhor = new Map<string, MelhorEntrada>();
+    for (const e of entradas) {
+      const hora = Math.round(new Date(e.inicio).getTime() / (60 * 60 * 1000));
+      const chave = `${normNome(e.jogo)}|${hora}|${normNome(e.mercado)}|${normNome(e.selecao)}`;
+      const atual = melhor.get(chave);
+      if (!atual || e.odd > atual.odd) melhor.set(chave, e);
+    }
+    return Array.from(melhor.values());
+  })();
+
   const premioPotencial = ticket ? (parseFloat(valorAposta) || 0) * ticket.oddTotal : 0;
+
 
 
   function toggleCamp(c: string) {
@@ -795,8 +829,9 @@ function Index() {
               <h2 className="flex items-center gap-2 text-lg font-bold">
                 <Flame className="h-5 w-5 text-primary" /> Melhores entradas
               </h2>
-              {!loadingEntradas && entradas.length > 0 && (
-                <Badge variant="secondary">{entradas.length}</Badge>
+              {!loadingEntradas && entradasFiltradas.length > 0 && (
+                <Badge variant="secondary">{entradasFiltradas.length}</Badge>
+
               )}
             </div>
 
@@ -836,14 +871,15 @@ function Index() {
               <div className="flex items-center justify-center py-10 text-muted-foreground">
                 <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando...
               </div>
-            ) : entradas.length === 0 ? (
+            ) : entradasFiltradas.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">
                 As melhores entradas analisadas pela IA aparecem aqui. Aguarde a análise automática.
               </p>
             ) : (
               <div className="space-y-3">
-                {entradas.map((e, i) => (
+                {entradasFiltradas.map((e, i) => (
                   <div key={`${e.jogo}-${i}`} className="rounded-lg border border-border/70 bg-muted/20 p-3">
+
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold">{traduzPaises(e.jogo)}</p>
