@@ -1532,7 +1532,7 @@ export const chamarApiManual = createServerFn({ method: "POST" })
       }
       return { ok: false, error: "Chamada manual não disponível para esta chave." };
     } catch (e: any) {
-      return { ok: false, error: e?.message ?? "Falha ao chamar a API." };
+      return { ok: false, error: limparErro(e, "Falha ao chamar a API.") };
     }
   });
 
