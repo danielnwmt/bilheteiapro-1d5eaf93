@@ -233,6 +233,7 @@ CREATE TABLE public.profiles (
   cpf text,
   data_nascimento date,
   telefone text,
+  last_seen timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
