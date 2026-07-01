@@ -163,6 +163,17 @@ function AdminDashboard() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  disabled={mutOperacao.isPending}
+                  onClick={() => mutOperacao.mutate()}
+                >
+                  {mutOperacao.isPending ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Play className="mr-2 h-4 w-4" />
+                  )}
+                  Iniciar operação
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => router.navigate({ to: "/admin/apis" })}>
                   <KeyRound className="mr-2 h-4 w-4" /> APIs
                 </DropdownMenuItem>
