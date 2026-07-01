@@ -595,10 +595,12 @@ export async function syncOddsByLeagueToday(
       let resp: ApiOddResponse[];
       let raw: { paging?: { current: number; total: number } } = {};
       try {
-        const q = bookmakerId ? `&bookmaker=${bookmakerId}` : "";
+        // NÃO filtramos por casa (bookmaker) na chamada: se a casa escolhida
+        // não tiver odds para o jogo (comum na Copa do Mundo), a API voltaria
+        // vazia. Buscamos TODAS as casas e escolhemos a melhor disponível.
         await registrarChamada("API_FOOTBALL_KEY");
         const res = await fetch(
-          `${API_BASE}/odds?date=${date}&league=${leagueId}&season=${season}${q}&page=${page}&timezone=America/Sao_Paulo`,
+          `${API_BASE}/odds?date=${date}&league=${leagueId}&season=${season}&page=${page}&timezone=America/Sao_Paulo`,
           { headers: { "x-apisports-key": key } },
         );
         chamadas++;
