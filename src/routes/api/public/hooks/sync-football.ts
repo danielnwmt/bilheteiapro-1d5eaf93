@@ -62,7 +62,10 @@ async function reservarSync(supabaseAdmin: any, id: string, now: number): Promis
 export const Route = createFileRoute("/api/public/hooks/sync-football")({
   server: {
     handlers: {
-      POST: async () => {
+      POST: async ({ request }) => {
+        const unauthorized = verificarCronSecret(request);
+        if (unauthorized) return unauthorized;
+
         const { supabaseAdmin } = await import(
           "@/integrations/supabase/client.server"
         );
