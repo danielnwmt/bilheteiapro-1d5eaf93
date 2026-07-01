@@ -6,6 +6,7 @@ import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { getAiModel } from "./ai-gateway.server";
 import { obterAnalisePartida, diaSaoPaulo, type PartidaRow } from "./analise.server";
+import { syncEstatisticas, type EstatisticasResumo } from "./football.server";
 
 // Casas exibidas no app. A análise é feita por casa porque os picks usam as
 // odds reais daquela casa.
