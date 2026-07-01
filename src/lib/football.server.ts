@@ -347,6 +347,20 @@ export async function syncOdds(
 
 // ---------- Coleta de estatísticas reais (API-Football /predictions) ----------
 
+interface ApiCardBucket {
+  total?: number | null;
+  percentage?: string | null;
+}
+
+interface ApiPredLeague {
+  form?: string | null;
+  fixtures?: { played?: { total?: number | null } | null } | null;
+  cards?: {
+    yellow?: Record<string, ApiCardBucket> | null;
+    red?: Record<string, ApiCardBucket> | null;
+  } | null;
+}
+
 interface ApiPredTeam {
   last_5?: {
     form?: string | null;
@@ -355,6 +369,7 @@ interface ApiPredTeam {
       against?: { total?: number | null; average?: string | null } | null;
     } | null;
   } | null;
+  league?: ApiPredLeague | null;
 }
 
 interface ApiPredResponse {
@@ -380,6 +395,9 @@ export interface EstatisticasResumo {
   golsSofridosCasa: string | null;
   golsFeitosFora: string | null;
   golsSofridosFora: string | null;
+  cartoesCasa: string | null;
+  cartoesFora: string | null;
+  cartoesConfronto: string | null;
 }
 
 async function apiGetPredictions(fixtureId: string, key: string): Promise<ApiPredResponse[]> {
