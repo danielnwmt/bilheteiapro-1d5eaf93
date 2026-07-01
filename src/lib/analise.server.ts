@@ -143,12 +143,14 @@ Regras:
   const est = partida.estatisticas;
   const estTxt = est
     ? `Estatísticas reais (API-Football):
-- Forma recente (últimos 5): ${partida.time_casa} ${est.formaCasa ?? "?"} / ${partida.time_fora} ${est.formaFora ?? "?"}
+- Forma recente (últimos 10): ${partida.time_casa} ${est.formaCasa ?? "?"} / ${partida.time_fora} ${est.formaFora ?? "?"}
 - Gols feitos (média): ${partida.time_casa} ${est.golsFeitosCasa ?? "?"} / ${partida.time_fora} ${est.golsFeitosFora ?? "?"}
 - Gols sofridos (média): ${partida.time_casa} ${est.golsSofridosCasa ?? "?"} / ${partida.time_fora} ${est.golsSofridosFora ?? "?"}
 - Probabilidade (casa/empate/fora): ${est.percent.casa ?? "?"} / ${est.percent.empate ?? "?"} / ${est.percent.fora ?? "?"}
 - Gols previstos: ${partida.time_casa} ${est.golsPrev.casa ?? "?"} / ${partida.time_fora} ${est.golsPrev.fora ?? "?"}
-- Tendência de gols: ${est.underOver ?? "?"}`
+- Tendência de gols: ${est.underOver ?? "?"}
+- Média de cartões por time: ${partida.time_casa} ${est.cartoesCasa ?? "?"} / ${partida.time_fora} ${est.cartoesFora ?? "?"}
+- Média de cartões no confronto: ${est.cartoesConfronto ?? "?"}`
     : "Estatísticas reais: não disponíveis para este jogo.";
 
   const prompt = `Jogo: ${jogo}${partida.liga ? ` | ${partida.liga}` : ""}
