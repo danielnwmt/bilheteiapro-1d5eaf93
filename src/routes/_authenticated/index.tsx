@@ -170,23 +170,36 @@ function Index() {
   } | null>(null);
   const [estatJogo, setEstatJogo] = useState<JogoDia | null>(null);
   const [estatPayload, setEstatPayload] = useState<EstatPayload | null>(null);
+  const [estatEscanteios, setEstatEscanteios] = useState<string | null>(null);
   const [loadingEstat, setLoadingEstat] = useState(false);
 
   async function abrirEstatisticas(j: JogoDia) {
     setEstatJogo(j);
     setEstatPayload(null);
+    setEstatEscanteios(null);
     setLoadingEstat(true);
     try {
-      const { data } = await supabase
-        .from("estatisticas")
-        .select("payload")
-        .eq("partida_id", j.id)
-        .eq("tipo", "predicoes")
-        .maybeSingle();
+      const [{ data }, { data: cache }] = await Promise.all([
+        supabase
+          .from("estatisticas")
+          .select("payload")
+          .eq("partida_id", j.id)
+          .eq("tipo", "predicoes")
+          .maybeSingle(),
+        supabase
+          .from("analise_cache")
+          .select("payload")
+          .eq("partida_id", j.id)
+          .limit(1)
+          .maybeSingle(),
+      ]);
       setEstatPayload((data?.payload ?? null) as EstatPayload | null);
+      const esc = (cache?.payload as { analise?: { escanteios?: string } } | null)?.analise?.escanteios;
+      setEstatEscanteios(esc ?? null);
     } catch (err) {
       console.error(err);
       setEstatPayload(null);
+      setEstatEscanteios(null);
     } finally {
       setLoadingEstat(false);
     }
