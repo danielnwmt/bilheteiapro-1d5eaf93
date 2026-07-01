@@ -65,6 +65,22 @@ type JogoDia = {
   time_fora: string;
   inicio: string;
   status: string;
+  arbitro?: string | null;
+};
+
+type EstatPayload = {
+  formaCasa: string | null;
+  formaFora: string | null;
+  golsFeitosCasa: string | null;
+  golsSofridosCasa: string | null;
+  golsFeitosFora: string | null;
+  golsSofridosFora: string | null;
+  percent: { casa: string | null; empate: string | null; fora: string | null };
+  golsPrev: { casa: string | null; fora: string | null };
+  underOver: string | null;
+  cartoesCasa: string | null;
+  cartoesFora: string | null;
+  cartoesConfronto: string | null;
 };
 
 const CAMPEONATOS = [
