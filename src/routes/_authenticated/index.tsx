@@ -747,7 +747,7 @@ function Index() {
 
 
         {ticket && (
-          <Card className="mt-8 overflow-hidden border-primary/30 bg-card">
+          <Card className="order-first overflow-hidden border-primary/30 bg-card">
             <div className="border-b border-border/60 bg-primary/5 p-6">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
