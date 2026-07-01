@@ -530,20 +530,6 @@ function Index() {
 
 
   const jogosFiltrados = (() => {
-    // Normaliza o nome do time para comparar jogos iguais vindos de fontes
-    // diferentes (ex.: "DR Congo" x "Congo DR"): traduz, remove acentos,
-    // pontuação e ordena as palavras.
-    const normNome = (s: string) =>
-      traduzPaises(s || "")
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^a-z0-9 ]/g, " ")
-        .split(/\s+/)
-        .filter(Boolean)
-        .sort()
-        .join("");
-
     const vistos = new Set<string>();
     return jogos.filter((j) => {
       if (campSel.length > 0 && !(j.liga ? campSel.includes(j.liga) : false)) return false;
@@ -558,7 +544,21 @@ function Index() {
     });
   })();
 
+  // Remove entradas duplicadas do mesmo jogo/mercado/seleção (mesma partida
+  // vinda de fontes diferentes gera linhas repetidas). Mantém a de maior odd.
+  const entradasFiltradas = (() => {
+    const melhor = new Map<string, MelhorEntrada>();
+    for (const e of entradas) {
+      const hora = Math.round(new Date(e.inicio).getTime() / (60 * 60 * 1000));
+      const chave = `${normNome(e.jogo)}|${hora}|${normNome(e.mercado)}|${normNome(e.selecao)}`;
+      const atual = melhor.get(chave);
+      if (!atual || e.odd > atual.odd) melhor.set(chave, e);
+    }
+    return Array.from(melhor.values());
+  })();
+
   const premioPotencial = ticket ? (parseFloat(valorAposta) || 0) * ticket.oddTotal : 0;
+
 
 
   function toggleCamp(c: string) {
