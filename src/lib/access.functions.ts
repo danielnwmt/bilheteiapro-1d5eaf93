@@ -1361,10 +1361,11 @@ export const getClientStats = createServerFn({ method: "GET" })
       }
     }
 
-    // Online = clientes com atividade (last_seen) nos últimos 5 minutos.
+    // Online = qualquer usuário (cliente ou staff) com atividade (last_seen)
+    // nos últimos 5 minutos. Inclui o admin que está visualizando o painel.
     const limiteOnline = now.getTime() - 5 * 60 * 1000;
-    const online = clientes.filter((c) => {
-      const ls = c.last_seen ? new Date(c.last_seen).getTime() : 0;
+    const online = profiles.filter((p) => {
+      const ls = p.last_seen ? new Date(p.last_seen).getTime() : 0;
       return ls >= limiteOnline;
     }).length;
 
