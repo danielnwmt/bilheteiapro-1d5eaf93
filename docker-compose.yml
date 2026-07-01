@@ -41,5 +41,32 @@ services:
       # watcher (update-watcher.sh) no host roda o deploy.sh.
       - ./deploy-trigger:/opt/app/deploy-trigger
 
+  # ---------- Agendador (cron) — busca jogos/odds e roda a IA sozinho ----------
+  # Sem este serviço a instalação local NUNCA busca odds nem roda a análise da
+  # IA, então o cliente vê "Nenhuma entrada encontrada". Ele acorda a cada 60s
+  # e cada endpoint respeita seu próprio intervalo interno (7 min).
+  cron:
+    image: curlimages/curl:8.10.1
+    container_name: bia-cron
+    restart: always
+    depends_on:
+      - app
+    environment:
+      APP_PORT: ${APP_PORT:-3000}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        echo "[cron] iniciado — verifica a cada 60s (busca jogos, odds e roda a IA)";
+        while true; do
+          # 1) Jogos + odds (respeita o intervalo interno da chave).
+          curl -s -X POST "http://app:${APP_PORT:-3000}/api/public/hooks/sync-football" >/dev/null 2>&1 || true;
+          # 2) Odds diárias (The Odds API) como reforço.
+          curl -s -X POST "http://app:${APP_PORT:-3000}/api/public/hooks/sync-odds-diario" >/dev/null 2>&1 || true;
+          # 3) IA analisa os jogos com odds e preenche o analise_cache.
+          curl -s -X POST "http://app:${APP_PORT:-3000}/api/public/hooks/analisar-jogos" >/dev/null 2>&1 || true;
+          sleep 60;
+        done
+
 volumes:
   bia-db-data:
