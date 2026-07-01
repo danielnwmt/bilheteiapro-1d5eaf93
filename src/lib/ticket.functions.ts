@@ -555,3 +555,41 @@ export const gerarBilhete = createServerFn({ method: "POST" })
 
     return parsed.data;
   });
+
+// ---- Lista os bilhetes salvos do usuário logado ----
+export const listarBilhetes = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: bilhetes, error } = await supabaseAdmin
+      .from("bilhetes")
+      .select("id, resumo, odd_total, risco, confianca, observacoes, periodo, created_at")
+      .eq("user_id", context.userId)
+      .order("created_at", { ascending: false })
+      .limit(30);
+    if (error) throw error;
+
+    const ids = (bilhetes ?? []).map((b) => b.id);
+    let palpitesByBilhete: Record<string, any[]> = {};
+    if (ids.length) {
+      const { data: palpites } = await supabaseAdmin
+        .from("palpites")
+        .select("bilhete_id, mercado, selecao, odd, confianca")
+        .in("bilhete_id", ids);
+      for (const p of palpites ?? []) {
+        (palpitesByBilhete[p.bilhete_id] ??= []).push(p);
+      }
+    }
+
+    return (bilhetes ?? []).map((b) => ({
+      id: b.id,
+      resumo: b.resumo,
+      oddTotal: Number(b.odd_total),
+      risco: b.risco,
+      confianca: Number(b.confianca),
+      periodo: b.periodo,
+      createdAt: b.created_at,
+      picks: palpitesByBilhete[b.id] ?? [],
+    }));
+  });
+
