@@ -254,6 +254,71 @@ Responda SOMENTE com JSON válido neste formato:
   return { picks, analise };
 }
 
+// Monta as estatísticas do jogo (escanteios, gols, chutes, cartões) a partir
+// dos números REAIS da API-Football (tabela estatisticas). É usado quando a IA
+// não está disponível (limite atingido) e para preencher o que a IA deixar vazio.
+function analiseDeEstatisticas(partida: PartidaRow): AnaliseJogoStats {
+  const est = partida.estatisticas;
+  const casa = partida.time_casa;
+  const fora = partida.time_fora;
+  const pend = (o: string) => `Aguardando nova análise da IA para ${o}.`;
+
+  if (!est) {
+    return {
+      escanteios: pend("estatísticas de escanteios"),
+      gols: pend("estatísticas de gols"),
+      chutesAoGol: pend("chutes ao gol"),
+      cartoesTimes: pend("cartões dos times"),
+      cartoesArbitro: pend("cartões do árbitro"),
+    };
+  }
+
+  const gCasa = toNumber(est.golsFeitosCasa, NaN);
+  const gFora = toNumber(est.golsFeitosFora, NaN);
+  const sCasa = toNumber(est.golsSofridosCasa, NaN);
+  const sFora = toNumber(est.golsSofridosFora, NaN);
+
+  const golsPartes: string[] = [];
+  if (Number.isFinite(gCasa) || Number.isFinite(sCasa))
+    golsPartes.push(`${casa}: ${Number.isFinite(gCasa) ? gCasa.toFixed(1) : "?"} feitos / ${Number.isFinite(sCasa) ? sCasa.toFixed(1) : "?"} sofridos`);
+  if (Number.isFinite(gFora) || Number.isFinite(sFora))
+    golsPartes.push(`${fora}: ${Number.isFinite(gFora) ? gFora.toFixed(1) : "?"} feitos / ${Number.isFinite(sFora) ? sFora.toFixed(1) : "?"} sofridos`);
+  if (est.underOver) golsPartes.push(`tendência ${est.underOver}`);
+  const gols = golsPartes.length ? golsPartes.join(" · ") : "Sem dados de gols.";
+
+  // Chutes ao gol não vêm do endpoint de predições: estimamos a partir da
+  // média de gols feitos (aprox. 3 chutes no gol por gol marcado).
+  const chutesCasa = Number.isFinite(gCasa) ? (gCasa * 3).toFixed(1) : null;
+  const chutesFora = Number.isFinite(gFora) ? (gFora * 3).toFixed(1) : null;
+  const chutesAoGol =
+    chutesCasa || chutesFora
+      ? `${casa} ~${chutesCasa ?? "?"} / ${fora} ~${chutesFora ?? "?"} (estimativa)`
+      : "Sem dados de chutes ao gol.";
+
+  // Escanteios também não vêm nas predições: estimativa baseada no volume
+  // ofensivo total esperado (gols feitos + sofridos dos dois lados).
+  const totalGols = [gCasa, gFora, sCasa, sFora].filter((n) => Number.isFinite(n)) as number[];
+  const escanteios =
+    totalGols.length >= 2
+      ? (() => {
+          const media = totalGols.reduce((a, b) => a + b, 0) / totalGols.length;
+          const linha = Math.max(6, Math.round(media * 3 + 4));
+          return `estimativa ~${linha} no jogo, linha +${(linha - 0.5).toFixed(1)}`;
+        })()
+      : "Sem dados de escanteios.";
+
+  const cartoesTimes =
+    est.cartoesCasa || est.cartoesFora
+      ? `${casa} ${est.cartoesCasa ?? "?"} / ${fora} ${est.cartoesFora ?? "?"} cartões por jogo`
+      : "Sem dados de cartões dos times.";
+
+  const cartoesArbitro = est.cartoesConfronto
+    ? `média do confronto ${est.cartoesConfronto} cartões/jogo`
+    : "Sem dados do árbitro.";
+
+  return { escanteios, gols, chutesAoGol, cartoesTimes, cartoesArbitro };
+}
+
 function montarAnaliseSemIa(partida: PartidaRow, casa: string): AnalisePartida {
   const oddsCasa = partida.odds
     .filter((o) => normKey(o.casa) === normKey(casa) && o.valor >= 1.2 && o.valor <= 4.5)
@@ -269,13 +334,7 @@ function montarAnaliseSemIa(partida: PartidaRow, casa: string): AnalisePartida {
       justificativa: "Seleção baseada nas odds reais salvas; a IA atingiu o limite temporário de chamadas.",
       external_odd_id: o.external_odd_id,
     })),
-    analise: {
-      escanteios: "Aguardando nova análise da IA para estatísticas de escanteios.",
-      gols: "Aguardando nova análise da IA para estatísticas de gols.",
-      chutesAoGol: "Aguardando nova análise da IA para chutes ao gol.",
-      cartoesTimes: "Aguardando nova análise da IA para cartões dos times.",
-      cartoesArbitro: "Aguardando nova análise da IA para cartões do árbitro.",
-    },
+    analise: analiseDeEstatisticas(partida),
   };
 }
 
