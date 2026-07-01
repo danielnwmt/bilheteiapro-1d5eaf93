@@ -4,6 +4,7 @@
 // evitando chamadas repetidas à IA no mesmo dia.
 import { generateText } from "ai";
 import type { LanguageModel } from "ai";
+import type { EstatisticasResumo } from "./football.server";
 
 export type OddRow = {
   casa: string;
@@ -22,7 +23,9 @@ export type PartidaRow = {
   inicio: string;
   status: string;
   odds: OddRow[];
+  estatisticas?: EstatisticasResumo | null;
 };
+
 
 export type PickAnalise = {
   mercado: string;
