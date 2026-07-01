@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import logo from "@/assets/bilheteia-logo.png.asset.json";
 import { supabase } from "@/integrations/supabase/client";
+import { registrarPresenca } from "@/lib/access.functions";
 import { Toaster } from "@/components/ui/sonner";
 import { applyAccent, getAccent } from "@/lib/accent";
 import "@fontsource/space-grotesk/500.css";
@@ -140,6 +141,36 @@ function RootComponent() {
   useEffect(() => {
     applyAccent(getAccent());
   }, []);
+
+  // Heartbeat de presença: marca o usuário logado como online.
+  useEffect(() => {
+    let stopped = false;
+    let timer: ReturnType<typeof setInterval> | null = null;
+
+    const ping = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session || stopped) return;
+      try {
+        await registrarPresenca();
+      } catch {
+        /* silencioso */
+      }
+    };
+
+    ping();
+    timer = setInterval(ping, 60_000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") ping();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      stopped = true;
+      if (timer) clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, []);
+
 
 
 

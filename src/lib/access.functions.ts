@@ -576,6 +576,30 @@ export const getMyAccess = createServerFn({ method: "GET" })
     };
   });
 
+// Heartbeat: marca o usuário como online. Chamado periodicamente pelo app.
+export const registrarPresenca = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { userId } = context;
+    try {
+      const { error } = await context.supabase.rpc("touch_last_seen");
+      if (error) {
+        // Fallback direto (self-host / RLS): grava via service-role.
+        const base = tryRestBase();
+        if (base) {
+          await restWrite(base, "profiles", {
+            method: "PATCH",
+            query: { id: `eq.${userId}` },
+            body: JSON.stringify({ last_seen: new Date().toISOString() }),
+          });
+        }
+      }
+    } catch (err) {
+      console.error("registrarPresenca: falhou", err);
+    }
+    return { ok: true };
+  });
+
 export const getMyProfile = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -1138,13 +1162,13 @@ export const getClientStats = createServerFn({ method: "GET" })
       [pr, rr, sr, cr],
     ] = await Promise.all([
       Promise.all([
-        readViaAuth("profiles", "id, created_at"),
+        readViaAuth("profiles", "id, created_at, last_seen"),
         readViaAuth("user_roles", "user_id, role"),
         readViaAuth("subscriptions", "user_id, plano, status, periodo_fim, created_at"),
         readViaAuth("plano_config", "plano, preco"),
       ]),
       Promise.all([
-        restSelect<any>(base, "profiles", { select: "id, created_at" }, "profiles (stats)"),
+        restSelect<any>(base, "profiles", { select: "id, created_at, last_seen" }, "profiles (stats)"),
         restSelect<any>(base, "user_roles", { select: "user_id, role" }, "user_roles (stats)"),
         restSelect<any>(
           base,
@@ -1337,10 +1361,18 @@ export const getClientStats = createServerFn({ method: "GET" })
       }
     }
 
+    // Online = clientes com atividade (last_seen) nos últimos 5 minutos.
+    const limiteOnline = now.getTime() - 5 * 60 * 1000;
+    const online = clientes.filter((c) => {
+      const ls = c.last_seen ? new Date(c.last_seen).getTime() : 0;
+      return ls >= limiteOnline;
+    }).length;
+
     return {
       totalClientes: clientes.length,
       ativos,
       cortesias,
+      online,
       inativos: clientes.length - ativos,
       porPlano,
       cadastrosPorMes: meses,
