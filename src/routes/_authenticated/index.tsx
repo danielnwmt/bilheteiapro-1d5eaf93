@@ -168,6 +168,29 @@ function Index() {
     texto: string;
     etapas?: Array<{ etapa: string; ok: boolean; info: string }>;
   } | null>(null);
+  const [estatJogo, setEstatJogo] = useState<JogoDia | null>(null);
+  const [estatPayload, setEstatPayload] = useState<EstatPayload | null>(null);
+  const [loadingEstat, setLoadingEstat] = useState(false);
+
+  async function abrirEstatisticas(j: JogoDia) {
+    setEstatJogo(j);
+    setEstatPayload(null);
+    setLoadingEstat(true);
+    try {
+      const { data } = await supabase
+        .from("estatisticas")
+        .select("payload")
+        .eq("partida_id", j.id)
+        .eq("tipo", "predicoes")
+        .maybeSingle();
+      setEstatPayload((data?.payload ?? null) as EstatPayload | null);
+    } catch (err) {
+      console.error(err);
+      setEstatPayload(null);
+    } finally {
+      setLoadingEstat(false);
+    }
+  }
 
   const { byPlano } = usePlanos();
   const roles = access?.roles ?? [];
@@ -201,7 +224,7 @@ function Index() {
       try {
         let q = supabase
           .from("partidas")
-          .select("id, liga, time_casa, time_fora, inicio, status")
+          .select("id, liga, time_casa, time_fora, inicio, status, arbitro")
           .in("liga", CAMPEONATOS)
           .order("inicio", { ascending: true });
 
