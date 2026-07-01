@@ -75,6 +75,10 @@ if [ "${BILHETEIA_CLOUD:-0}" != "1" ] && [ -f "$APP_DIR/docker-compose.yml" ]; t
     [ -n "$ingest" ] || ingest="$(rand 24)"
     save_env_value INGEST_SECRET "$ingest"
 
+    cron_secret="$(env_value CRON_SECRET)"
+    [ -n "$cron_secret" ] || cron_secret="$(rand 32)"
+    save_env_value CRON_SECRET "$cron_secret"
+
     admin_email="$(env_value ADMIN_EMAIL)"
     [ -n "$admin_email" ] || admin_email="contato@protenexus.com"
     save_env_value ADMIN_EMAIL "$admin_email"
