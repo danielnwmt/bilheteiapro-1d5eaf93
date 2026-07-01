@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { hasApiFootballKey, MISSING_API_FOOTBALL_KEY, syncFixtures, syncOddsByLeagueToday } from "@/lib/football.server";
+import { verificarCronSecret } from "@/lib/cron-auth";
 
 
 // Robô diário (1x por dia):
