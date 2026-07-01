@@ -4,18 +4,13 @@ import { getConfigKey, getApiFlow } from "@/lib/system-config.server";
 
 // Janela (min) para considerar um jogo "acontecendo agora" mesmo sem status ao_vivo.
 const LIVE_WINDOW_MIN = 150; // ~2h30 de duração de jogo
-const IDLE_INTERVAL_MIN_DEFAULT = 60; // fallback: sem intervalo configurado
 const CASA_PADRAO = "betano";
 
-// Lê o intervalo configurado no painel para cada chave em minutos.
-async function getIntervaloMin(chave: string): Promise<number> {
-  const valorRaw = await getConfigKey(`${chave}_INTERVALO_VALOR`);
-  const unidade = (await getConfigKey(`${chave}_INTERVALO_UNIDADE`)) ?? "minutos";
-  const valor = Number(valorRaw);
-  if (!valor || valor <= 0) return IDLE_INTERVAL_MIN_DEFAULT;
-  if (unidade === "segundos") return valor / 60;
-  if (unidade === "horas") return valor * 60;
-  return valor; // minutos
+// Intervalo fixo de execução para todas as APIs: a cada 7 minutos.
+const INTERVALO_FIXO_MIN = 7;
+
+async function getIntervaloMin(_chave: string): Promise<number> {
+  return INTERVALO_FIXO_MIN;
 }
 
 async function podeSincronizar(
