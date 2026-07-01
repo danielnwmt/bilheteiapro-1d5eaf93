@@ -347,6 +347,20 @@ export async function syncOdds(
 
 // ---------- Coleta de estatísticas reais (API-Football /predictions) ----------
 
+interface ApiCardBucket {
+  total?: number | null;
+  percentage?: string | null;
+}
+
+interface ApiPredLeague {
+  form?: string | null;
+  fixtures?: { played?: { total?: number | null } | null } | null;
+  cards?: {
+    yellow?: Record<string, ApiCardBucket> | null;
+    red?: Record<string, ApiCardBucket> | null;
+  } | null;
+}
+
 interface ApiPredTeam {
   last_5?: {
     form?: string | null;
@@ -355,6 +369,7 @@ interface ApiPredTeam {
       against?: { total?: number | null; average?: string | null } | null;
     } | null;
   } | null;
+  league?: ApiPredLeague | null;
 }
 
 interface ApiPredResponse {
@@ -380,6 +395,9 @@ export interface EstatisticasResumo {
   golsSofridosCasa: string | null;
   golsFeitosFora: string | null;
   golsSofridosFora: string | null;
+  cartoesCasa: string | null;
+  cartoesFora: string | null;
+  cartoesConfronto: string | null;
 }
 
 async function apiGetPredictions(fixtureId: string, key: string): Promise<ApiPredResponse[]> {
@@ -395,21 +413,51 @@ async function apiGetPredictions(fixtureId: string, key: string): Promise<ApiPre
   return json.response ?? [];
 }
 
+// Média de cartões por jogo (amarelos + vermelhos) a partir do resumo de temporada.
+function mediaCartoes(lg?: ApiPredLeague | null): string | null {
+  if (!lg?.cards) return null;
+  const jogos = lg.fixtures?.played?.total ?? 0;
+  if (!jogos) return null;
+  const somaBuckets = (b?: Record<string, ApiCardBucket> | null) =>
+    b ? Object.values(b).reduce((acc, v) => acc + (v?.total ?? 0), 0) : 0;
+  const total = somaBuckets(lg.cards.yellow) + somaBuckets(lg.cards.red);
+  if (!total) return null;
+  return (total / jogos).toFixed(1);
+}
+
+// Últimos 10 resultados a partir da string de forma da temporada (ex.: "WDLWW...").
+function ultimos10(lg?: ApiPredLeague | null, fallback?: string | null): string | null {
+  const full = lg?.form ?? null;
+  if (full) return full.slice(-10);
+  return fallback ?? null;
+}
+
 function resumirPredicao(p: ApiPredResponse): EstatisticasResumo {
   const pr = p.predictions ?? {};
   const h = p.teams?.home?.last_5 ?? {};
   const a = p.teams?.away?.last_5 ?? {};
+  const hl = p.teams?.home?.league ?? null;
+  const al = p.teams?.away?.league ?? null;
+  const cartCasa = mediaCartoes(hl);
+  const cartFora = mediaCartoes(al);
+  const confronto =
+    cartCasa != null && cartFora != null
+      ? (Number(cartCasa) + Number(cartFora)).toFixed(1)
+      : null;
   return {
     advice: pr.advice ?? null,
     underOver: pr.under_over ?? null,
     golsPrev: { casa: pr.goals?.home ?? null, fora: pr.goals?.away ?? null },
     percent: { casa: pr.percent?.home ?? null, empate: pr.percent?.draw ?? null, fora: pr.percent?.away ?? null },
-    formaCasa: h.form ?? null,
-    formaFora: a.form ?? null,
+    formaCasa: ultimos10(hl, h.form),
+    formaFora: ultimos10(al, a.form),
     golsFeitosCasa: h.goals?.for?.average ?? null,
     golsSofridosCasa: h.goals?.against?.average ?? null,
     golsFeitosFora: a.goals?.for?.average ?? null,
     golsSofridosFora: a.goals?.against?.average ?? null,
+    cartoesCasa: cartCasa,
+    cartoesFora: cartFora,
+    cartoesConfronto: confronto,
   };
 }
 

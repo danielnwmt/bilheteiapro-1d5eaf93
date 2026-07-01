@@ -134,7 +134,7 @@ async function analisarComIa(model: LanguageModel, partida: PartidaRow, casa: st
 Analise UM único jogo e recomende as melhores seleções para apostar, usando SOMENTE as odds reais listadas (casa "${casa}").
 Regras:
 - Use exatamente o mercado/seleção/odd da lista. Nunca invente seleções nem odds.
-- Baseie a confiança e as justificativas nas ESTATÍSTICAS REAIS fornecidas (forma recente, médias de gols feitos/sofridos, probabilidades e tendência de gols). Se não houver estatísticas, use apenas as odds.
+- Baseie a confiança e as justificativas nas ESTATÍSTICAS REAIS fornecidas (forma recente dos últimos 10, médias de gols feitos/sofridos, probabilidades, tendência de gols e média de cartões do confronto). Se não houver estatísticas, use apenas as odds.
 - Para cada seleção recomendada informe a confiança real (0 a 100) e uma justificativa curta em português citando os números reais.
 - Recomende de 1 a 5 seleções, das mais seguras para as mais arriscadas.
 - Nunca recomende seleções contraditórias do mesmo mercado.
@@ -143,12 +143,14 @@ Regras:
   const est = partida.estatisticas;
   const estTxt = est
     ? `Estatísticas reais (API-Football):
-- Forma recente (últimos 5): ${partida.time_casa} ${est.formaCasa ?? "?"} / ${partida.time_fora} ${est.formaFora ?? "?"}
+- Forma recente (últimos 10): ${partida.time_casa} ${est.formaCasa ?? "?"} / ${partida.time_fora} ${est.formaFora ?? "?"}
 - Gols feitos (média): ${partida.time_casa} ${est.golsFeitosCasa ?? "?"} / ${partida.time_fora} ${est.golsFeitosFora ?? "?"}
 - Gols sofridos (média): ${partida.time_casa} ${est.golsSofridosCasa ?? "?"} / ${partida.time_fora} ${est.golsSofridosFora ?? "?"}
 - Probabilidade (casa/empate/fora): ${est.percent.casa ?? "?"} / ${est.percent.empate ?? "?"} / ${est.percent.fora ?? "?"}
 - Gols previstos: ${partida.time_casa} ${est.golsPrev.casa ?? "?"} / ${partida.time_fora} ${est.golsPrev.fora ?? "?"}
-- Tendência de gols: ${est.underOver ?? "?"}`
+- Tendência de gols: ${est.underOver ?? "?"}
+- Média de cartões por time: ${partida.time_casa} ${est.cartoesCasa ?? "?"} / ${partida.time_fora} ${est.cartoesFora ?? "?"}
+- Média de cartões no confronto: ${est.cartoesConfronto ?? "?"}`
     : "Estatísticas reais: não disponíveis para este jogo.";
 
   const prompt = `Jogo: ${jogo}${partida.liga ? ` | ${partida.liga}` : ""}
