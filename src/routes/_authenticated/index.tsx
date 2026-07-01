@@ -115,6 +115,13 @@ function traduzTermo(texto: string): string {
     .replace(/\bAway\b/gi, "Fora")
     .replace(/\bYes\b/gi, "Sim")
     .replace(/\bNo\b/gi, "Não")
+    .replace(/\bDouble Chance\b/gi, "Dupla Chance")
+    .replace(/\bTotal Goals\b/gi, "Total de Gols")
+    .replace(/\bTotals?\b/gi, "Total")
+    .replace(/\bBoth Teams\b/gi, "Ambas as Equipes")
+    .replace(/\bFirst Half\b/gi, "1º Tempo")
+    .replace(/\bSecond Half\b/gi, "2º Tempo")
+    .replace(/\bWinner\b/gi, "Vencedor")
     .replace(/\bMatch Winner\b/gi, "Resultado Final");
 }
 
