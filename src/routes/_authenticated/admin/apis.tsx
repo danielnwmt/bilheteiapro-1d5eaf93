@@ -28,8 +28,8 @@ export const Route = createFileRoute("/_authenticated/admin/apis")({
 const CHAVES_PADRAO = [
   { chave: "GEMINI_API_KEY", descricao: "Chave da IA (Google Gemini) usada na geração de bilhetes" },
   { chave: "API_FOOTBALL_KEY", descricao: "Chave da API-Football (jogos e odds)" },
-  { chave: "ODDS_API_KEY", descricao: "Chave da The Odds API" },
 ];
+
 
 // API de pagamento (banco) — mantida separada das demais.
 const CHAVES_PAGAMENTO = [
@@ -106,7 +106,7 @@ function ApisPage() {
   const usageMap = (usage ?? {}) as Record<string, { total: number; ultima: string | null }>;
 
   // Chaves que suportam chamada manual imediata.
-  const CHAMAVEIS = new Set(["API_FOOTBALL_KEY", "ODDS_API_KEY", "GEMINI_API_KEY"]);
+  const CHAMAVEIS = new Set(["API_FOOTBALL_KEY", "GEMINI_API_KEY"]);
   const chamarManual = useServerFn(chamarApiManual);
   const [chamando, setChamando] = useState<string | null>(null);
 

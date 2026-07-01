@@ -12,7 +12,6 @@ export interface ApiFlowStep {
 // Rótulos amigáveis das chaves de API.
 export const API_LABEL: Record<string, string> = {
   API_FOOTBALL_KEY: "API-Football",
-  ODDS_API_KEY: "The Odds API",
   GEMINI_API_KEY: "IA (Gemini)",
 };
 
@@ -28,14 +27,7 @@ export const FLUXO_ETAPAS: ApiFlowStep[] = [
     id: "odds",
     label: "Atualizar odds",
     descricao: "Coleta e atualiza os valores das odds das casas.",
-    apis: ["API_FOOTBALL_KEY", "ODDS_API_KEY"],
-  },
-  {
-    id: "deeplinks",
-    label: "Coletar IDs e deep links",
-    descricao: "Gera os links diretos para as casas de aposta.",
-    apis: ["ODDS_API_KEY", "API_FOOTBALL_KEY"],
-    opcional: true,
+    apis: ["API_FOOTBALL_KEY"],
   },
   {
     id: "analise",

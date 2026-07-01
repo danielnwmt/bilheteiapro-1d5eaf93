@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { syncFixtures, syncOdds, syncOddsFromOddsApi } from "@/lib/football.server";
-import { getApiFlow } from "@/lib/system-config.server";
+import { syncFixtures, syncOdds } from "@/lib/football.server";
+
 
 // Janela (min) para considerar um jogo "acontecendo agora" mesmo sem status ao_vivo.
 const LIVE_WINDOW_MIN = 150; // ~2h30 de duração de jogo
@@ -83,10 +83,7 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
         let oddsCount = 0;
         const skipped: Record<string, string> = {};
 
-        // Fluxo configurado no painel: qual API faz cada etapa.
-        const flow = await getApiFlow();
         const footballSync = await podeSincronizar(supabaseAdmin, "football", "API_FOOTBALL_KEY", now);
-        const oddsApiSync = await podeSincronizar(supabaseAdmin, "odds_api", "ODDS_API_KEY", now);
         let footballReservado = false;
 
         try {
@@ -105,37 +102,20 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
             skipped.API_FOOTBALL_KEY = `dentro do intervalo de ${Math.round(footballSync.intervaloMin)} min`;
           }
 
-          // Etapa "odds": usa a API definida no fluxo e respeita o intervalo da chave escolhida.
-          if (flow.odds === "ODDS_API_KEY") {
-            if (oddsApiSync.ok) {
-              if (await reservarSync(supabaseAdmin, "odds_api", now)) {
-                // The Odds API: já traz odds + deep links das casas.
-                const r = await syncOddsFromOddsApi(CASA_PADRAO);
-                oddsCount = r.odds;
-              } else {
-                skipped.ODDS_API_KEY = "controle de intervalo indisponível";
-              }
-            } else {
-              skipped.ODDS_API_KEY = `dentro do intervalo de ${Math.round(oddsApiSync.intervaloMin)} min`;
-            }
-          } else {
-            if (footballReservado) {
-              // API-Football (padrão). Cobre jogos ao vivo e os próximos de hoje.
-              const todayTo = new Date(now + 24 * 60 * 60_000).toISOString();
-              const { data: partidas } = await supabaseAdmin
-                .from("partidas")
-                .select("id, external_id, time_casa, time_fora")
-                .or(
-                  `status.eq.ao_vivo,and(inicio.gte.${liveFrom},inicio.lte.${todayTo})`,
-                )
-                .not("external_id", "is", null)
-                .limit(20);
+          // Etapa "odds": API-Football coleta as odds dos jogos ao vivo e de hoje.
+          if (footballReservado) {
+            const todayTo = new Date(now + 24 * 60 * 60_000).toISOString();
+            const { data: partidas } = await supabaseAdmin
+              .from("partidas")
+              .select("id, external_id, time_casa, time_fora")
+              .or(
+                `status.eq.ao_vivo,and(inicio.gte.${liveFrom},inicio.lte.${todayTo})`,
+              )
+              .not("external_id", "is", null)
+              .limit(20);
 
-              if (partidas?.length) {
-                oddsCount = await syncOdds(partidas, CASA_PADRAO);
-              }
-            } else if (footballSync.ok) {
-              skipped.API_FOOTBALL_KEY = "controle de intervalo indisponível";
+            if (partidas?.length) {
+              oddsCount = await syncOdds(partidas, CASA_PADRAO);
             }
           }
         } catch (e) {

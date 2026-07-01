@@ -1465,16 +1465,8 @@ export const testApiKey = createServerFn({ method: "POST" })
         };
       }
 
-      if (chave === "ODDS_API_KEY") {
-        const res = await fetch(`https://api.the-odds-api.com/v4/sports?apiKey=${encodeURIComponent(valor)}`);
-        if (!res.ok) {
-          return { ok: false, error: `The Odds API ${res.status}: ${await res.text()}` };
-        }
-        const remaining = res.headers.get("x-requests-remaining");
-        return { ok: true, info: remaining ? `Chave válida. Requisições restantes: ${remaining}.` : "Chave válida." };
-      }
-
       if (chave === "GEMINI_API_KEY") {
+
         const res = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(valor)}`,
         );
@@ -1548,15 +1540,12 @@ export const chamarApiManual = createServerFn({ method: "POST" })
 
     try {
       if (data.chave === "API_FOOTBALL_KEY") {
-        const { syncFixtures } = await import("./football.server");
+        const { syncFixtures, syncOddsByLeagueToday } = await import("./football.server");
         const n = await syncFixtures("hoje");
-        return { ok: true, info: `API-Football chamada. ${n} jogos atualizados.` };
+        const r = await syncOddsByLeagueToday("betano");
+        return { ok: true, info: `API-Football chamada. ${n} jogos e ${r.odds} odds atualizados.` };
       }
-      if (data.chave === "ODDS_API_KEY") {
-        const { syncOddsFromOddsApi } = await import("./football.server");
-        const r = await syncOddsFromOddsApi("betano");
-        return { ok: true, info: `The Odds API chamada. ${r.odds} odds atualizadas.` };
-      }
+
       if (data.chave === "GEMINI_API_KEY") {
         const { getAiModel } = await import("./ai-gateway.server");
         const { generateText } = await import("ai");
@@ -1623,23 +1612,24 @@ export const iniciarOperacao = createServerFn({ method: "POST" })
       etapas.push({ etapa: "Jogos", ok: false, info: limparErro(e, "Falha ao buscar jogos.") });
     }
 
-    // 2) Odds (The Odds API por padrão)
+    // 2) Odds (API-Football)
     let oddsCount = 0;
     try {
-      const { syncOddsFromOddsApi } = await import("./football.server");
-      const r = await syncOddsFromOddsApi("betano");
+      const { syncOddsByLeagueToday } = await import("./football.server");
+      const r = await syncOddsByLeagueToday("betano");
       oddsCount = r.odds;
       etapas.push({
         etapa: "Odds",
         ok: oddsCount > 0,
         info:
           oddsCount > 0
-            ? `${oddsCount} odds salvas (${r.eventos} eventos / ${r.ligas} ligas).`
-            : `Nenhuma odd encontrada (${r.eventos} eventos casados, ${r.chamadas} chamadas). Verifique se há jogos do dia com odds na API.`,
+            ? `${oddsCount} odds salvas (${r.ligas} ligas / ${r.chamadas} chamadas).`
+            : `Nenhuma odd encontrada (${r.ligas} ligas, ${r.chamadas} chamadas). Verifique se há jogos do dia com odds na API.`,
       });
     } catch (e: any) {
       etapas.push({ etapa: "Odds", ok: false, info: limparErro(e, "Falha ao buscar odds.") });
     }
+
 
     // 3) Pré-análise da IA (preenche analise_cache)
     let analisados = 0;

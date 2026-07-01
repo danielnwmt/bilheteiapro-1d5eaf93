@@ -1,17 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { syncFixtures, syncOddsFromOddsApi } from "@/lib/football.server";
+import { syncFixtures, syncOddsByLeagueToday } from "@/lib/football.server";
 
 
 // Robô diário (1x por dia):
-// API 1 (API-Football) atualiza as partidas/ligas do dia.
-// API 2 (The Odds API) coleta as odds + deep links das casas.
+// API-Football atualiza as partidas/ligas do dia E coleta as odds.
 const CASA_PADRAO = "betano";
-// Intervalo fixo de execução para todas as APIs: a cada 7 minutos.
+// Intervalo fixo de execução: a cada 7 minutos.
 const INTERVALO_FIXO_MIN = 7;
 
 async function getIntervaloMin(_chave: string): Promise<number> {
   return INTERVALO_FIXO_MIN;
 }
+
 
 async function podeSincronizar(supabaseAdmin: any, id: string, chave: string, now: number) {
   const { data: state, error } = await supabaseAdmin
@@ -50,31 +50,20 @@ export const Route = createFileRoute("/api/public/hooks/sync-odds-diario")({
           const casa = url.searchParams.get("casa") ?? CASA_PADRAO;
           const now = Date.now();
           const footballSync = await podeSincronizar(supabaseAdmin, "football", "API_FOOTBALL_KEY", now);
-          const oddsApiSync = await podeSincronizar(supabaseAdmin, "odds_api", "ODDS_API_KEY", now);
           const skipped: Record<string, string> = {};
 
-          // API 1: garante as partidas do dia (descobre as ligas com jogos).
+          // API-Football: garante as partidas do dia E coleta as odds por liga.
           let fixturesHoje = 0;
+          let result = { ligas: 0, chamadas: 0, odds: 0 };
           if (footballSync.ok) {
             if (await reservarSync(supabaseAdmin, "football", now)) {
               fixturesHoje = await syncFixtures("hoje");
+              result = await syncOddsByLeagueToday(casa);
             } else {
               skipped.API_FOOTBALL_KEY = "controle de intervalo indisponível";
             }
           } else {
             skipped.API_FOOTBALL_KEY = `dentro do intervalo de ${Math.round(footballSync.intervaloMin)} min`;
-          }
-
-          // API 2: The Odds API — odds + deep links das ligas com jogos.
-          let result = { ligas: 0, chamadas: 0, eventos: 0, odds: 0 };
-          if (oddsApiSync.ok) {
-            if (await reservarSync(supabaseAdmin, "odds_api", now)) {
-              result = await syncOddsFromOddsApi(casa);
-            } else {
-              skipped.ODDS_API_KEY = "controle de intervalo indisponível";
-            }
-          } else {
-            skipped.ODDS_API_KEY = `dentro do intervalo de ${Math.round(oddsApiSync.intervaloMin)} min`;
           }
 
           return Response.json({ ok: true, casa, skipped, fixturesHoje, ...result });
