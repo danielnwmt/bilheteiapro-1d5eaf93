@@ -1572,6 +1572,9 @@ function limparErro(raw: unknown, fallback: string): string {
   if (/429|too many requests|rate limit|quota|resource has been exhausted/i.test(msg)) {
     return "A IA atingiu o limite de requisições no momento (chave válida). Aguarde alguns minutos e tente novamente.";
   }
+  if (/Missing API_FOOTBALL_KEY/i.test(msg)) {
+    return "API-Football não configurada. Abra Configurações → APIs, salve a API_FOOTBALL_KEY e clique em Ativar e testar.";
+  }
   // Respostas de gateway/proxy costumam vir como página HTML.
   if (/<html|<!doctype|<head|<body/i.test(msg) || /gateway time-?out/i.test(msg)) {
     if (/504|gateway time-?out/i.test(msg)) {

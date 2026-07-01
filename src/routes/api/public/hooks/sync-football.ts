@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { syncFixtures, syncOdds } from "@/lib/football.server";
+import { hasApiFootballKey, MISSING_API_FOOTBALL_KEY, syncFixtures, syncOdds } from "@/lib/football.server";
 
 
 // Janela (min) para considerar um jogo "acontecendo agora" mesmo sem status ao_vivo.
@@ -83,6 +83,18 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
         let oddsCount = 0;
         const skipped: Record<string, string> = {};
 
+        if (!(await hasApiFootballKey())) {
+          return Response.json({
+            ok: true,
+            hasLive,
+            skipped: { API_FOOTBALL_KEY: "chave não configurada em Configurações → APIs" },
+            requiresConfig: true,
+            fixturesHoje,
+            fixturesAoVivo,
+            oddsCount,
+          });
+        }
+
         const footballSync = await podeSincronizar(supabaseAdmin, "football", "API_FOOTBALL_KEY", now);
         let footballReservado = false;
 
@@ -122,11 +134,12 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
           const msg = String(e);
           // Chave da API-Football não configurada: não é falha do robô — apenas
           // avisa (evita erro 500 repetido no cron a cada 7 min).
-          if (msg.includes("Missing API_FOOTBALL_KEY")) {
+          if (msg.includes(MISSING_API_FOOTBALL_KEY)) {
             return Response.json({
               ok: true,
               hasLive,
-              skipped: { API_FOOTBALL_KEY: "chave não configurada no painel de APIs" },
+              skipped: { API_FOOTBALL_KEY: "chave não configurada em Configurações → APIs" },
+              requiresConfig: true,
               fixturesHoje,
               fixturesAoVivo,
               oddsCount,

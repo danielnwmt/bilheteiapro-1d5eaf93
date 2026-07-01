@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Loader2, Plus, Plug, ArrowDown, Workflow, PlayCircle, Activity } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Loader2, Plus, Plug, ArrowDown, Workflow, PlayCircle, Activity } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -181,6 +181,7 @@ function ApisPage() {
   }, [config, salvar, qc]);
 
   const existentes = new Map(configRows.map((c) => [c.chave, c.descricao]));
+  const apiFootballConfigurada = Boolean((vals.API_FOOTBALL_KEY ?? "").trim());
 
   const chavesPagamento = new Set(CHAVES_PAGAMENTO.map((c) => c.chave));
   const todasChaves = Array.from(
@@ -240,6 +241,21 @@ function ApisPage() {
           </div>
         ) : (
           <div className="space-y-4">
+            {!apiFootballConfigurada && (
+              <Card className="border-destructive/50 bg-destructive/10 p-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+                  <div>
+                    <p className="text-sm font-semibold text-destructive">API-Football não configurada</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      O robô automático de jogos, odds e estatísticas fica pausado até salvar a chave
+                      API_FOOTBALL_KEY e clicar em Ativar e testar.
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            )}
+
             {/* Fluxo das APIs — editável; muda a execução real */}
             <Card className="border-primary/40 bg-card p-4">
               <div className="mb-1 flex items-center gap-2">

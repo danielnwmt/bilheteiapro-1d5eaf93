@@ -8,6 +8,10 @@ import { parseFlow } from "./api-flow";
 const cache = new Map<string, { value: string; at: number }>();
 const TTL = 60_000; // 1 min
 
+const ENV_ALIAS: Record<string, string[]> = {
+  API_FOOTBALL_KEY: ["APISPORTS_KEY", "API_SPORTS_KEY", "FOOTBALL_API_KEY"],
+};
+
 // Lê o fluxo configurado (qual API faz cada etapa).
 export async function getApiFlow(): Promise<Record<string, string>> {
   const raw = await getConfigKey("API_FLUXO");
@@ -15,7 +19,7 @@ export async function getApiFlow(): Promise<Record<string, string>> {
 }
 
 export async function getConfigKey(chave: string): Promise<string | undefined> {
-  const env = process.env[chave];
+  const env = readEnvConfig(chave);
   if (env) return env;
 
   const cached = cache.get(chave);
@@ -40,4 +44,13 @@ export async function getConfigKey(chave: string): Promise<string | undefined> {
   } catch {
     return undefined;
   }
+}
+
+function readEnvConfig(chave: string): string | undefined {
+  const names = [chave, ...(ENV_ALIAS[chave] ?? [])];
+  for (const name of names) {
+    const value = process.env[name]?.trim();
+    if (value) return value;
+  }
+  return undefined;
 }
