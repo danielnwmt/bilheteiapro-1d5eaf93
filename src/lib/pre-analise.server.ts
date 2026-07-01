@@ -38,8 +38,10 @@ export interface PreAnaliseResult {
   jogos: number;
   analisados: number;
   jaEmCache: number;
+  estatisticas: number;
   budget: number;
 }
+
 
 export async function preAnalisarTodos(): Promise<PreAnaliseResult> {
   const supabase = admin();
