@@ -762,6 +762,9 @@ function Index() {
                 </Badge>
               </div>
               <p className="mt-3 text-sm text-muted-foreground">{ticket.resumo}</p>
+              <div className={`mt-3 rounded-lg border p-3 text-sm ${riscoColor[ticket.risco]}`}>
+                {riscoAviso[ticket.risco]}
+              </div>
             </div>
 
             <div className="grid gap-0 lg:grid-cols-[1fr_320px]">
