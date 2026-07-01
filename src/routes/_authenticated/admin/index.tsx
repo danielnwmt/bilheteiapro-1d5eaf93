@@ -1,6 +1,7 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
 import { getClientStats, iniciarOperacao } from "@/lib/access.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -114,6 +115,27 @@ function AdminDashboard() {
       toast.error(e?.message ?? "Erro ao iniciar a operação", { duration: 12000 }),
   });
 
+  // Cronômetro do tempo de execução da operação
+  const [tempoOperacao, setTempoOperacao] = useState(0);
+  const inicioRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (mutOperacao.isPending) {
+      inicioRef.current = Date.now();
+      setTempoOperacao(0);
+      const id = setInterval(() => {
+        if (inicioRef.current) {
+          setTempoOperacao(Math.floor((Date.now() - inicioRef.current) / 1000));
+        }
+      }, 1000);
+      return () => clearInterval(id);
+    }
+  }, [mutOperacao.isPending]);
+
+  const formatarTempo = (s: number) =>
+    `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+
+
+
 
 
 
@@ -166,14 +188,19 @@ function AdminDashboard() {
               <DropdownMenuContent align="end">
                 <DropdownMenuItem
                   disabled={mutOperacao.isPending}
-                  onClick={() => mutOperacao.mutate()}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    mutOperacao.mutate();
+                  }}
                 >
                   {mutOperacao.isPending ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
                     <Play className="mr-2 h-4 w-4" />
                   )}
-                  Iniciar operação
+                  {mutOperacao.isPending
+                    ? `Rodando… ${formatarTempo(tempoOperacao)}`
+                    : "Iniciar operação"}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => router.navigate({ to: "/admin/apis" })}>
                   <KeyRound className="mr-2 h-4 w-4" /> APIs
