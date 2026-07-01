@@ -438,6 +438,7 @@ function Index() {
     try {
       const r = await run({ data: { oddAlvo: odd, periodo, campeonatos: campSel, mercados: mercSel } });
       setTicket(r);
+      carregarSalvos();
     } catch (err: unknown) {
       console.error(err);
       const msg = err instanceof Error ? err.message : "Erro ao gerar bilhete.";
