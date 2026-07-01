@@ -1361,10 +1361,18 @@ export const getClientStats = createServerFn({ method: "GET" })
       }
     }
 
+    // Online = clientes com atividade (last_seen) nos últimos 5 minutos.
+    const limiteOnline = now.getTime() - 5 * 60 * 1000;
+    const online = clientes.filter((c) => {
+      const ls = c.last_seen ? new Date(c.last_seen).getTime() : 0;
+      return ls >= limiteOnline;
+    }).length;
+
     return {
       totalClientes: clientes.length,
       ativos,
       cortesias,
+      online,
       inativos: clientes.length - ativos,
       porPlano,
       cadastrosPorMes: meses,
