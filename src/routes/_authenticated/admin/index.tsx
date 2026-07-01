@@ -158,6 +158,7 @@ function AdminDashboard() {
     queryFn: () => fetchStats(),
     placeholderData: EMPTY_STATS,
     staleTime: 60_000,
+    refetchInterval: 60_000,
   });
 
   const planoLabel = (p: string) =>
