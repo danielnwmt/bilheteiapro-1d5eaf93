@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { hasApiFootballKey, MISSING_API_FOOTBALL_KEY, syncFixtures, syncOdds } from "@/lib/football.server";
+import { hasApiFootballKey, MISSING_API_FOOTBALL_KEY, syncFixtures, syncOddsByLeagueDias } from "@/lib/football.server";
 import { verificarCronSecret } from "@/lib/cron-auth";
 
 
@@ -107,9 +107,9 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
           if (footballSync.ok) {
             footballReservado = await reservarSync(supabaseAdmin, "football", now);
             if (footballReservado) {
-              fixturesHoje = await syncFixtures("hoje");
-              // Também busca os jogos de amanhã para o filtro "amanhã".
-              fixturesHoje += await syncFixtures("amanha");
+              // Busca os jogos da semana inteira (hoje + próximos 7 dias) para
+              // que os filtros "amanhã" e "semana" tenham dados.
+              fixturesHoje = await syncFixtures("semana");
               if (hasLive) {
                 fixturesAoVivo = await syncFixtures("aovivo");
               }
@@ -120,21 +120,11 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
             skipped.API_FOOTBALL_KEY = `dentro do intervalo de ${Math.round(footballSync.intervaloMin)} min`;
           }
 
-          // Etapa "odds": API-Football coleta as odds dos jogos ao vivo e de hoje.
+          // Etapa "odds": API-Football coleta as odds de todos os jogos da
+          // semana (uma chamada por liga/dia), não só das próximas 24h.
           if (footballReservado) {
-            const todayTo = new Date(now + 24 * 60 * 60_000).toISOString();
-            const { data: partidas } = await supabaseAdmin
-              .from("partidas")
-              .select("id, external_id, time_casa, time_fora")
-              .or(
-                `status.eq.ao_vivo,and(inicio.gte.${liveFrom},inicio.lte.${todayTo})`,
-              )
-              .not("external_id", "is", null)
-              .limit(20);
-
-            if (partidas?.length) {
-              oddsCount = await syncOdds(partidas, CASA_PADRAO);
-            }
+            const result = await syncOddsByLeagueDias(CASA_PADRAO, 8);
+            oddsCount = result.odds;
           }
         } catch (e) {
           const msg = String(e);

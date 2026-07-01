@@ -1540,10 +1540,10 @@ export const chamarApiManual = createServerFn({ method: "POST" })
 
     try {
       if (data.chave === "API_FOOTBALL_KEY") {
-        const { syncFixtures, syncOddsByLeagueToday } = await import("./football.server");
-        const n = await syncFixtures("hoje");
-        const r = await syncOddsByLeagueToday("betano");
-        return { ok: true, info: `API-Football chamada. ${n} jogos e ${r.odds} odds atualizados.` };
+        const { syncFixtures, syncOddsByLeagueDias } = await import("./football.server");
+        const n = await syncFixtures("semana");
+        const r = await syncOddsByLeagueDias("betano", 8);
+        return { ok: true, info: `API-Football chamada. ${n} jogos (semana) e ${r.odds} odds atualizados.` };
       }
 
       if (data.chave === "GEMINI_API_KEY") {
@@ -1612,13 +1612,13 @@ export const iniciarOperacao = createServerFn({ method: "POST" })
     let jogosHoje = 0;
     try {
       const { syncFixtures } = await import("./football.server");
-      jogosHoje = await syncFixtures("hoje");
+      jogosHoje = await syncFixtures("semana");
       try {
         jogosHoje += await syncFixtures("aovivo");
       } catch {
         /* ao vivo é opcional */
       }
-      etapas.push({ etapa: "Jogos", ok: true, info: `${jogosHoje} jogos atualizados.` });
+      etapas.push({ etapa: "Jogos", ok: true, info: `${jogosHoje} jogos atualizados (semana).` });
     } catch (e: any) {
       etapas.push({ etapa: "Jogos", ok: false, info: limparErro(e, "Falha ao buscar jogos.") });
     }
@@ -1626,8 +1626,8 @@ export const iniciarOperacao = createServerFn({ method: "POST" })
     // 2) Odds (API-Football)
     let oddsCount = 0;
     try {
-      const { syncOddsByLeagueToday } = await import("./football.server");
-      const r = await syncOddsByLeagueToday("betano");
+      const { syncOddsByLeagueDias } = await import("./football.server");
+      const r = await syncOddsByLeagueDias("betano", 8);
       oddsCount = r.odds;
       etapas.push({
         etapa: "Odds",
