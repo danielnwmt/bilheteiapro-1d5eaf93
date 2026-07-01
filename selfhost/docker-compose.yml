@@ -115,6 +115,7 @@ services:
       SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
       SUPABASE_PROJECT_ID: local
       INGEST_SECRET: ${INGEST_SECRET}
+      CRON_SECRET: ${CRON_SECRET}
       PORT: 3000
       HOST: 0.0.0.0
     command:
