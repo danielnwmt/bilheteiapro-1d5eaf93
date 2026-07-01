@@ -854,7 +854,7 @@ function Index() {
                   <div key={`${e.jogo}-${i}`} className="rounded-lg border border-border/70 bg-muted/20 p-3">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold">{e.jogo}</p>
+                        <p className="truncate text-sm font-semibold">{traduzPaises(e.jogo)}</p>
                         <p className="truncate text-[11px] text-muted-foreground">
                           {e.liga ?? "—"} ·{" "}
                           {new Date(e.inicio).toLocaleTimeString("pt-BR", {
@@ -920,7 +920,7 @@ function Index() {
                           <span>·</span>
                           <span className="font-medium text-foreground/80">{traduzTermo(p.mercado)}</span>
                         </div>
-                        <h3 className="mt-1 text-base font-semibold">{p.jogo}</h3>
+                        <h3 className="mt-1 text-base font-semibold">{traduzPaises(p.jogo)}</h3>
                         <p className="mt-1 text-primary font-medium">{traduzTermo(p.selecao)}</p>
                       </div>
                       <div className="text-right">
@@ -977,7 +977,7 @@ function Index() {
                         <div key={`${grupo.jogo}-${gi}`} className="rounded-md border border-border/70 bg-muted/30 p-3">
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
-                              <p className="truncate text-xs font-bold">{grupo.jogo}</p>
+                              <p className="truncate text-xs font-bold">{traduzPaises(grupo.jogo)}</p>
                               <p className="mt-1 text-[11px] text-muted-foreground">{grupo.data}</p>
                             </div>
                             <span className="text-xs font-bold text-primary">{oddGrupo.toFixed(2)}</span>
@@ -1063,7 +1063,7 @@ function Index() {
                 <div className="grid gap-4 md:grid-cols-2">
                   {ticket.analiseJogos.map((a, i) => (
                     <div key={`${a.jogo}-${i}`} className="rounded-lg border border-border/70 bg-muted/20 p-4">
-                      <h4 className="mb-3 text-sm font-semibold">{a.jogo}</h4>
+                      <h4 className="mb-3 text-sm font-semibold">{traduzPaises(a.jogo)}</h4>
                       <ul className="space-y-2 text-xs">
                         <li>
                           <span className="font-semibold text-foreground/90">⚑ Escanteios: </span>
