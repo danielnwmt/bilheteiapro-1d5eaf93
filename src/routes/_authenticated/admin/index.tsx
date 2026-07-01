@@ -115,6 +115,27 @@ function AdminDashboard() {
       toast.error(e?.message ?? "Erro ao iniciar a operação", { duration: 12000 }),
   });
 
+  // Cronômetro do tempo de execução da operação
+  const [tempoOperacao, setTempoOperacao] = useState(0);
+  const inicioRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (mutOperacao.isPending) {
+      inicioRef.current = Date.now();
+      setTempoOperacao(0);
+      const id = setInterval(() => {
+        if (inicioRef.current) {
+          setTempoOperacao(Math.floor((Date.now() - inicioRef.current) / 1000));
+        }
+      }, 1000);
+      return () => clearInterval(id);
+    }
+  }, [mutOperacao.isPending]);
+
+  const formatarTempo = (s: number) =>
+    `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+
+
+
 
 
 
