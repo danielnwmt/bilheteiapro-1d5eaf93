@@ -1162,13 +1162,13 @@ export const getClientStats = createServerFn({ method: "GET" })
       [pr, rr, sr, cr],
     ] = await Promise.all([
       Promise.all([
-        readViaAuth("profiles", "id, created_at"),
+        readViaAuth("profiles", "id, created_at, last_seen"),
         readViaAuth("user_roles", "user_id, role"),
         readViaAuth("subscriptions", "user_id, plano, status, periodo_fim, created_at"),
         readViaAuth("plano_config", "plano, preco"),
       ]),
       Promise.all([
-        restSelect<any>(base, "profiles", { select: "id, created_at" }, "profiles (stats)"),
+        restSelect<any>(base, "profiles", { select: "id, created_at, last_seen" }, "profiles (stats)"),
         restSelect<any>(base, "user_roles", { select: "user_id, role" }, "user_roles (stats)"),
         restSelect<any>(
           base,
