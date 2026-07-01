@@ -335,29 +335,54 @@ export const gerarBilhete = createServerFn({ method: "POST" })
       _partidaId: string;
     };
 
-    const porJogo = new Map<string, Cand[]>();
-    for (const r of aAnalisar) {
-      const a = analises.get(r.id);
-      if (!a) continue;
-      const jogo = `${r.time_casa} x ${r.time_fora}`;
-      const lista: Cand[] = [];
-      for (const p of a.picks) {
-        if (!mercadoOk(p.mercado, p.selecao)) continue;
-        if (p.confianca < data.minConfianca) continue;
-        lista.push({
-          jogo,
-          data: formatMatchDate(r.inicio),
-          mercado: p.mercado,
-          selecao: p.selecao,
-          odd: p.odd,
-          confianca: p.confianca,
-          justificativa: p.justificativa,
-          external_odd_id: p.external_odd_id,
-          _partidaId: r.id,
-        });
+    // Monta a lista de candidatos usando um piso de confiança. Preferimos o
+    // piso pedido (ex.: 90%), mas se com ele a MAIOR odd possível não alcançar
+    // a odd alvo, baixamos o piso aos poucos para conseguir montar o bilhete no
+    // valor que o cliente pediu (a chance de acerto exibida cai naturalmente).
+    const buildPorJogo = (piso: number) => {
+      const map = new Map<string, Cand[]>();
+      for (const r of aAnalisar) {
+        const a = analises.get(r.id);
+        if (!a) continue;
+        const jogo = `${r.time_casa} x ${r.time_fora}`;
+        const lista: Cand[] = [];
+        for (const p of a.picks) {
+          if (!mercadoOk(p.mercado, p.selecao)) continue;
+          if (p.confianca < piso) continue;
+          lista.push({
+            jogo,
+            data: formatMatchDate(r.inicio),
+            mercado: p.mercado,
+            selecao: p.selecao,
+            odd: p.odd,
+            confianca: p.confianca,
+            justificativa: p.justificativa,
+            external_odd_id: p.external_odd_id,
+            _partidaId: r.id,
+          });
+        }
+        if (lista.length) map.set(r.id, lista.sort((x, y) => y.confianca - x.confianca));
       }
-      if (lista.length) porJogo.set(r.id, lista.sort((x, y) => y.confianca - x.confianca));
+      return map;
+    };
+
+    // Maior odd possível: pega a melhor odd de cada jogo e multiplica.
+    const maxProduto = (map: Map<string, Cand[]>) => {
+      let prod = 1;
+      for (const lista of map.values()) {
+        const melhorOdd = Math.max(...lista.map((p) => p.odd));
+        prod *= melhorOdd;
+      }
+      return prod;
+    };
+
+    let porJogo = buildPorJogo(data.minConfianca);
+    // Se não dá para chegar perto do alvo, relaxa o piso gradualmente (até 55%).
+    for (let piso = data.minConfianca - 5; piso >= 55; piso -= 5) {
+      if (porJogo.size && maxProduto(porJogo) >= data.oddAlvo * 0.9) break;
+      porJogo = buildPorJogo(piso);
     }
+
 
     if (!porJogo.size) {
       throw new Error("Nenhuma entrada encontrada para esse filtro. Tente outro período ou campeonato.");
