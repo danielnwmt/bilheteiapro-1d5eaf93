@@ -96,6 +96,26 @@ function AdminDashboard() {
       toast.error(e?.message ?? "Erro ao atualizar o sistema", { duration: 12000 }),
   });
 
+  const iniciar = useServerFn(iniciarOperacao);
+  const mutOperacao = useMutation({
+    mutationFn: () => iniciar(),
+    onSuccess: (r: any) => {
+      const falhas = (r?.etapas ?? []).filter((e: any) => !e.ok);
+      if (falhas.length === 0) {
+        toast.success("Operação concluída! Jogos, odds e análises atualizados.", { duration: 6000 });
+      } else {
+        toast.warning(
+          "Operação concluída com avisos: " + falhas.map((e: any) => `${e.etapa}: ${e.info}`).join(" | "),
+          { duration: 12000 },
+        );
+      }
+    },
+    onError: (e: any) =>
+      toast.error(e?.message ?? "Erro ao iniciar a operação", { duration: 12000 }),
+  });
+
+
+
 
 
   const { data: stats, isLoading } = useQuery({
