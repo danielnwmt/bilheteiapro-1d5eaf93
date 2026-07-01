@@ -980,6 +980,8 @@ function Index() {
             </div>
           </Card>
         )}
+        </div>
+
 
         <p className="mt-8 text-center text-xs text-muted-foreground">
           Aposte com responsabilidade. Conteúdo apenas informativo.
