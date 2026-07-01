@@ -251,6 +251,7 @@ ensure_key SUPABASE_SERVICE_ROLE_KEY ""
 # GEMINI_API_KEY, API_FOOTBALL_KEY, ODDS_API_KEY e demais chaves de integração
 # são adicionadas manualmente no painel Admin -> APIs do sistema (após instalar).
 ensure_key INGEST_SECRET ""
+ensure_key CRON_SECRET ""
 
 # 2) Atualiza o código
 echo ">> Atualizando código..."
