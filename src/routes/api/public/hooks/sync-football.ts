@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { hasApiFootballKey, MISSING_API_FOOTBALL_KEY, syncFixtures, syncOdds } from "@/lib/football.server";
+import { verificarCronSecret } from "@/lib/cron-auth";
 
 
 // Janela (min) para considerar um jogo "acontecendo agora" mesmo sem status ao_vivo.
