@@ -217,8 +217,9 @@ async function apiGetOdds(path: string, key: string): Promise<ApiOddResponse[]> 
 }
 
 // Traduz os mercados/seleções da API-Football para os nomes usados no app.
-function mapBetValue(betName: string, value: string, jogoCasa: string, jogoFora: string) {
-  const bn = betName.toLowerCase();
+function mapBetValue(betName: string, rawValue: unknown, jogoCasa: string, jogoFora: string) {
+  const value = String(rawValue ?? "");
+  const bn = String(betName ?? "").toLowerCase();
   const v = value.toLowerCase();
   // Match Winner
   if (bn === "match winner" || bn === "1x2" || bn === "fulltime result") {
@@ -305,7 +306,7 @@ const WANTED_BETS_KEYWORDS = [
 ];
 
 function betQuerido(name: string): boolean {
-  const n = name.toLowerCase();
+  const n = String(name ?? "").toLowerCase();
   return WANTED_BETS_KEYWORDS.some((k) => n.includes(k));
 }
 
