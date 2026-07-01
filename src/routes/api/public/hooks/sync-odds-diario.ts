@@ -68,8 +68,15 @@ export const Route = createFileRoute("/api/public/hooks/sync-odds-diario")({
 
           return Response.json({ ok: true, casa, skipped, fixturesHoje, ...result });
         } catch (e) {
+          const msg = String(e);
+          if (msg.includes("Missing API_FOOTBALL_KEY")) {
+            return Response.json({
+              ok: true,
+              skipped: { API_FOOTBALL_KEY: "chave não configurada no painel de APIs" },
+            });
+          }
           console.error("Erro no robô diário de odds:", e);
-          return Response.json({ ok: false, error: String(e) }, { status: 500 });
+          return Response.json({ ok: false, error: msg }, { status: 500 });
         }
       },
     },
