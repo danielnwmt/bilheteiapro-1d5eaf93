@@ -579,6 +579,9 @@ function resumirPredicao(p: ApiPredResponse): EstatisticasResumo {
     cartoesCasa: cartCasa,
     cartoesFora: cartFora,
     cartoesConfronto: confronto,
+    lesoesCasa: [],
+    lesoesFora: [],
+    escalacaoConfirmada: false,
   };
 }
 
