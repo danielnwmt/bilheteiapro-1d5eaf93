@@ -396,7 +396,7 @@ export async function obterAnalisePartida(
   // Fallback: como as odds são compartilhadas entre as casas (consenso), uma
   // análise já feita para QUALQUER casa do mesmo jogo/dia serve para a casa
   // selecionada. Assim o robô só precisa analisar cada jogo uma vez.
-  {
+  if (!forcar) {
     const { data: outra } = await supabaseAdmin
       .from("analise_cache")
       .select("payload")
