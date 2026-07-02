@@ -43,6 +43,16 @@ function probUnder(lambda: number, linha: number): number {
   return clamp(poissonCdf(lambda, Math.floor(linha)), 0, 1);
 }
 
+// Uma linha de over/under só faz sentido se estiver perto da estimativa do jogo.
+// Ex.: jogo com ~7 escanteios não deve sugerir "Mais de 1.5" (ganho garantido,
+// odd inútil). Rejeitamos linhas triviais/absurdas fora da faixa esperada.
+function linhaRelevante(isOver: boolean, linha: number, lambda: number): boolean {
+  const margem = 2.5;
+  if (isOver) return linha >= lambda - margem;
+  return linha <= lambda + margem;
+}
+
+
 // Extrai o primeiro número (linha) de uma seleção, ex.: "Mais de 2.5" => 2.5.
 function extrairLinha(selecao: string): number | null {
   const m = selecao.match(/([0-9]+(?:[.,][0-9]+)?)/);
