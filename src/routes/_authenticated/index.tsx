@@ -369,7 +369,39 @@ function Index() {
     }
   }
 
-  // Simulação de "Escalações Confirmadas": um jogo é tratado como escalação
+  // Estatísticas AO VIVO: enquanto o modal está aberto para um jogo em andamento,
+  // busca placar/minuto/métricas e atualiza automaticamente a cada 30s.
+  useEffect(() => {
+    if (!estatJogo) {
+      setAoVivo(null);
+      return;
+    }
+    let ativo = true;
+    let timer: ReturnType<typeof setInterval> | null = null;
+
+    async function carregar(mostrarLoading: boolean) {
+      if (!estatJogo) return;
+      if (mostrarLoading) setLoadingAoVivo(true);
+      try {
+        const r = await fetchAoVivo({ data: { partidaId: estatJogo.id } });
+        if (!ativo) return;
+        setAoVivo(r.ok && r.stats ? r.stats : null);
+      } catch {
+        if (ativo) setAoVivo(null);
+      } finally {
+        if (ativo && mostrarLoading) setLoadingAoVivo(false);
+      }
+    }
+
+    carregar(true);
+    timer = setInterval(() => carregar(false), 30_000);
+    return () => {
+      ativo = false;
+      if (timer) clearInterval(timer);
+    };
+  }, [estatJogo, fetchAoVivo]);
+
+
   // oficial quando começa nos próximos 60 min (ou já está ao vivo). Nesse
   // estado exibimos o selo "Escalação Oficial" e liberamos a reanálise.
   function escalacaoConfirmada(j: JogoDia): boolean {
