@@ -1235,7 +1235,7 @@ function Index() {
                           <span className="font-medium text-foreground/80">{traduzTermo(p.mercado)}</span>
                         </div>
                         <h3 className="mt-1 text-base font-semibold">{traduzPaises(p.jogo)}</h3>
-                        <p className="mt-1 text-primary font-medium">{traduzTermo(p.selecao)}</p>
+                        <p className="mt-1 text-primary font-medium">{selecaoLimpa(p.mercado, p.selecao)}</p>
                       </div>
                       <div className="text-right">
                         <div className="font-display text-2xl font-bold text-primary">
@@ -1300,7 +1300,7 @@ function Index() {
                             {grupo.picks.map((p, pi) => (
                               <div key={`${p.selecao}-${pi}`} className="flex items-end justify-between gap-3">
                                 <div>
-                                  <p className="text-sm font-semibold">{traduzTermo(p.selecao)}</p>
+                                  <p className="text-sm font-semibold">{selecaoLimpa(p.mercado, p.selecao)}</p>
                                   <p className="text-[10px] text-muted-foreground">{traduzTermo(p.mercado)}</p>
                                 </div>
                                 <div className="text-right">
@@ -1354,7 +1354,7 @@ function Index() {
                     className="mt-4 w-full font-semibold"
                     onClick={() => {
                       const txt = ticket.picks
-                        .map((p, i) => `${i + 1}. ${p.jogo} — ${traduzTermo(p.mercado)}: ${traduzTermo(p.selecao)} @ ${p.oddEstimada.toFixed(2)}`)
+                        .map((p, i) => `${i + 1}. ${linhaAposta(p)}`)
                         .join("\n");
                       navigator.clipboard.writeText(`${txt}\n\nOdd total: ${ticket.oddTotal.toFixed(2)}\nValor: R$ ${valorAposta}\nPrêmio potencial: ${premioPotencial.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`);
                       toast.success("Bilhete pronto copiado!");
