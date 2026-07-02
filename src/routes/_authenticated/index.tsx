@@ -83,6 +83,9 @@ type EstatPayload = {
   cartoesCasa: string | null;
   cartoesFora: string | null;
   cartoesConfronto: string | null;
+  lesoesCasa?: string[] | null;
+  lesoesFora?: string[] | null;
+  escalacaoConfirmada?: boolean | null;
 };
 
 const CAMPEONATOS = [
