@@ -244,6 +244,21 @@ function traduzTermo(texto: string): string {
     .replace(/([+-]\d+(?:\.\d+)?)\s+\d+(?:\.\d+)?/g, "$1");
 }
 
+// Gera uma sigla curta (3 letras) a partir do nome do time para os cards.
+function sigla(nome: string): string {
+  const n = traduzPaises(nome || "").trim();
+  const palavras = n.split(/\s+/).filter((w) => w.length > 1);
+  const base = palavras[0] || n;
+  return base
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z]/g, "")
+    .slice(0, 3)
+    .toUpperCase() || "—";
+}
+
+
+
 function Index() {
   const router = useRouter();
   const run = useServerFn(gerarBilhete);
