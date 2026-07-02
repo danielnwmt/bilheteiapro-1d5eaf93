@@ -334,13 +334,23 @@ function ApisPage() {
                   <Label className="text-sm font-semibold">{chave}</Label>
                   {descricao && <p className="mb-2 text-xs text-muted-foreground">{descricao}</p>}
                   <div className="flex gap-2">
-                    <Input
-                      type="password"
-                      placeholder="••••••••"
-                      value={vals[chave] ?? ""}
-                      onChange={(e) => setVals((v) => ({ ...v, [chave]: e.target.value }))}
-                      className="bg-input/40"
-                    />
+                    <div className="relative flex-1">
+                      <Input
+                        type={revelar[chave] ? "text" : "password"}
+                        placeholder="••••••••"
+                        value={vals[chave] ?? ""}
+                        onChange={(e) => setVals((v) => ({ ...v, [chave]: e.target.value }))}
+                        className="bg-input/40 pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setRevelar((r) => ({ ...r, [chave]: !r[chave] }))}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        aria-label={revelar[chave] ? "Ocultar chave" : "Mostrar chave"}
+                      >
+                        {revelar[chave] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                     <Button
                       disabled={mut.isPending}
                       onClick={() => mut.mutate({ chave, valor: vals[chave] ?? "", descricao })}
@@ -348,6 +358,7 @@ function ApisPage() {
                       Salvar
                     </Button>
                   </div>
+
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <Button
                       variant="secondary"
