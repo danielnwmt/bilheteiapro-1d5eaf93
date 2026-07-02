@@ -280,6 +280,12 @@ function Index() {
   const [estatPayload, setEstatPayload] = useState<EstatPayload | null>(null);
   const [estatEscanteios, setEstatEscanteios] = useState<string | null>(null);
   const [loadingEstat, setLoadingEstat] = useState(false);
+  const [statsMap, setStatsMap] = useState<Record<string, { pc: number; pe: number; pf: number }>>({});
+  const [oddMin, setOddMin] = useState("2.5");
+  const [limiteJogos, setLimiteJogos] = useState("4");
+  const [tipoBilhete, setTipoBilhete] = useState<"simples" | "multipla" | "mesmojogo">("multipla");
+
+
 
   async function abrirEstatisticas(j: JogoDia) {
     setEstatJogo(j);
