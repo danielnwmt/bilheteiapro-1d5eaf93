@@ -493,6 +493,7 @@ export const gerarBilhete = createServerFn({ method: "POST" })
     // escanteios/cartões). Só cai para um grupo repetido se nenhum grupo novo
     // conseguir aproximar melhor da odd alvo.
     while (true) {
+      if (chosen.length >= maxSelecoes) break; // respeita o limite de jogos/tipo
       const distAtual = Math.abs(target - prod);
       const gruposUsados = new Set(chosen.map((c) => grupoDe(c)));
 
