@@ -260,6 +260,26 @@ function AdminDashboard() {
           </div>
         </div>
 
+        {(mutDeploy.isPending || (mutDeploy.isSuccess && deployProgress < 100)) && (
+          <div className="mb-8 rounded-lg border border-primary/30 bg-primary/5 p-4">
+            <div className="mb-2 flex items-center justify-between text-sm">
+              <span className="flex items-center gap-2 font-medium">
+                <RefreshCw className="h-4 w-4 animate-spin text-primary" />
+                {mutDeploy.isPending ? "Iniciando atualização…" : "Atualizando o sistema…"}
+              </span>
+              <span className="text-muted-foreground">
+                {mutDeploy.isPending ? "" : `${deployProgress}%`}
+              </span>
+            </div>
+            <Progress value={mutDeploy.isPending ? undefined : deployProgress} />
+            <p className="mt-2 text-xs text-muted-foreground">
+              O servidor vai reiniciar em 1-2 minutos. Não feche esta página.
+            </p>
+          </div>
+        )}
+
+
+
         {isLoading ? (
           <div className="flex justify-center py-24">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
