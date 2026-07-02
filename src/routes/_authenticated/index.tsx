@@ -297,6 +297,7 @@ function Index() {
   const removerBilhete = useServerFn(deletarBilhete);
   const [deletandoId, setDeletandoId] = useState<string | null>(null);
   const reanalisar = useServerFn(reanalisarJogo);
+  const fetchAoVivo = useServerFn(getEstatisticasAoVivoPartida);
   const [reanalisandoId, setReanalisandoId] = useState<string | null>(null);
   const [iniciando, setIniciando] = useState(false);
   const { data: access, refetch: refetchAccess } = useAccess();
