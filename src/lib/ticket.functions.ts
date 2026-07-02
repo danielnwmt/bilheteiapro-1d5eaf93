@@ -402,9 +402,11 @@ export const gerarBilhete = createServerFn({ method: "POST" })
     // Força a mesclagem de mercados (ex.: no máx. 2 de gols, o resto tem que
     // ser escanteios/cartões/resultado). Ver grupoDoMercado em market-conflicts.
     const MAX_POR_GRUPO = 2;
+    // Máximo de seleções permitidas do MESMO jogo no bilhete.
+    const MAX_POR_JOGO = 4;
 
     const chosen: Cand[] = [];
-    const usedMatch = new Set<string>(); // trava: 1 seleção por partida
+    const jogoCount = new Map<string, number>(); // seleções por partida
     const grupoCount = new Map<GrupoCategoria, number>();
     let prod = 1;
 
@@ -412,25 +414,27 @@ export const gerarBilhete = createServerFn({ method: "POST" })
       grupoDoMercado({ mercado: p.mercado, selecao: p.selecao });
 
     const tryAdd = (p: Cand) => {
-      if (usedMatch.has(p._partidaId)) return false;
+      if ((jogoCount.get(p._partidaId) ?? 0) >= MAX_POR_JOGO) return false;
       const g = grupoDe(p);
       if ((grupoCount.get(g) ?? 0) >= MAX_POR_GRUPO) return false;
       chosen.push(p);
-      usedMatch.add(p._partidaId);
+      jogoCount.set(p._partidaId, (jogoCount.get(p._partidaId) ?? 0) + 1);
       grupoCount.set(g, (grupoCount.get(g) ?? 0) + 1);
       prod *= p.odd;
       return true;
     };
 
-    // Uma seleção é elegível se: (a) o jogo ainda não está no bilhete (trava de
-    // seleção única por partida), (b) o grupo de categoria não estourou o limite
-    // e (c) não conflita com nenhuma seleção já escolhida.
+    // Uma seleção é elegível se: (a) o jogo ainda não atingiu o limite de 4
+    // seleções, (b) o grupo de categoria não estourou o limite, (c) não é a
+    // mesma seleção já escolhida e (d) não conflita com nenhuma já escolhida.
     const elegivel = (p: Cand) => {
-      if (usedMatch.has(p._partidaId)) return false;
+      if ((jogoCount.get(p._partidaId) ?? 0) >= MAX_POR_JOGO) return false;
       if ((grupoCount.get(grupoDe(p)) ?? 0) >= MAX_POR_GRUPO) return false;
+      if (chosen.some((c) => c._partidaId === p._partidaId && c.mercado === p.mercado && c.selecao === p.selecao)) return false;
       if (chosen.some((c) => selecoesConflitam(c, p))) return false;
       return true;
     };
+
 
     // Passo a passo guloso com diversificação: a cada iteração escolhe a
     // seleção que mais aproxima o produto da odd alvo, priorizando grupos de
