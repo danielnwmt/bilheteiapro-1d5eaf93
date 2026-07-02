@@ -755,8 +755,394 @@ function Index() {
           </Card>
         )}
 
-        <Card className="border-border/60 bg-card p-6 md:p-8">
-          <form onSubmit={onSubmit} className="space-y-5">
+        {/* Cabeçalho: título + filtros de campeonato */}
+        <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">
+              {periodo === "aovivo"
+                ? "Jogos ao vivo"
+                : periodo === "amanha"
+                ? "Jogos de amanhã"
+                : periodo === "semana"
+                ? "Jogos da semana"
+                : "Jogos do dia"}
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Análises geradas por IA · probabilidades, gols esperados e mercados com valor.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setCampSel([])}
+              className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                campSel.length === 0
+                  ? "border-primary bg-primary/15 text-primary"
+                  : "border-border bg-input/40 text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Todos
+            </button>
+            {CAMPEONATOS.map((c) => {
+              const active = campSel.includes(c);
+              const liberado = podeUsarLiga(c);
+              return (
+                <button
+                  type="button"
+                  key={c}
+                  onClick={() => toggleCamp(c)}
+                  className={`flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                    active
+                      ? "border-primary bg-primary/15 text-primary"
+                      : "border-border bg-input/40 text-muted-foreground hover:text-foreground"
+                  } ${liberado ? "" : "opacity-50"}`}
+                >
+                  {!liberado && <Lock className="h-3 w-3" />}
+                  {c}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="mt-8 flex flex-col gap-8">
+        <div className="grid gap-8 lg:grid-cols-[1fr_380px]">
+          {/* Grid de jogos */}
+          <div>
+            {loadingJogos ? (
+              <div className="flex items-center justify-center rounded-xl border border-border/60 bg-card py-16 text-muted-foreground">
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando jogos...
+              </div>
+            ) : jogosFiltrados.length === 0 ? (
+              <div className="rounded-xl border border-border/60 bg-card py-16 text-center text-sm text-muted-foreground">
+                Nenhum jogo encontrado para este período. Os jogos são atualizados automaticamente.
+              </div>
+            ) : (
+              <div className="grid content-start gap-4 sm:grid-cols-2">
+                {jogosFiltrados.map((j) => {
+                  const st = statsMap[j.id];
+                  const soma = st ? (st.pc + st.pe + st.pf) || 1 : 1;
+                  const confAlta = !!st && (st.pc >= 55 || st.pf >= 55);
+                  const oficial = escalacaoConfirmada(j);
+                  return (
+                    <button
+                      key={j.id}
+                      type="button"
+                      onClick={() => abrirEstatisticas(j)}
+                      className="group flex flex-col rounded-xl border border-border/60 bg-card p-4 text-left transition-colors hover:border-primary/50"
+                    >
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span className="flex min-w-0 items-center gap-1.5">
+                          <Trophy className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate">{j.liga ?? "—"}</span>
+                        </span>
+                        <span className="shrink-0 font-medium text-foreground/80">
+                          {j.status === "ao_vivo"
+                            ? "🔴 AO VIVO"
+                            : new Date(j.inicio).toLocaleTimeString("pt-BR", {
+                                timeZone: "America/Sao_Paulo",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                        </span>
+                      </div>
+
+                      <div className="mt-3 flex items-center justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-2xl font-bold leading-none">{sigla(j.time_casa)}</p>
+                          <p className="mt-1 truncate text-xs text-muted-foreground">{traduzPaises(j.time_casa)}</p>
+                        </div>
+                        <span className="shrink-0 text-xs text-muted-foreground">vs</span>
+                        <div className="min-w-0 flex-1 text-right">
+                          <p className="text-2xl font-bold leading-none">{sigla(j.time_fora)}</p>
+                          <p className="mt-1 truncate text-xs text-muted-foreground">{traduzPaises(j.time_fora)}</p>
+                        </div>
+                      </div>
+
+                      {st ? (
+                        <>
+                          <div className="mt-4 flex h-1.5 overflow-hidden rounded-full bg-muted">
+                            <div className="bg-primary" style={{ width: `${(st.pc / soma) * 100}%` }} />
+                            <div className="bg-muted-foreground/40" style={{ width: `${(st.pe / soma) * 100}%` }} />
+                            <div className="bg-sky-500" style={{ width: `${(st.pf / soma) * 100}%` }} />
+                          </div>
+                          <div className="mt-1.5 flex justify-between text-[11px] font-medium">
+                            <span className="text-primary">1 · {st.pc}%</span>
+                            <span className="text-muted-foreground">X · {st.pe}%</span>
+                            <span className="text-sky-500">2 · {st.pf}%</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="mt-4 h-1.5 rounded-full bg-muted" />
+                      )}
+
+                      <div className="mt-3 flex items-center justify-between">
+                        {st ? (
+                          <Badge
+                            className={`gap-1 border text-[11px] ${
+                              confAlta
+                                ? "border-primary/30 bg-primary/15 text-primary"
+                                : "border-amber-500/30 bg-amber-500/15 text-amber-500"
+                            }`}
+                          >
+                            <Sparkles className="h-3 w-3" /> {confAlta ? "IA Alta" : "IA Média"}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[11px] text-muted-foreground">
+                            Análise pendente
+                          </Badge>
+                        )}
+                        <span className="flex items-center gap-1 text-xs font-medium text-primary opacity-0 transition-opacity group-hover:opacity-100">
+                          Ver análise <TrendingUp className="h-3.5 w-3.5" />
+                        </span>
+                      </div>
+
+                      {oficial && (
+                        <Badge variant="secondary" className="mt-2 h-4 w-fit gap-0.5 px-1.5 text-[10px] text-primary">
+                          <Zap className="h-2.5 w-2.5" /> Escalação Oficial
+                        </Badge>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Criador de Bilhetes */}
+          <Card className="h-fit border-primary/30 bg-card p-6 lg:sticky lg:top-6">
+            <h2 className="flex items-center gap-2 text-lg font-bold">
+              <Zap className="h-5 w-5 text-primary" /> Criador de Bilhetes
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              A IA seleciona mercados com valor esperado positivo.
+            </p>
+
+            <div className="mt-4 grid grid-cols-3 gap-1 rounded-lg bg-muted p-1 text-xs font-semibold">
+              {([
+                { id: "simples", label: "Simples" },
+                { id: "multipla", label: "Múltipla" },
+                { id: "mesmojogo", label: "Mesmo Jogo" },
+              ] as const).map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setTipoBilhete(t.id)}
+                  className={`rounded-md py-1.5 transition-colors ${
+                    tipoBilhete === t.id
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="oddMin" className="mb-1.5 block text-xs">Odd mínima</Label>
+                <Input
+                  id="oddMin"
+                  type="number"
+                  step="0.1"
+                  min="1.1"
+                  value={oddMin}
+                  onChange={(e) => setOddMin(e.target.value)}
+                  className="bg-input/40"
+                />
+              </div>
+              <div>
+                <Label htmlFor="oddMax" className="mb-1.5 block text-xs">Odd máxima (alvo)</Label>
+                <Input
+                  id="oddMax"
+                  type="number"
+                  step="0.1"
+                  min="1.1"
+                  value={oddAlvo}
+                  onChange={(e) => setOddAlvo(e.target.value)}
+                  className="bg-input/40"
+                />
+              </div>
+            </div>
+
+            <div className="mt-3">
+              <Label htmlFor="limite" className="mb-1.5 block text-xs">Limite de jogos por bilhete</Label>
+              <Input
+                id="limite"
+                type="number"
+                min="1"
+                max="12"
+                value={limiteJogos}
+                onChange={(e) => setLimiteJogos(e.target.value)}
+                className="bg-input/40"
+              />
+            </div>
+
+            <div className="mt-4">
+              <Label className="mb-1.5 block text-xs">Período</Label>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {(["aovivo", "hoje", "amanha", "semana"] as const).map((p) => {
+                  const bloqueado = p === "aovivo" && !permiteAoVivo;
+                  return (
+                    <button
+                      type="button"
+                      key={p}
+                      onClick={() => {
+                        if (bloqueado) {
+                          toast.error("Atualização em tempo real não está no seu plano.");
+                          router.navigate({ to: "/planos" });
+                          return;
+                        }
+                        setPeriodo(p);
+                      }}
+                      className={`flex items-center justify-center gap-1 rounded-md border px-2 py-2 text-xs font-medium capitalize transition-colors ${
+                        periodo === p
+                          ? "border-primary bg-primary/15 text-primary"
+                          : "border-border bg-input/40 text-muted-foreground hover:text-foreground"
+                      } ${bloqueado ? "opacity-50" : ""}`}
+                    >
+                      {bloqueado && <Lock className="h-3 w-3" />}
+                      {p === "amanha" ? "amanhã" : p === "aovivo" ? "🔴 ao vivo" : p}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <details className="mt-4 rounded-md border border-border/60 bg-input/20 p-3">
+              <summary className="cursor-pointer text-xs font-medium text-muted-foreground">
+                Mercados do bilhete {mercSel.length > 0 && `(${mercSel.length})`}
+              </summary>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {MERCADOS.map((m) => {
+                  const active = mercSel.includes(m);
+                  return (
+                    <button
+                      type="button"
+                      key={m}
+                      onClick={() => toggleMerc(m)}
+                      className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                        active
+                          ? "border-primary bg-primary/15 text-primary"
+                          : "border-border bg-input/40 text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {m}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-2 text-[11px] text-muted-foreground">Deixe vazio para a IA usar qualquer mercado.</p>
+            </details>
+
+            <p className="mt-3 text-center text-[11px] text-primary">Todas as entradas exigem confiança ≥ 90%.</p>
+
+            <Button
+              type="button"
+              onClick={() => onSubmit()}
+              disabled={loading || !temAcesso}
+              size="lg"
+              className="mt-3 w-full font-semibold"
+            >
+              {loading ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Analisando...</>
+              ) : !temAcesso ? (
+                <><Lock className="mr-2 h-4 w-4" /> Assine um plano</>
+              ) : (
+                <><Sparkles className="mr-2 h-4 w-4" /> Gerar bilhete</>
+              )}
+            </Button>
+          </Card>
+        </div>
+
+        {/* Melhores entradas analisadas pela IA */}
+        {temAcesso && (
+          <Card className="border-primary/30 bg-card p-6 md:p-8">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h2 className="flex items-center gap-2 text-lg font-bold">
+                <Flame className="h-5 w-5 text-primary" /> Melhores entradas
+              </h2>
+              {!loadingEntradas && entradasFiltradas.length > 0 && (
+                <Badge variant="secondary">{entradasFiltradas.length}</Badge>
+              )}
+            </div>
+
+            {avisoOperacao && (
+              <div
+                className={`mb-4 rounded-md border p-3 text-xs ${
+                  avisoOperacao.tipo === "ok"
+                    ? "border-primary/30 bg-primary/10 text-primary"
+                    : "border-accent/40 bg-accent/10 text-accent-foreground"
+                }`}
+              >
+                <div className="flex items-start gap-2">
+                  {avisoOperacao.tipo === "ok" ? (
+                    <Sparkles className="mt-0.5 h-4 w-4 shrink-0" />
+                  ) : (
+                    <TrendingUp className="mt-0.5 h-4 w-4 shrink-0" />
+                  )}
+                  <span>{avisoOperacao.texto}</span>
+                </div>
+                {avisoOperacao.etapas && avisoOperacao.etapas.length > 0 && (
+                  <ul className="mt-2 space-y-1 border-t border-current/20 pt-2">
+                    {avisoOperacao.etapas.map((et) => (
+                      <li key={et.etapa} className="flex items-start gap-1.5">
+                        <span className="shrink-0">{et.ok ? "✅" : "⚠️"}</span>
+                        <span>
+                          <span className="font-semibold">{et.etapa}:</span> {et.info}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+
+            {loadingEntradas ? (
+              <div className="flex items-center justify-center py-10 text-muted-foreground">
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando...
+              </div>
+            ) : entradasFiltradas.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                As melhores entradas analisadas pela IA aparecem aqui. Aguarde a análise automática.
+              </p>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {entradasFiltradas.map((e, i) => (
+                  <div key={`${e.jogo}-${i}`} className="rounded-lg border border-border/70 bg-muted/20 p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold">{traduzPaises(e.jogo)}</p>
+                        <p className="truncate text-[11px] text-muted-foreground">
+                          {e.liga ?? "—"} ·{" "}
+                          {new Date(e.inicio).toLocaleTimeString("pt-BR", {
+                            timeZone: "America/Sao_Paulo",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </p>
+                      </div>
+                      <span className="shrink-0 font-display text-base font-bold text-primary">
+                        {e.odd.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between gap-2 border-t border-border/50 pt-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-primary">{traduzTermo(e.selecao)}</p>
+                        <p className="truncate text-[10px] text-muted-foreground">{traduzTermo(e.mercado)}</p>
+                      </div>
+                      <Badge className="shrink-0 border border-primary/30 bg-primary/15 text-[10px] text-primary">
+                        {e.confianca}%
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        )}
+
             <div className="grid gap-4 md:grid-cols-2">
               <div>
                 <Label htmlFor="odd" className="mb-2 flex items-center gap-2 text-sm">
