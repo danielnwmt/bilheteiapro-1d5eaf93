@@ -600,6 +600,7 @@ function Index() {
           tipoBilhete,
           oddMin: Math.max(1, parseFloat(oddMin) || 1),
           limiteJogos: Math.min(20, Math.max(1, parseInt(limiteJogos, 10) || 8)),
+          partidasSelecionadas: jogosSel,
         },
       });
       setTicket(r);
