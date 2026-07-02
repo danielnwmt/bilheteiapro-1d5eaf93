@@ -1421,7 +1421,7 @@ function Index() {
                 variant="secondary"
                 onClick={() => {
                   const txt = ticket.picks
-                    .map((p, i) => `${i + 1}. ${p.jogo} — ${traduzTermo(p.mercado)}: ${traduzTermo(p.selecao)} @ ${p.oddEstimada.toFixed(2)}`)
+                    .map((p, i) => `${i + 1}. ${linhaAposta(p)}`)
                     .join("\n");
                   navigator.clipboard.writeText(`${txt}\n\nOdd total: ${ticket.oddTotal.toFixed(2)}`);
                   toast.success("Bilhete copiado!");
@@ -1476,7 +1476,7 @@ function Index() {
                     <ul className="mt-3 space-y-1 text-xs">
                       {b.picks.map((p: any, i: number) => (
                         <li key={i} className="flex justify-between gap-2">
-                          <span className="truncate">{traduzTermo(p.mercado)}: {traduzTermo(p.selecao)}</span>
+                          <span className="truncate">{traduzTermo(p.mercado)}: {selecaoLimpa(p.mercado, p.selecao)}</span>
                           <span className="shrink-0 font-medium">@ {Number(p.odd).toFixed(2)}</span>
                         </li>
                       ))}
