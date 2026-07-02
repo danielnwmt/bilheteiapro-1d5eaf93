@@ -87,14 +87,17 @@ export async function preAnalisarTodos(): Promise<PreAnaliseResult> {
     if (casa) candidatos.push({ partida: p, casa });
   }
 
-  // Quais jogos já têm análise hoje (em qualquer casa)?
+  // Quantos jogos já tinham análise hoje (só para relatório).
   const { data: jaCache } = await supabase
     .from("analise_cache")
     .select("partida_id")
     .eq("dia", dia);
   const cacheSet = new Set((jaCache ?? []).map((c: any) => String(c.partida_id)));
 
-  const pendentes = candidatos.filter((c) => !cacheSet.has(c.partida.id));
+  // Reanalisa TODOS os candidatos e sobrescreve o cache do dia. Como a análise
+  // é 100% local (grátis e instantânea), regravar garante que odds/estatísticas
+  // novas — e correções do motor — sejam sempre refletidas nos bilhetes.
+  const pendentes = candidatos;
 
   // Coleta estatísticas reais (API-Football /predictions) dos jogos que serão
   // analisados e ainda não têm estatísticas salvas. 1 chamada por jogo.
@@ -152,12 +155,12 @@ export async function preAnalisarTodos(): Promise<PreAnaliseResult> {
     c.partida.estatisticas = statsMap.get(c.partida.id) ?? null;
   }
 
-  // Análise LOCAL: é grátis e instantânea, então analisamos TODOS os jogos
-  // pendentes numa só passada (sem budget nem espera entre chamadas de IA).
+  // Análise LOCAL: é grátis e instantânea, então reanalisamos TODOS os jogos
+  // numa só passada e sobrescrevemos o cache do dia (forcar = true).
   let analisados = 0;
   for (const c of pendentes) {
     try {
-      const a = await obterAnalisePartida(supabase, model, c.partida, c.casa, dia, false);
+      const a = await obterAnalisePartida(supabase, model, c.partida, c.casa, dia, false, true);
       if (a.picks.length) analisados++;
     } catch (e) {
       console.error("pre-analise: falha ao analisar", c.partida.id, c.casa, e);
@@ -168,7 +171,7 @@ export async function preAnalisarTodos(): Promise<PreAnaliseResult> {
     ok: true,
     jogos: rows.length,
     analisados,
-    jaEmCache: candidatos.length - pendentes.length,
+    jaEmCache: candidatos.filter((c) => cacheSet.has(c.partida.id)).length,
     estatisticas,
     budget: BUDGET_POR_RUN,
     avisos,
