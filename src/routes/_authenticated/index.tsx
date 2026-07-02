@@ -478,7 +478,7 @@ function Index() {
         };
         const map: Record<string, { pc: number; pe: number; pf: number }> = {};
         for (const row of data ?? []) {
-          const p = (row as { payload?: EstatPayload }).payload;
+          const p = (row as { payload?: unknown }).payload as EstatPayload | undefined;
           if (!p) continue;
           map[(row as { partida_id: string }).partida_id] = {
             pc: pnum(p.percent?.casa),
