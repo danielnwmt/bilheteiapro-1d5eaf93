@@ -72,7 +72,7 @@ function datesForPeriodo(periodo: Periodo): string[] {
 interface ApiFixture {
   fixture: { id: number; date: string; status: { short: string }; referee?: string | null };
   league: { id: number; name: string };
-  teams: { home: { name: string }; away: { name: string } };
+  teams: { home: { name: string; logo?: string }; away: { name: string; logo?: string } };
 }
 
 async function apiGet(path: string, key: string): Promise<ApiFixture[]> {
