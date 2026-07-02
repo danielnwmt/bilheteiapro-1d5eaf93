@@ -310,6 +310,36 @@ function Index() {
     }
   }
 
+  // Simulação de "Escalações Confirmadas": um jogo é tratado como escalação
+  // oficial quando começa nos próximos 60 min (ou já está ao vivo). Nesse
+  // estado exibimos o selo "Escalação Oficial" e liberamos a reanálise.
+  function escalacaoConfirmada(j: JogoDia): boolean {
+    if (j.status === "ao_vivo") return true;
+    const faltaMin = (new Date(j.inicio).getTime() - Date.now()) / 60000;
+    return faltaMin > 0 && faltaMin <= 60;
+  }
+
+  // Limpa o cache e força a IA a reanalisar aquele jogo com base na escalação.
+  async function handleReanalisar(j: JogoDia) {
+    setReanalisandoId(j.id);
+    toast.info(`Escalação confirmada: limpando cache e reanalisando ${traduzPaises(j.time_casa)} x ${traduzPaises(j.time_fora)}...`);
+    try {
+      const r = await reanalisar({ data: { partidaId: j.id } });
+      if (r.ok && r.reanalisado) {
+        toast.success(`Reanálise concluída com base nos jogadores em campo (${r.picks} entradas).`);
+      } else {
+        toast.warning(r.motivo ?? "Reanálise concluída, mas sem novas entradas.");
+      }
+      if (estatJogo?.id === j.id) abrirEstatisticas(j);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Não foi possível reanalisar o jogo.");
+    } finally {
+      setReanalisandoId(null);
+    }
+  }
+
+
+
   const { byPlano } = usePlanos();
   const roles = access?.roles ?? [];
   const isAdmin = access?.isAdmin ?? (roles.includes("admin") || currentEmail === ADMIN_EMAIL);
