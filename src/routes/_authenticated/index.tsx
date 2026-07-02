@@ -401,7 +401,7 @@ function Index() {
     };
   }, [estatJogo, fetchAoVivo]);
 
-
+  // Simulação de "Escalações Confirmadas": um jogo é tratado como escalação
   // oficial quando começa nos próximos 60 min (ou já está ao vivo). Nesse
   // estado exibimos o selo "Escalação Oficial" e liberamos a reanálise.
   function escalacaoConfirmada(j: JogoDia): boolean {
