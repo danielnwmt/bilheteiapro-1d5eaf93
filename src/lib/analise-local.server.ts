@@ -81,23 +81,27 @@ function montarContexto(partida: PartidaRow): Contexto | null {
   const gsCasa = num(est.golsSofridosCasa);
   const gfFora = num(est.golsFeitosFora);
   const gsFora = num(est.golsSofridosFora);
-  const prevCasa = num(est.golsPrev?.casa);
-  const prevFora = num(est.golsPrev?.fora);
+  // ATENÇÃO: predictions.goals da API-Football NÃO é o gol esperado de cada
+  // time — é um valor tipo handicap (frequentemente negativo, ex.: "-1.5").
+  // Usá-lo direto zerava o lambda (clamp em 0.15 -> "0.1/0.1"). Só aceitamos
+  // golsPrev se for um número plausível (0.2 a 5). Caso contrário, usamos a
+  // média real: ataque de um time + defesa do adversário.
+  const prevCasaRaw = num(est.golsPrev?.casa);
+  const prevForaRaw = num(est.golsPrev?.fora);
+  const golPrevOk = (n: number) => Number.isFinite(n) && n >= 0.2 && n <= 5;
 
-  // Gols esperados de cada lado: usa o previsto quando existir; senão a média
-  // entre o ataque de um time e a defesa do adversário.
-  let lambdaCasa = Number.isFinite(prevCasa) ? prevCasa : NaN;
-  if (!Number.isFinite(lambdaCasa)) {
-    const a = Number.isFinite(gfCasa) ? gfCasa : NaN;
-    const b = Number.isFinite(gsFora) ? gsFora : NaN;
-    lambdaCasa = Number.isFinite(a) && Number.isFinite(b) ? (a + b) / 2 : Number.isFinite(a) ? a : NaN;
-  }
-  let lambdaFora = Number.isFinite(prevFora) ? prevFora : NaN;
-  if (!Number.isFinite(lambdaFora)) {
-    const a = Number.isFinite(gfFora) ? gfFora : NaN;
-    const b = Number.isFinite(gsCasa) ? gsCasa : NaN;
-    lambdaFora = Number.isFinite(a) && Number.isFinite(b) ? (a + b) / 2 : Number.isFinite(a) ? a : NaN;
-  }
+  const mediaGols = (ataque: number, defesa: number) => {
+    const a = Number.isFinite(ataque) ? ataque : NaN;
+    const b = Number.isFinite(defesa) ? defesa : NaN;
+    if (Number.isFinite(a) && Number.isFinite(b)) return (a + b) / 2;
+    if (Number.isFinite(a)) return a;
+    if (Number.isFinite(b)) return b;
+    return NaN;
+  };
+
+  let lambdaCasa = golPrevOk(prevCasaRaw) ? prevCasaRaw : mediaGols(gfCasa, gsFora);
+  let lambdaFora = golPrevOk(prevForaRaw) ? prevForaRaw : mediaGols(gfFora, gsCasa);
+
 
   // Sem nenhum dado de gols não há como calcular localmente.
   if (!Number.isFinite(lambdaCasa) && !Number.isFinite(lambdaFora)) return null;
