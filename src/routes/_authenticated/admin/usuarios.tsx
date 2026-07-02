@@ -37,6 +37,8 @@ function UsuariosPage() {
   const [senhas, setSenhas] = useState<Record<string, string>>({});
   const [openId, setOpenId] = useState<string | null>(null);
   const [showNovo, setShowNovo] = useState(false);
+  const [busca, setBusca] = useState("");
+  const [filtroPlano, setFiltroPlano] = useState<string>("todos");
   const [novoTipo, setNovoTipo] = useState<"cliente" | "admin">("cliente");
   const [sessionUser, setSessionUser] = useState<{ id: string; email: string } | null>(null);
   const [novo, setNovo] = useState({
