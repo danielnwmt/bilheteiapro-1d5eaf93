@@ -1497,13 +1497,14 @@ function Index() {
             </div>
           ) : !estatPayload ? (
             <div className="py-10 text-center text-sm text-muted-foreground">
-              <p>Estatísticas ainda não coletadas para este jogo.</p>
+              <p>Análise ainda não disponível para este jogo.</p>
               <p className="mt-2 text-xs">
-                As estatísticas (forma, gols, escanteios, cartões e árbitro) vêm da API-Football.
-                Peça ao administrador para configurar e ativar a chave <strong>API_FOOTBALL_KEY</strong> no
-                painel de APIs e rodar a operação — sem ela nenhuma estatística é coletada.
+                Nossa inteligência ainda está processando os dados desta partida.
+                Assim que a análise for concluída, as estatísticas (forma, gols,
+                escanteios, cartões e árbitro) aparecerão aqui automaticamente.
               </p>
             </div>
+
           ) : (() => {
             const pnum = (v: string | null | undefined) => {
               const n = parseInt(String(v ?? "").replace(/[^0-9]/g, ""), 10);
