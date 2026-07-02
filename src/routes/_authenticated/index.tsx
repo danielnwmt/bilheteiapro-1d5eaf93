@@ -1256,9 +1256,25 @@ function Index() {
                     <p className="text-sm font-semibold">
                       Odd total: <span className="text-primary">{b.oddTotal.toFixed(2)}</span>
                     </p>
-                    <Badge variant="secondary">
-                      {new Date(b.createdAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
-                    </Badge>
+                    <div className="flex items-center gap-1">
+                      <Badge variant="secondary">
+                        {new Date(b.createdAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                      </Badge>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                        onClick={() => handleDeletarBilhete(b.id)}
+                        disabled={deletandoId === b.id}
+                        aria-label="Deletar bilhete"
+                      >
+                        {deletandoId === b.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
                   </div>
                   <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
                     <span>{b.picks.length} {b.picks.length === 1 ? "seleção" : "seleções"}</span>
