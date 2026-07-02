@@ -6,6 +6,30 @@ import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { getAiModel } from "./ai-gateway.server";
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// Chama a IA com backoff exponencial para sobreviver a "Too Many Requests"
+// (429) e "Service Unavailable" (503) do provedor, em vez de estourar após
+// as 3 tentativas padrão do SDK e não gerar nenhum pick.
+async function gerarComBackoff(prompt: string, tentativas = 5): Promise<string> {
+  let ultimoErro: unknown;
+  for (let i = 0; i < tentativas; i++) {
+    try {
+      const { text } = await generateText({ model: await getAiModel(), prompt, maxRetries: 0 });
+      return text;
+    } catch (e) {
+      ultimoErro = e;
+      const msg = String((e as Error)?.message ?? e);
+      const rate = /too many requests|429|service unavailable|503|overloaded|rate limit/i.test(msg);
+      if (!rate || i === tentativas - 1) throw e;
+      const espera = Math.min(45_000, 3_000 * 2 ** i) + Math.floor(Math.random() * 1_000);
+      console.warn(`auto-bilhete: IA sobrecarregada, aguardando ${Math.round(espera)}ms (tentativa ${i + 1}/${tentativas})`);
+      await sleep(espera);
+    }
+  }
+  throw ultimoErro;
+}
+
 // Configuração de cada tipo de bilhete que o robô monta.
 export interface BilheteConfig {
   tipo: string;
@@ -266,11 +290,21 @@ Responda APENAS em JSON, sem texto fora do JSON:
 
   let raw: Record<string, unknown>;
   try {
-    const { text } = await generateText({ model: await getAiModel(), prompt });
+    const text = await gerarComBackoff(prompt);
     raw = JSON.parse(extractJson(text)) as Record<string, unknown>;
   } catch (e) {
     console.error("auto-bilhete: falha na IA", e);
-    return { ok: false, tipo: cfg.tipo, jogosAnalisados: elegiveis.length, picks: 0, motivo: "Falha ao gerar/parsear resposta da IA." };
+    const msg = String((e as Error)?.message ?? e);
+    const rate = /too many requests|429|service unavailable|503|overloaded|rate/i.test(msg);
+    return {
+      ok: false,
+      tipo: cfg.tipo,
+      jogosAnalisados: elegiveis.length,
+      picks: 0,
+      motivo: rate
+        ? "IA temporariamente sobrecarregada (limite de requisições). O robô tentará novamente na próxima rodada."
+        : "Falha ao gerar/parsear resposta da IA.",
+    };
   }
 
   // 4) Valida picks contra o banco e aplica as regras.
@@ -412,8 +446,10 @@ export async function gerarSuperMultipla(): Promise<AutoResult> {
 }
 
 // Roda os dois tipos numa só passada do robô (usado pelo cron).
+// Espaça as duas chamadas de IA para não bater no rate limit do provedor.
 export async function gerarTodosBilhetes(): Promise<AutoResult[]> {
   const padrao = await gerarBilheteAutomatico();
+  await sleep(2_000);
   const superMultipla = await gerarSuperMultipla();
   return [padrao, superMultipla];
 }

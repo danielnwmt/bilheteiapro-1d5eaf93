@@ -12,6 +12,9 @@ const InputSchema = z.object({
   mercados: z.array(z.string()).optional().default([]),
   casa: z.string().optional().default("Betano"),
   minConfianca: z.number().min(0).max(100).optional().default(90),
+  tipoBilhete: z.enum(["simples", "multipla", "mesmojogo"]).optional().default("multipla"),
+  oddMin: z.number().min(1).max(1000).optional().default(1),
+  limiteJogos: z.number().min(1).max(20).optional().default(8),
 });
 
 const PickSchema = z.object({
@@ -377,6 +380,8 @@ export const gerarBilhete = createServerFn({ method: "POST" })
         for (const p of a.picks) {
           if (!mercadoOk(p.mercado, p.selecao)) continue;
           if (p.confianca < piso) continue;
+          if (p.odd < data.oddMin) continue; // respeita a odd mínima por seleção
+
           lista.push({
             jogo,
             data: formatMatchDate(r.inicio),
@@ -422,15 +427,34 @@ export const gerarBilhete = createServerFn({ method: "POST" })
     // diferentes (antes alvos próximos, ex.: 4 e 5, caíam no mesmo bilhete). ----
     const target = data.oddAlvo;
 
-    const candidatos: Cand[] = [];
+    let candidatos: Cand[] = [];
     for (const lista of porJogo.values()) for (const p of lista) candidatos.push(p);
+
+    // "Mesmo jogo": o bilhete usa seleções de UMA única partida. Escolhe o jogo
+    // com mais candidatos (mais opções para chegar na odd alvo).
+    if (data.tipoBilhete === "mesmojogo") {
+      const porPartida = new Map<string, Cand[]>();
+      for (const p of candidatos) {
+        const l = porPartida.get(p._partidaId) ?? [];
+        l.push(p);
+        porPartida.set(p._partidaId, l);
+      }
+      const melhor = [...porPartida.entries()].sort((a, b) => b[1].length - a[1].length)[0];
+      if (melhor) candidatos = melhor[1];
+    }
+
+    // Nº máximo de seleções no bilhete: "simples" = 1; senão o limite de jogos
+    // escolhido pelo usuário.
+    const maxSelecoes = data.tipoBilhete === "simples" ? 1 : data.limiteJogos;
 
     // Limite máximo de seleções por Grupo de Categoria em um único bilhete.
     // Força a mesclagem de mercados (ex.: no máx. 2 de gols, o resto tem que
     // ser escanteios/cartões/resultado). Ver grupoDoMercado em market-conflicts.
-    const MAX_POR_GRUPO = 2;
+    // No "mesmo jogo" liberamos o grupo para caber várias seleções da partida.
+    const MAX_POR_GRUPO = data.tipoBilhete === "mesmojogo" ? maxSelecoes : 2;
     // Máximo de seleções permitidas do MESMO jogo no bilhete.
-    const MAX_POR_JOGO = 4;
+    const MAX_POR_JOGO =
+      data.tipoBilhete === "mesmojogo" ? maxSelecoes : data.tipoBilhete === "simples" ? 1 : 4;
 
     const chosen: Cand[] = [];
     const jogoCount = new Map<string, number>(); // seleções por partida
@@ -469,6 +493,7 @@ export const gerarBilhete = createServerFn({ method: "POST" })
     // escanteios/cartões). Só cai para um grupo repetido se nenhum grupo novo
     // conseguir aproximar melhor da odd alvo.
     while (true) {
+      if (chosen.length >= maxSelecoes) break; // respeita o limite de jogos/tipo
       const distAtual = Math.abs(target - prod);
       const gruposUsados = new Set(chosen.map((c) => grupoDe(c)));
 
