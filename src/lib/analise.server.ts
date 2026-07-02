@@ -22,6 +22,7 @@ export type PartidaRow = {
   time_fora: string;
   inicio: string;
   status: string;
+  arbitro?: string | null;
   odds: OddRow[];
   estatisticas?: EstatisticasResumo | null;
 };
