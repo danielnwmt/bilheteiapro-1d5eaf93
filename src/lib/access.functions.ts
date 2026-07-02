@@ -1420,6 +1420,9 @@ export const setSystemConfig = createServerFn({ method: "POST" })
       },
       "chave",
     );
+    // Limpa o cache para a próxima leitura pegar o valor novo na hora.
+    const { clearConfigCache } = await import("./system-config.server");
+    clearConfigCache(data.chave);
     return { ok: true };
   });
 
