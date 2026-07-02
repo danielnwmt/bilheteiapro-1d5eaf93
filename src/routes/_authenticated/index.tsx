@@ -550,8 +550,8 @@ function Index() {
 
 
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function onSubmit(e?: React.FormEvent) {
+    e?.preventDefault();
     const odd = parseFloat(oddAlvo);
     if (!odd) {
       toast.error("Defina a odd alvo");
