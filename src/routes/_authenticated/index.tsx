@@ -249,6 +249,29 @@ function traduzTermo(texto: string): string {
     .replace(/([+-]\d+(?:\.\d+)?)\s+\d+(?:\.\d+)?/g, "$1");
 }
 
+// Deixa a seleção mais limpa: remove o substantivo que já aparece no mercado
+// (ex.: "Escanteios" + "Mais de 1.5 escanteios" -> "Mais de 1.5"), troca "1.5"
+// por "1,5" (pt-BR) e simplifica o "(1ºT)".
+function selecaoLimpa(mercado: string, selecao: string): string {
+  let s = traduzTermo(selecao || "").trim();
+  const m = traduzTermo(mercado || "").toLowerCase();
+  for (const n of ["escanteios", "cartões", "cartoes", "gols", "gol"]) {
+    if (m.includes(n)) s = s.replace(new RegExp(`\\s*\\b${n}\\b`, "gi"), " ").trim();
+  }
+  s = s
+    .replace(/\(\s*1º?\s*T\.?\s*\)/gi, "no 1º tempo")
+    .replace(/\(\s*2º?\s*T\.?\s*\)/gi, "no 2º tempo")
+    .replace(/(\d)\.(\d)/g, "$1,$2")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  return s;
+}
+
+// Uma linha legível do palpite, usada na cópia do bilhete.
+function linhaAposta(p: { jogo: string; mercado: string; selecao: string; oddEstimada: number }): string {
+  return `${traduzPaises(p.jogo)} — ${traduzTermo(p.mercado)}: ${selecaoLimpa(p.mercado, p.selecao)} @ ${p.oddEstimada.toFixed(2)}`;
+}
+
 // Gera uma sigla curta (3 letras) a partir do nome do time para os cards.
 function sigla(nome: string): string {
   const n = traduzPaises(nome || "").trim();
