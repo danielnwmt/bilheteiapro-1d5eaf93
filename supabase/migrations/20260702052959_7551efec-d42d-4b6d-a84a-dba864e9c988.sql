@@ -1,0 +1,3 @@
+ALTER TABLE public.partidas
+  ADD COLUMN IF NOT EXISTS logo_casa TEXT,
+  ADD COLUMN IF NOT EXISTS logo_fora TEXT;
