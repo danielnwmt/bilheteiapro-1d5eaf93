@@ -12,6 +12,14 @@ const ENV_ALIAS: Record<string, string[]> = {
   API_FOOTBALL_KEY: ["APISPORTS_KEY", "API_SPORTS_KEY", "FOOTBALL_API_KEY"],
 };
 
+// Invalida o cache de configuração (chamar após salvar uma chave no painel),
+// para que a próxima leitura pegue o valor novo imediatamente e não fique
+// preso ao valor antigo (ex.: vazio) por até 60s.
+export function clearConfigCache(chave?: string): void {
+  if (chave) cache.delete(chave);
+  else cache.clear();
+}
+
 // Lê o fluxo configurado (qual API faz cada etapa).
 export async function getApiFlow(): Promise<Record<string, string>> {
   const raw = await getConfigKey("API_FLUXO");
