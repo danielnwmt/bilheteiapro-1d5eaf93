@@ -22,6 +22,7 @@ export type PartidaRow = {
   time_fora: string;
   inicio: string;
   status: string;
+  arbitro?: string | null;
   odds: OddRow[];
   estatisticas?: EstatisticasResumo | null;
 };
@@ -318,9 +319,17 @@ export function analiseDeEstatisticas(partida: PartidaRow): AnaliseJogoStats {
       ? `${casa} ${est.cartoesCasa ?? "?"} / ${fora} ${est.cartoesFora ?? "?"} cartões por jogo`
       : "Sem dados de cartões dos times.";
 
-  const cartoesArbitro = est.cartoesConfronto
-    ? `média do confronto ${est.cartoesConfronto} cartões/jogo`
-    : "Sem dados do árbitro.";
+  // Fallback do árbitro: quando a partida não tem árbitro escalado (campo nulo
+  // ou vazio), o peso analítico de cartões vai INTEIRAMENTE para a média das
+  // duas equipes — ignoramos a variável do árbitro nesse cenário.
+  const semArbitro = !partida.arbitro || !String(partida.arbitro).trim();
+  const cartoesArbitro = semArbitro
+    ? est.cartoesCasa || est.cartoesFora
+      ? `Árbitro não escalado — baseado só na média dos times (${casa} ${est.cartoesCasa ?? "?"} / ${fora} ${est.cartoesFora ?? "?"} cartões/jogo)`
+      : "Árbitro não escalado — sem histórico de cartões dos times."
+    : est.cartoesConfronto
+      ? `média do confronto ${est.cartoesConfronto} cartões/jogo`
+      : "Sem dados do árbitro.";
 
   return { escanteios, gols, chutesAoGol, cartoesTimes, cartoesArbitro };
 }

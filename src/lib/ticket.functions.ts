@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { type Plano } from "./planos";
 import { analisarPartidas, analiseDeEstatisticas, diaSaoPaulo, type PartidaRow as AnalisePartidaRow } from "./analise.server";
+import { selecoesConflitam } from "./market-conflicts";
 
 const InputSchema = z.object({
   oddAlvo: z.number().min(1.1).max(1000),
@@ -239,7 +240,7 @@ export const gerarBilhete = createServerFn({ method: "POST" })
     const lerPartidas = async () => {
       const query = supabaseAdmin
         .from("partidas")
-        .select("id, external_id, liga, time_casa, time_fora, inicio, status, odds(casa, mercado, selecao, valor, external_odd_id)")
+        .select("id, external_id, liga, time_casa, time_fora, inicio, status, arbitro, odds(casa, mercado, selecao, valor, external_odd_id)")
         .gte("inicio", new Date(from).toISOString())
         .lte("inicio", new Date(to).toISOString())
         .neq("status", "encerrado")
@@ -410,6 +411,15 @@ export const gerarBilhete = createServerFn({ method: "POST" })
       return true;
     };
 
+    // Exclusão mútua: uma seleção não pode entrar se for contraditória (ou de
+    // correlação negativa) com outra já escolhida do MESMO jogo. Ex.: "Ambas
+    // Marcam: Não" x "Mais de 2.5 Gols". Nesses casos o algoritmo descarta a
+    // seleção conflitante e busca o próximo mercado válido.
+    const conflitaComEscolhidos = (p: Cand) =>
+      chosen.some(
+        (c) => c._partidaId === p._partidaId && selecoesConflitam(c, p),
+      );
+
     // Passo a passo: adiciona a seleção que deixa o produto mais próximo da
     // odd alvo. Para quando nenhuma seleção conseguir aproximar mais.
     while (true) {
@@ -418,6 +428,7 @@ export const gerarBilhete = createServerFn({ method: "POST" })
       let melhorDist = distAtual;
       for (const p of candidatos) {
         if (usedMarket.has(marketKey(p))) continue;
+        if (conflitaComEscolhidos(p)) continue;
         const d = Math.abs(target - prod * p.odd);
         if (
           d < melhorDist - 1e-9 ||

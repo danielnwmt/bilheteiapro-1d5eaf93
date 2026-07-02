@@ -59,6 +59,16 @@ function AuthPage() {
       .replace(/(\d{5})(\d{1,4})$/, "$1-$2");
   }
 
+  function idadeEmAnos(nasc: string): number {
+    const d = new Date(nasc);
+    if (Number.isNaN(d.getTime())) return NaN;
+    const hoje = new Date();
+    let idade = hoje.getFullYear() - d.getFullYear();
+    const m = hoje.getMonth() - d.getMonth();
+    if (m < 0 || (m === 0 && hoje.getDate() < d.getDate())) idade--;
+    return idade;
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (mode === "signup") {
@@ -66,6 +76,12 @@ function AuthPage() {
       const telDigits = telefone.replace(/\D/g, "");
       if (!nome.trim() || cpfDigits.length !== 11 || !nascimento || telDigits.length < 10) {
         toast.error("Preencha nome, CPF, telefone e data de nascimento");
+        return;
+      }
+      // Compliance: bloqueia menores de 18 anos.
+      const idade = idadeEmAnos(nascimento);
+      if (Number.isNaN(idade) || idade < 18) {
+        toast.error("Apenas maiores de 18 anos podem se cadastrar na plataforma.");
         return;
       }
     }
@@ -236,9 +252,15 @@ function AuthPage() {
                     id="nascimento"
                     type="date"
                     value={nascimento}
+                    max={new Date().toISOString().slice(0, 10)}
                     onChange={(e) => setNascimento(e.target.value)}
                     className="bg-input/40"
                   />
+                  {nascimento && idadeEmAnos(nascimento) < 18 && (
+                    <p className="mt-1 text-xs text-destructive">
+                      Apenas maiores de 18 anos podem se cadastrar na plataforma.
+                    </p>
+                  )}
                 </div>
               </>
             )}

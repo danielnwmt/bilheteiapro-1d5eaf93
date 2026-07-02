@@ -264,7 +264,15 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path TO 'public'
 AS $function$
+DECLARE
+  _nasc date;
 BEGIN
+  -- Compliance: bloqueia cadastro de menores de 18 anos.
+  _nasc := NULLIF(NEW.raw_user_meta_data->>'data_nascimento','')::date;
+  IF _nasc IS NOT NULL AND _nasc > (CURRENT_DATE - INTERVAL '18 years') THEN
+    RAISE EXCEPTION 'Apenas maiores de 18 anos podem se cadastrar na plataforma.';
+  END IF;
+
   INSERT INTO public.profiles (id, nome, email, cpf, data_nascimento, telefone)
   VALUES (
     NEW.id,
@@ -275,7 +283,7 @@ BEGIN
     ),
     NEW.email,
     NEW.raw_user_meta_data->>'cpf',
-    NULLIF(NEW.raw_user_meta_data->>'data_nascimento','')::date,
+    _nasc,
     NEW.raw_user_meta_data->>'telefone'
   )
   ON CONFLICT (id) DO UPDATE SET

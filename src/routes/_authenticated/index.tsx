@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { gerarBilhete, listarBilhetes } from "@/lib/ticket.functions";
 import { getMelhoresEntradas, type MelhorEntrada } from "@/lib/entradas.functions";
 import { iniciarOperacao } from "@/lib/access.functions";
+import { reanalisarJogo } from "@/lib/reanalise.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { useRouter } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Sparkles, Target, TrendingUp, Trophy, Building2, ExternalLink, ListChecks, LogOut, Lock, Crown, Users, Wallet, CalendarDays, UserCircle, Play, Flame } from "lucide-react";
+import { Loader2, Sparkles, Target, TrendingUp, Trophy, Building2, ExternalLink, ListChecks, LogOut, Lock, Crown, Users, Wallet, CalendarDays, UserCircle, Play, Flame, Zap, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import logo from "@/assets/bilheteia-logo.png";
 import { useAccess } from "@/hooks/useAccess";
@@ -248,6 +249,8 @@ function Index() {
   const fetchEntradas = useServerFn(getMelhoresEntradas);
   const iniciar = useServerFn(iniciarOperacao);
   const fetchSalvos = useServerFn(listarBilhetes);
+  const reanalisar = useServerFn(reanalisarJogo);
+  const [reanalisandoId, setReanalisandoId] = useState<string | null>(null);
   const [iniciando, setIniciando] = useState(false);
   const { data: access, refetch: refetchAccess } = useAccess();
   const [oddAlvo, setOddAlvo] = useState("5");
@@ -306,6 +309,36 @@ function Index() {
       setLoadingEstat(false);
     }
   }
+
+  // Simulação de "Escalações Confirmadas": um jogo é tratado como escalação
+  // oficial quando começa nos próximos 60 min (ou já está ao vivo). Nesse
+  // estado exibimos o selo "Escalação Oficial" e liberamos a reanálise.
+  function escalacaoConfirmada(j: JogoDia): boolean {
+    if (j.status === "ao_vivo") return true;
+    const faltaMin = (new Date(j.inicio).getTime() - Date.now()) / 60000;
+    return faltaMin > 0 && faltaMin <= 60;
+  }
+
+  // Limpa o cache e força a IA a reanalisar aquele jogo com base na escalação.
+  async function handleReanalisar(j: JogoDia) {
+    setReanalisandoId(j.id);
+    toast.info(`Escalação confirmada: limpando cache e reanalisando ${traduzPaises(j.time_casa)} x ${traduzPaises(j.time_fora)}...`);
+    try {
+      const r = await reanalisar({ data: { partidaId: j.id } });
+      if (r.ok && r.reanalisado) {
+        toast.success(`Reanálise concluída com base nos jogadores em campo (${r.picks} entradas).`);
+      } else {
+        toast.warning(r.motivo ?? "Reanálise concluída, mas sem novas entradas.");
+      }
+      if (estatJogo?.id === j.id) abrirEstatisticas(j);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Não foi possível reanalisar o jogo.");
+    } finally {
+      setReanalisandoId(null);
+    }
+  }
+
+
 
   const { byPlano } = usePlanos();
   const roles = access?.roles ?? [];
@@ -808,35 +841,64 @@ function Index() {
               </p>
             ) : (
               <div className="divide-y divide-border/60">
-                {jogosFiltrados.map((j) => (
-                  <button
-                    key={j.id}
-                    type="button"
-                    onClick={() => abrirEstatisticas(j)}
-                    className="flex w-full items-center gap-3 py-3 text-left transition-colors hover:bg-muted/40"
-                  >
-                    <div className="w-16 shrink-0 text-sm font-semibold text-primary">
-                      {j.status === "ao_vivo" ? (
-                        <span className="flex items-center gap-1">🔴 AO VIVO</span>
+                {jogosFiltrados.map((j) => {
+                  const oficial = escalacaoConfirmada(j);
+                  return (
+                    <div key={j.id} className="flex items-center gap-3 py-3">
+                      <button
+                        type="button"
+                        onClick={() => abrirEstatisticas(j)}
+                        className="flex min-w-0 flex-1 items-center gap-3 text-left transition-colors hover:bg-muted/40"
+                      >
+                        <div className="w-16 shrink-0 text-sm font-semibold text-primary">
+                          {j.status === "ao_vivo" ? (
+                            <span className="flex items-center gap-1">🔴 AO VIVO</span>
+                          ) : (
+                            new Date(j.inicio).toLocaleTimeString("pt-BR", {
+                              timeZone: "America/Sao_Paulo",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium">
+                            {traduzPaises(j.time_casa)} <span className="text-muted-foreground">x</span> {traduzPaises(j.time_fora)}
+                          </p>
+                          <div className="flex items-center gap-2">
+                            {j.liga && (
+                              <p className="truncate text-xs text-muted-foreground">{j.liga}</p>
+                            )}
+                            {oficial && (
+                              <Badge variant="secondary" className="h-4 gap-0.5 px-1.5 text-[10px] text-primary">
+                                <Zap className="h-2.5 w-2.5" /> Escalação Oficial
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                      {oficial && isStaff ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 shrink-0"
+                          title="Limpar cache e reanalisar com a escalação"
+                          disabled={reanalisandoId === j.id}
+                          onClick={() => handleReanalisar(j)}
+                        >
+                          {reanalisandoId === j.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <RefreshCw className="h-4 w-4 text-primary" />
+                          )}
+                        </Button>
                       ) : (
-                        new Date(j.inicio).toLocaleTimeString("pt-BR", {
-                          timeZone: "America/Sao_Paulo",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
+                        <TrendingUp className="h-4 w-4 shrink-0 text-muted-foreground" />
                       )}
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">
-                        {traduzPaises(j.time_casa)} <span className="text-muted-foreground">x</span> {traduzPaises(j.time_fora)}
-                      </p>
-                      {j.liga && (
-                        <p className="truncate text-xs text-muted-foreground">{j.liga}</p>
-                      )}
-                    </div>
-                    <TrendingUp className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  </button>
-                ))}
+                  );
+                })}
               </div>
             )}
           </Card>
@@ -1294,10 +1356,22 @@ function Index() {
                   <span className="text-muted-foreground">Média no confronto</span>
                   <span className="font-medium">{estatPayload.cartoesConfronto ?? "—"}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Árbitro</span>
-                  <span className="font-medium">{estatJogo?.arbitro ?? "A definir"}</span>
-                </div>
+                {estatJogo?.arbitro && String(estatJogo.arbitro).trim() ? (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Árbitro</span>
+                    <span className="font-medium">{estatJogo.arbitro}</span>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Árbitro</span>
+                      <span className="font-medium">Não escalado</span>
+                    </div>
+                    <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground">
+                      Estatísticas de cartões baseadas apenas no histórico dos times
+                    </Badge>
+                  </div>
+                )}
               </div>
             </div>
           )}
