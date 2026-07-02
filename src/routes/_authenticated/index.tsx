@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Sparkles, Target, TrendingUp, Trophy, Building2, ExternalLink, ListChecks, LogOut, Lock, Crown, Users, Wallet, CalendarDays, UserCircle, Play, Flame, Zap, RefreshCw, Flag, CreditCard, LineChart, TrendingDown, Trash2, AlertTriangle, Check } from "lucide-react";
+import { Loader2, Sparkles, Target, TrendingUp, Trophy, Building2, ExternalLink, ListChecks, LogOut, Lock, Crown, Users, Wallet, CalendarDays, UserCircle, Play, Flame, Zap, RefreshCw, Flag, CreditCard, LineChart, TrendingDown, Trash2, AlertTriangle, Check, X } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import logo from "@/assets/bilheteia-logo.png";
@@ -1415,12 +1415,17 @@ function Index() {
                     })}
                   </div>
 
-                  <div className="mt-3 rounded-md border border-primary/30 bg-primary/10 p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs font-bold uppercase text-primary">Supermúltipla</p>
-                      <span className="text-lg">🙂</span>
-                    </div>
-                    <p className="mt-1 text-[11px] text-muted-foreground">Bilhete pronto para copiar e conferir em qualquer casa de aposta.</p>
+                  <div className="mt-3 flex justify-end">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground hover:text-destructive"
+                      onClick={() => setTicket(null)}
+                    >
+                      <X className="mr-1 h-4 w-4" />
+                      Deletar bilhete
+                    </Button>
                   </div>
 
                   <div className="mt-4 grid grid-cols-2 gap-2">
