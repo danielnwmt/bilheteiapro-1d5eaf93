@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { gerarBilhete, listarBilhetes } from "@/lib/ticket.functions";
+import { gerarBilhete, listarBilhetes, deletarBilhete } from "@/lib/ticket.functions";
 import { getMelhoresEntradas, type MelhorEntrada } from "@/lib/entradas.functions";
 import { iniciarOperacao } from "@/lib/access.functions";
 import { reanalisarJogo } from "@/lib/reanalise.functions";
@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Sparkles, Target, TrendingUp, Trophy, Building2, ExternalLink, ListChecks, LogOut, Lock, Crown, Users, Wallet, CalendarDays, UserCircle, Play, Flame, Zap, RefreshCw, Flag, CreditCard, LineChart, TrendingDown } from "lucide-react";
+import { Loader2, Sparkles, Target, TrendingUp, Trophy, Building2, ExternalLink, ListChecks, LogOut, Lock, Crown, Users, Wallet, CalendarDays, UserCircle, Play, Flame, Zap, RefreshCw, Flag, CreditCard, LineChart, TrendingDown, Trash2 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import logo from "@/assets/bilheteia-logo.png";
@@ -250,6 +250,8 @@ function Index() {
   const fetchEntradas = useServerFn(getMelhoresEntradas);
   const iniciar = useServerFn(iniciarOperacao);
   const fetchSalvos = useServerFn(listarBilhetes);
+  const removerBilhete = useServerFn(deletarBilhete);
+  const [deletandoId, setDeletandoId] = useState<string | null>(null);
   const reanalisar = useServerFn(reanalisarJogo);
   const [reanalisandoId, setReanalisandoId] = useState<string | null>(null);
   const [iniciando, setIniciando] = useState(false);
@@ -451,6 +453,18 @@ function Index() {
     fetchSalvos()
       .then((r) => setSalvos(r ?? []))
       .catch(() => {});
+  }
+
+  async function handleDeletarBilhete(id: string) {
+    setDeletandoId(id);
+    try {
+      await removerBilhete({ data: { id } });
+      setSalvos((prev) => prev.filter((b) => b.id !== id));
+    } catch (e) {
+      console.error("Falha ao deletar bilhete", e);
+    } finally {
+      setDeletandoId(null);
+    }
   }
 
   useEffect(() => {
@@ -1242,9 +1256,25 @@ function Index() {
                     <p className="text-sm font-semibold">
                       Odd total: <span className="text-primary">{b.oddTotal.toFixed(2)}</span>
                     </p>
-                    <Badge variant="secondary">
-                      {new Date(b.createdAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
-                    </Badge>
+                    <div className="flex items-center gap-1">
+                      <Badge variant="secondary">
+                        {new Date(b.createdAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                      </Badge>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                        onClick={() => handleDeletarBilhete(b.id)}
+                        disabled={deletandoId === b.id}
+                        aria-label="Deletar bilhete"
+                      >
+                        {deletandoId === b.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
                   </div>
                   <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
                     <span>{b.picks.length} {b.picks.length === 1 ? "seleção" : "seleções"}</span>
