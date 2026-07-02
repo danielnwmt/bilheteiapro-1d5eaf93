@@ -54,7 +54,7 @@ export const reanalisarJogo = createServerFn({ method: "POST" })
     // 3) Atualiza estatísticas reais (escalação confirmada muda as métricas).
     if (row.external_id && (await hasApiFootballKey())) {
       try {
-        await syncEstatisticas([{ id: row.id, external_id: row.external_id }]);
+        await syncEstatisticas([{ id: row.id, external_id: row.external_id, time_casa: row.time_casa, time_fora: row.time_fora }]);
       } catch (e) {
         console.error("reanalisarJogo: falha ao atualizar estatísticas", e);
       }

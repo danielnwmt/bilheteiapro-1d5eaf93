@@ -466,7 +466,60 @@ export interface EstatisticasResumo {
   cartoesCasa: string | null;
   cartoesFora: string | null;
   cartoesConfronto: string | null;
+  // Lesões / suspensões / desfalques (API-Football /injuries) e escalação
+  // oficial confirmada (API-Football /fixtures/lineups). Tratados localmente.
+  lesoesCasa: string[];
+  lesoesFora: string[];
+  escalacaoConfirmada: boolean;
 }
+
+// Normaliza nome de time para casar lesões com o lado certo do confronto.
+function nkeyTime(s: string): string {
+  return (s || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+interface ApiInjuryResponse {
+  player?: { id?: number | null; name?: string | null } | null;
+  team?: { id?: number | null; name?: string | null } | null;
+  type?: string | null;
+  reason?: string | null;
+}
+
+// Lesões / suspensões de um jogo. Não lança erro — sem dados retorna [].
+async function apiGetInjuries(fixtureId: string, key: string): Promise<ApiInjuryResponse[]> {
+  await registrarChamada("API_FOOTBALL_KEY");
+  try {
+    const res = await fetch(`${API_BASE}/injuries?fixture=${fixtureId}`, {
+      headers: { "x-apisports-key": key },
+    });
+    if (!res.ok) return [];
+    const json = (await res.json()) as { response?: ApiInjuryResponse[] };
+    return json.response ?? [];
+  } catch {
+    return [];
+  }
+}
+
+// Escalação oficial: > 0 quando os times já divulgaram a escalação confirmada.
+async function apiGetLineupsCount(fixtureId: string, key: string): Promise<number> {
+  await registrarChamada("API_FOOTBALL_KEY");
+  try {
+    const res = await fetch(`${API_BASE}/fixtures/lineups?fixture=${fixtureId}`, {
+      headers: { "x-apisports-key": key },
+    });
+    if (!res.ok) return 0;
+    const json = (await res.json()) as { response?: unknown[] };
+    return json.response?.length ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
 
 async function apiGetPredictions(fixtureId: string, key: string): Promise<ApiPredResponse[]> {
   await registrarChamada("API_FOOTBALL_KEY");
@@ -526,16 +579,20 @@ function resumirPredicao(p: ApiPredResponse): EstatisticasResumo {
     cartoesCasa: cartCasa,
     cartoesFora: cartFora,
     cartoesConfronto: confronto,
+    lesoesCasa: [],
+    lesoesFora: [],
+    escalacaoConfirmada: false,
   };
 }
 
 /**
  * Coleta estatísticas reais (endpoint /predictions da API-Football) para as
  * partidas indicadas e grava em public.estatisticas (tipo "predicoes").
- * 1 chamada por jogo. Retorna quantos jogos tiveram estatísticas salvas.
+ * Também busca lesões/desfalques (/injuries) e a escalação oficial
+ * (/fixtures/lineups) e trata tudo localmente. Retorna quantos jogos foram salvos.
  */
 export async function syncEstatisticas(
-  fixtures: Array<{ id: string; external_id: string | null }>,
+  fixtures: Array<{ id: string; external_id: string | null; time_casa?: string; time_fora?: string }>,
   maxFixtures = 60,
 ): Promise<number> {
   const key = await getApiFootballKey();
@@ -555,11 +612,39 @@ export async function syncEstatisticas(
       const resp = await apiGetPredictions(String(f.external_id), key);
       const entry = resp[0];
       if (!entry) continue;
-      rows.push({ partida_id: f.id, tipo: "predicoes", payload: resumirPredicao(entry) });
+      const payload = resumirPredicao(entry);
+
+      // Lesões / suspensões / desfalques, divididos por time.
+      try {
+        const injuries = await apiGetInjuries(String(f.external_id), key);
+        const kc = nkeyTime(f.time_casa ?? "");
+        const kf = nkeyTime(f.time_fora ?? "");
+        const vistos = new Set<string>();
+        for (const inj of injuries) {
+          const nome = (inj.player?.name ?? "").trim();
+          if (!nome) continue;
+          const t = nkeyTime(inj.team?.name ?? "");
+          const chave = `${t}|${nome}`;
+          if (vistos.has(chave)) continue;
+          vistos.add(chave);
+          if (kc && (t.includes(kc) || kc.includes(t))) payload.lesoesCasa.push(nome);
+          else if (kf && (t.includes(kf) || kf.includes(t))) payload.lesoesFora.push(nome);
+        }
+      } catch (e) {
+        console.error("Falha ao buscar lesões da partida", f.external_id, e);
+      }
+
+      // Escalação oficial confirmada.
+      try {
+        payload.escalacaoConfirmada = (await apiGetLineupsCount(String(f.external_id), key)) > 0;
+      } catch { /* sem escalação ainda */ }
+
+      rows.push({ partida_id: f.id, tipo: "predicoes", payload });
     } catch (e) {
       console.error("Falha ao buscar estatísticas da partida", f.external_id, e);
     }
   }
+
 
   if (!rows.length) return 0;
 

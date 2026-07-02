@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Sparkles, Target, TrendingUp, Trophy, Building2, ExternalLink, ListChecks, LogOut, Lock, Crown, Users, Wallet, CalendarDays, UserCircle, Play, Flame, Zap, RefreshCw, Flag, CreditCard, LineChart, TrendingDown, Trash2 } from "lucide-react";
+import { Loader2, Sparkles, Target, TrendingUp, Trophy, Building2, ExternalLink, ListChecks, LogOut, Lock, Crown, Users, Wallet, CalendarDays, UserCircle, Play, Flame, Zap, RefreshCw, Flag, CreditCard, LineChart, TrendingDown, Trash2, AlertTriangle } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import logo from "@/assets/bilheteia-logo.png";
@@ -83,6 +83,9 @@ type EstatPayload = {
   cartoesCasa: string | null;
   cartoesFora: string | null;
   cartoesConfronto: string | null;
+  lesoesCasa?: string[] | null;
+  lesoesFora?: string[] | null;
+  escalacaoConfirmada?: boolean | null;
 };
 
 const CAMPEONATOS = [
@@ -1535,12 +1538,14 @@ function Index() {
                 </div>
 
                 <Tabs defaultValue="gols">
-                  <TabsList className="grid w-full grid-cols-4">
+                  <TabsList className="grid w-full grid-cols-5">
                     <TabsTrigger value="gols" className="gap-1.5 text-xs"><Target className="h-3.5 w-3.5" /> Gols</TabsTrigger>
                     <TabsTrigger value="escanteios" className="gap-1.5 text-xs"><Flag className="h-3.5 w-3.5" /> Escanteios</TabsTrigger>
                     <TabsTrigger value="cartoes" className="gap-1.5 text-xs"><CreditCard className="h-3.5 w-3.5" /> Cartões</TabsTrigger>
                     <TabsTrigger value="forma" className="gap-1.5 text-xs"><LineChart className="h-3.5 w-3.5" /> Forma</TabsTrigger>
+                    <TabsTrigger value="contexto" className="gap-1.5 text-xs"><AlertTriangle className="h-3.5 w-3.5" /> Contexto</TabsTrigger>
                   </TabsList>
+
 
                   {/* GOLS */}
                   <TabsContent value="gols" className="space-y-3 pt-3">
@@ -1636,6 +1641,57 @@ function Index() {
                     ))}
                     <p className="text-xs text-muted-foreground">V = vitória · E = empate · D = derrota</p>
                   </TabsContent>
+
+                  {/* CONTEXTO: lesões / desfalques / escalação */}
+                  <TabsContent value="contexto" className="space-y-4 pt-3">
+                    <div className="flex items-center gap-2 rounded-md border p-2.5 text-xs">
+                      {estatPayload.escalacaoConfirmada ? (
+                        <>
+                          <Zap className="h-4 w-4 text-emerald-500" />
+                          <span className="font-semibold text-emerald-600">Escalação oficial confirmada</span>
+                        </>
+                      ) : (
+                        <>
+                          <AlertTriangle className="h-4 w-4 text-amber-500" />
+                          <span className="text-muted-foreground">Escalação provável (ainda não confirmada)</span>
+                        </>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      {([
+                        { nome: estatJogo ? traduzPaises(estatJogo.time_casa) : "", lista: estatPayload.lesoesCasa },
+                        { nome: estatJogo ? traduzPaises(estatJogo.time_fora) : "", lista: estatPayload.lesoesFora },
+                      ]).map((t, i) => {
+                        const lista = Array.isArray(t.lista) ? t.lista : [];
+                        return (
+                          <div key={i} className="rounded-md border p-3">
+                            <p className="mb-2 flex items-center justify-between text-sm font-bold">
+                              <span>{t.nome}</span>
+                              <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-semibold">
+                                {lista.length} desfalque{lista.length === 1 ? "" : "s"}
+                              </span>
+                            </p>
+                            {lista.length ? (
+                              <ul className="space-y-1.5">
+                                {lista.map((nome, j) => (
+                                  <li key={j} className="flex items-center gap-2 text-sm">
+                                    <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+                                    <span>{nome}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">Sem lesões ou suspensões registradas.</span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Lesões e suspensões reduzem automaticamente a força de ataque do time no cálculo local.
+                    </p>
+                  </TabsContent>
+
                 </Tabs>
               </div>
             );
