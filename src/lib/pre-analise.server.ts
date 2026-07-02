@@ -114,7 +114,12 @@ export async function preAnalisarTodos(): Promise<PreAnaliseResult> {
   let estatisticas = 0;
   const semStats = candidatos
     .filter((c) => c.partida.external_id && !statsMap.has(c.partida.id))
-    .map((c) => ({ id: c.partida.id, external_id: c.partida.external_id }));
+    .map((c) => ({
+      id: c.partida.id,
+      external_id: c.partida.external_id,
+      time_casa: c.partida.time_casa,
+      time_fora: c.partida.time_fora,
+    }));
   const apiFootballConfigurada = await hasApiFootballKey();
   if (semStats.length && !apiFootballConfigurada) {
     avisos.push("API-Football não configurada; estatísticas reais pausadas.");
