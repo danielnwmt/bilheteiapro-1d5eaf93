@@ -90,6 +90,11 @@ async function apiGet(path: string, key: string): Promise<ApiFixture[]> {
   return json.response ?? [];
 }
 
+// Espaça as chamadas à API-Football para não disparar várias por segundo
+// (evita estourar o limite por minuto do plano). ~300ms = no máx. ~3 req/s.
+const API_THROTTLE_MS = 300;
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
 const STATUS_MAP: Record<string, string> = {
   NS: "agendado",
   TBD: "agendado",
