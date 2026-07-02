@@ -588,7 +588,17 @@ function Index() {
     setLoading(true);
     setTicket(null);
     try {
-      const r = await run({ data: { oddAlvo: odd, periodo, campeonatos: campSel, mercados: mercSel } });
+      const r = await run({
+        data: {
+          oddAlvo: odd,
+          periodo,
+          campeonatos: campSel,
+          mercados: mercSel,
+          tipoBilhete,
+          oddMin: Math.max(1, parseFloat(oddMin) || 1),
+          limiteJogos: Math.min(20, Math.max(1, parseInt(limiteJogos, 10) || 8)),
+        },
+      });
       setTicket(r);
       carregarSalvos();
     } catch (err: unknown) {
