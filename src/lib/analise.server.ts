@@ -368,7 +368,7 @@ export function diaSaoPaulo(now = new Date()): string {
 // cache já preenchido pelo robô a cada 5 min. Se não houver cache, retorna vazio.
 export async function obterAnalisePartida(
   supabaseAdmin: any,
-  model: LanguageModel,
+  model: LanguageModel | null,
   partida: PartidaRow,
   casa: string,
   dia: string,
