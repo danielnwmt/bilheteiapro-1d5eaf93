@@ -4,6 +4,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { PartidaRow } from "@/lib/analise.server";
 
 const InputSchema = z.object({ partidaId: z.string().uuid() });
 
