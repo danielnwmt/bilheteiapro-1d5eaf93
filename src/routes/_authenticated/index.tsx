@@ -244,6 +244,21 @@ function traduzTermo(texto: string): string {
     .replace(/([+-]\d+(?:\.\d+)?)\s+\d+(?:\.\d+)?/g, "$1");
 }
 
+// Gera uma sigla curta (3 letras) a partir do nome do time para os cards.
+function sigla(nome: string): string {
+  const n = traduzPaises(nome || "").trim();
+  const palavras = n.split(/\s+/).filter((w) => w.length > 1);
+  const base = palavras[0] || n;
+  return base
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z]/g, "")
+    .slice(0, 3)
+    .toUpperCase() || "—";
+}
+
+
+
 function Index() {
   const router = useRouter();
   const run = useServerFn(gerarBilhete);
@@ -280,6 +295,12 @@ function Index() {
   const [estatPayload, setEstatPayload] = useState<EstatPayload | null>(null);
   const [estatEscanteios, setEstatEscanteios] = useState<string | null>(null);
   const [loadingEstat, setLoadingEstat] = useState(false);
+  const [statsMap, setStatsMap] = useState<Record<string, { pc: number; pe: number; pf: number }>>({});
+  const [oddMin, setOddMin] = useState("2.5");
+  const [limiteJogos, setLimiteJogos] = useState("4");
+  const [tipoBilhete, setTipoBilhete] = useState<"simples" | "multipla" | "mesmojogo">("multipla");
+
+
 
   async function abrirEstatisticas(j: JogoDia) {
     setEstatJogo(j);
@@ -449,6 +470,49 @@ function Index() {
     };
   }, [temAcesso, fetchEntradas]);
 
+  // Carrega as probabilidades (1X2) de todos os jogos visíveis num só lote para
+  // desenhar as barras de probabilidade nos cards.
+  useEffect(() => {
+    let ativo = true;
+    const ids = jogos.map((j) => j.id);
+    if (ids.length === 0) {
+      setStatsMap({});
+      return;
+    }
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from("estatisticas")
+          .select("partida_id, payload")
+          .eq("tipo", "predicoes")
+          .in("partida_id", ids);
+        if (!ativo) return;
+        const pnum = (v: unknown) => {
+          const n = parseInt(String(v ?? "").replace(/[^0-9]/g, ""), 10);
+          return Number.isFinite(n) ? n : 0;
+        };
+        const map: Record<string, { pc: number; pe: number; pf: number }> = {};
+        for (const row of data ?? []) {
+          const p = (row as { payload?: unknown }).payload as EstatPayload | undefined;
+          if (!p) continue;
+          map[(row as { partida_id: string }).partida_id] = {
+            pc: pnum(p.percent?.casa),
+            pe: pnum(p.percent?.empate),
+            pf: pnum(p.percent?.fora),
+          };
+        }
+        setStatsMap(map);
+      } catch {
+        if (ativo) setStatsMap({});
+      }
+    })();
+    return () => {
+      ativo = false;
+    };
+  }, [jogos]);
+
+
+
   function carregarSalvos() {
     fetchSalvos()
       .then((r) => setSalvos(r ?? []))
@@ -486,8 +550,8 @@ function Index() {
 
 
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function onSubmit(e?: React.FormEvent) {
+    e?.preventDefault();
     const odd = parseFloat(oddAlvo);
     if (!odd) {
       toast.error("Defina a odd alvo");
@@ -691,15 +755,207 @@ function Index() {
           </Card>
         )}
 
-        <Card className="border-border/60 bg-card p-6 md:p-8">
-          <form onSubmit={onSubmit} className="space-y-5">
-            <div className="grid gap-4 md:grid-cols-2">
+        {/* Cabeçalho: título + filtros de campeonato */}
+        <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">
+              {periodo === "aovivo"
+                ? "Jogos ao vivo"
+                : periodo === "amanha"
+                ? "Jogos de amanhã"
+                : periodo === "semana"
+                ? "Jogos da semana"
+                : "Jogos do dia"}
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Análises geradas por IA · probabilidades, gols esperados e mercados com valor.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setCampSel([])}
+              className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                campSel.length === 0
+                  ? "border-primary bg-primary/15 text-primary"
+                  : "border-border bg-input/40 text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Todos
+            </button>
+            {CAMPEONATOS.map((c) => {
+              const active = campSel.includes(c);
+              const liberado = podeUsarLiga(c);
+              return (
+                <button
+                  type="button"
+                  key={c}
+                  onClick={() => toggleCamp(c)}
+                  className={`flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                    active
+                      ? "border-primary bg-primary/15 text-primary"
+                      : "border-border bg-input/40 text-muted-foreground hover:text-foreground"
+                  } ${liberado ? "" : "opacity-50"}`}
+                >
+                  {!liberado && <Lock className="h-3 w-3" />}
+                  {c}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="mt-8 flex flex-col gap-8">
+        <div className="grid gap-8 lg:grid-cols-[1fr_380px]">
+          {/* Grid de jogos */}
+          <div>
+            {loadingJogos ? (
+              <div className="flex items-center justify-center rounded-xl border border-border/60 bg-card py-16 text-muted-foreground">
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando jogos...
+              </div>
+            ) : jogosFiltrados.length === 0 ? (
+              <div className="rounded-xl border border-border/60 bg-card py-16 text-center text-sm text-muted-foreground">
+                Nenhum jogo encontrado para este período. Os jogos são atualizados automaticamente.
+              </div>
+            ) : (
+              <div className="grid content-start gap-4 sm:grid-cols-2">
+                {jogosFiltrados.map((j) => {
+                  const st = statsMap[j.id];
+                  const soma = st ? (st.pc + st.pe + st.pf) || 1 : 1;
+                  const confAlta = !!st && (st.pc >= 55 || st.pf >= 55);
+                  const oficial = escalacaoConfirmada(j);
+                  return (
+                    <button
+                      key={j.id}
+                      type="button"
+                      onClick={() => abrirEstatisticas(j)}
+                      className="group flex flex-col rounded-xl border border-border/60 bg-card p-4 text-left transition-colors hover:border-primary/50"
+                    >
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span className="flex min-w-0 items-center gap-1.5">
+                          <Trophy className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate">{j.liga ?? "—"}</span>
+                        </span>
+                        <span className="shrink-0 font-medium text-foreground/80">
+                          {j.status === "ao_vivo"
+                            ? "🔴 AO VIVO"
+                            : new Date(j.inicio).toLocaleTimeString("pt-BR", {
+                                timeZone: "America/Sao_Paulo",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                        </span>
+                      </div>
+
+                      <div className="mt-3 flex items-center justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-2xl font-bold leading-none">{sigla(j.time_casa)}</p>
+                          <p className="mt-1 truncate text-xs text-muted-foreground">{traduzPaises(j.time_casa)}</p>
+                        </div>
+                        <span className="shrink-0 text-xs text-muted-foreground">vs</span>
+                        <div className="min-w-0 flex-1 text-right">
+                          <p className="text-2xl font-bold leading-none">{sigla(j.time_fora)}</p>
+                          <p className="mt-1 truncate text-xs text-muted-foreground">{traduzPaises(j.time_fora)}</p>
+                        </div>
+                      </div>
+
+                      {st ? (
+                        <>
+                          <div className="mt-4 flex h-1.5 overflow-hidden rounded-full bg-muted">
+                            <div className="bg-primary" style={{ width: `${(st.pc / soma) * 100}%` }} />
+                            <div className="bg-muted-foreground/40" style={{ width: `${(st.pe / soma) * 100}%` }} />
+                            <div className="bg-sky-500" style={{ width: `${(st.pf / soma) * 100}%` }} />
+                          </div>
+                          <div className="mt-1.5 flex justify-between text-[11px] font-medium">
+                            <span className="text-primary">1 · {st.pc}%</span>
+                            <span className="text-muted-foreground">X · {st.pe}%</span>
+                            <span className="text-sky-500">2 · {st.pf}%</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="mt-4 h-1.5 rounded-full bg-muted" />
+                      )}
+
+                      <div className="mt-3 flex items-center justify-between">
+                        {st ? (
+                          <Badge
+                            className={`gap-1 border text-[11px] ${
+                              confAlta
+                                ? "border-primary/30 bg-primary/15 text-primary"
+                                : "border-amber-500/30 bg-amber-500/15 text-amber-500"
+                            }`}
+                          >
+                            <Sparkles className="h-3 w-3" /> {confAlta ? "IA Alta" : "IA Média"}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[11px] text-muted-foreground">
+                            Análise pendente
+                          </Badge>
+                        )}
+                        <span className="flex items-center gap-1 text-xs font-medium text-primary opacity-0 transition-opacity group-hover:opacity-100">
+                          Ver análise <TrendingUp className="h-3.5 w-3.5" />
+                        </span>
+                      </div>
+
+                      {oficial && (
+                        <Badge variant="secondary" className="mt-2 h-4 w-fit gap-0.5 px-1.5 text-[10px] text-primary">
+                          <Zap className="h-2.5 w-2.5" /> Escalação Oficial
+                        </Badge>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Criador de Bilhetes */}
+          <Card className="h-fit border-primary/30 bg-card p-6 lg:sticky lg:top-6">
+            <h2 className="flex items-center gap-2 text-lg font-bold">
+              <Zap className="h-5 w-5 text-primary" /> Criador de Bilhetes
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              A IA seleciona mercados com valor esperado positivo.
+            </p>
+
+            <div className="mt-4 grid grid-cols-3 gap-1 rounded-lg bg-muted p-1 text-xs font-semibold">
+              {([
+                { id: "simples", label: "Simples" },
+                { id: "multipla", label: "Múltipla" },
+                { id: "mesmojogo", label: "Mesmo Jogo" },
+              ] as const).map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setTipoBilhete(t.id)}
+                  className={`rounded-md py-1.5 transition-colors ${
+                    tipoBilhete === t.id
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-3">
               <div>
-                <Label htmlFor="odd" className="mb-2 flex items-center gap-2 text-sm">
-                  <Target className="h-4 w-4 text-primary" /> Odd alvo da múltipla
-                </Label>
+                <Label htmlFor="oddMin" className="mb-1.5 block text-xs">Odd mínima</Label>
                 <Input
-                  id="odd"
+                  id="oddMin"
+                  type="number"
+                  step="0.1"
+                  min="1.1"
+                  value={oddMin}
+                  onChange={(e) => setOddMin(e.target.value)}
+                  className="bg-input/40"
+                />
+              </div>
+              <div>
+                <Label htmlFor="oddMax" className="mb-1.5 block text-xs">Odd máxima (alvo)</Label>
+                <Input
+                  id="oddMax"
                   type="number"
                   step="0.1"
                   min="1.1"
@@ -708,79 +964,57 @@ function Index() {
                   className="bg-input/40"
                 />
               </div>
-              <div>
-                <Label className="mb-2 flex items-center gap-2 text-sm">
-                  <TrendingUp className="h-4 w-4 text-primary" /> Período
-                </Label>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  {(["aovivo", "hoje", "amanha", "semana"] as const).map((p) => {
-                    const bloqueado = p === "aovivo" && !permiteAoVivo;
-                    return (
-                      <button
-                        type="button"
-                        key={p}
-                        onClick={() => {
-                          if (bloqueado) {
-                            toast.error("Atualização em tempo real não está no seu plano.");
-                            router.navigate({ to: "/planos" });
-                            return;
-                          }
-                          setPeriodo(p);
-                        }}
-                        className={`flex items-center justify-center gap-1 rounded-md border px-3 py-2 text-sm font-medium capitalize transition-colors ${
-                          periodo === p
-                            ? "border-primary bg-primary/15 text-primary"
-                            : "border-border bg-input/40 text-muted-foreground hover:text-foreground"
-                        } ${bloqueado ? "opacity-50" : ""}`}
-                      >
-                        {bloqueado && <Lock className="h-3 w-3" />}
-                        {p === "amanha" ? "amanhã" : p === "aovivo" ? "🔴 ao vivo" : p}
-                      </button>
-                    );
-                  })}
-                </div>
-                <p className="mt-2 text-xs text-primary">Todas as entradas exigem confiança ≥ 90%.</p>
-              </div>
             </div>
 
+            <div className="mt-3">
+              <Label htmlFor="limite" className="mb-1.5 block text-xs">Limite de jogos por bilhete</Label>
+              <Input
+                id="limite"
+                type="number"
+                min="1"
+                max="12"
+                value={limiteJogos}
+                onChange={(e) => setLimiteJogos(e.target.value)}
+                className="bg-input/40"
+              />
+            </div>
 
-
-            <div>
-              <Label className="mb-2 flex items-center gap-2 text-sm">
-                <Trophy className="h-4 w-4 text-primary" /> Campeonatos {campSel.length > 0 && <span className="text-xs text-muted-foreground">({campSel.length} selecionados)</span>}
-              </Label>
-              <div className="flex flex-wrap gap-2">
-                {CAMPEONATOS.map((c) => {
-                  const active = campSel.includes(c);
-                  const liberado = podeUsarLiga(c);
+            <div className="mt-4">
+              <Label className="mb-1.5 block text-xs">Período</Label>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {(["aovivo", "hoje", "amanha", "semana"] as const).map((p) => {
+                  const bloqueado = p === "aovivo" && !permiteAoVivo;
                   return (
                     <button
                       type="button"
-                      key={c}
-                      onClick={() => toggleCamp(c)}
-                      className={`flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                        active
+                      key={p}
+                      onClick={() => {
+                        if (bloqueado) {
+                          toast.error("Atualização em tempo real não está no seu plano.");
+                          router.navigate({ to: "/planos" });
+                          return;
+                        }
+                        setPeriodo(p);
+                      }}
+                      className={`flex items-center justify-center gap-1 rounded-md border px-2 py-2 text-xs font-medium capitalize transition-colors ${
+                        periodo === p
                           ? "border-primary bg-primary/15 text-primary"
                           : "border-border bg-input/40 text-muted-foreground hover:text-foreground"
-                      } ${liberado ? "" : "opacity-50"}`}
+                      } ${bloqueado ? "opacity-50" : ""}`}
                     >
-                      {!liberado && <Lock className="h-3 w-3" />}
-                      {c}
+                      {bloqueado && <Lock className="h-3 w-3" />}
+                      {p === "amanha" ? "amanhã" : p === "aovivo" ? "🔴 ao vivo" : p}
                     </button>
                   );
                 })}
               </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Itens com cadeado não estão no seu plano. Deixe vazio para considerar todos os liberados.
-              </p>
             </div>
 
-
-            <div>
-              <Label className="mb-2 flex items-center gap-2 text-sm">
-                <ListChecks className="h-4 w-4 text-primary" /> Mercados do bilhete {mercSel.length > 0 && <span className="text-xs text-muted-foreground">({mercSel.length} selecionados)</span>}
-              </Label>
-              <div className="flex flex-wrap gap-2">
+            <details className="mt-4 rounded-md border border-border/60 bg-input/20 p-3">
+              <summary className="cursor-pointer text-xs font-medium text-muted-foreground">
+                Mercados do bilhete {mercSel.length > 0 && `(${mercSel.length})`}
+              </summary>
+              <div className="mt-3 flex flex-wrap gap-2">
                 {MERCADOS.map((m) => {
                   const active = mercSel.includes(m);
                   return (
@@ -788,7 +1022,7 @@ function Index() {
                       type="button"
                       key={m}
                       onClick={() => toggleMerc(m)}
-                      className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                      className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors ${
                         active
                           ? "border-primary bg-primary/15 text-primary"
                           : "border-border bg-input/40 text-muted-foreground hover:text-foreground"
@@ -799,132 +1033,38 @@ function Index() {
                   );
                 })}
               </div>
-              <p className="mt-2 text-xs text-muted-foreground">Escolha vitória, escanteios, cartões e outros. Deixe vazio para a IA usar qualquer mercado.</p>
-            </div>
+              <p className="mt-2 text-[11px] text-muted-foreground">Deixe vazio para a IA usar qualquer mercado.</p>
+            </details>
+
+            <p className="mt-3 text-center text-[11px] text-primary">Todas as entradas exigem confiança ≥ 90%.</p>
 
             <Button
-              type="submit"
+              type="button"
+              onClick={() => onSubmit()}
               disabled={loading || !temAcesso}
               size="lg"
-              className="w-full font-semibold"
+              className="mt-3 w-full font-semibold"
             >
               {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Buscando jogos e analisando...
-                </>
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Analisando...</>
               ) : !temAcesso ? (
-                <>
-                  <Lock className="mr-2 h-4 w-4" /> Assine um plano para gerar
-                </>
+                <><Lock className="mr-2 h-4 w-4" /> Assine um plano</>
               ) : (
-                <>
-                  <Sparkles className="mr-2 h-4 w-4" /> Buscar jogos e gerar bilhete
-                </>
+                <><Sparkles className="mr-2 h-4 w-4" /> Gerar bilhete</>
               )}
             </Button>
-
-          </form>
-        </Card>
-
-        <div className="mt-8 flex flex-col gap-8">
-        <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
-          <Card className="border-border/60 bg-card p-6 md:p-8">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <h2 className="flex items-center gap-2 text-lg font-bold">
-                <CalendarDays className="h-5 w-5 text-primary" />
-                {periodo === "aovivo"
-                  ? "Jogos ao vivo"
-                  : periodo === "amanha"
-                  ? "Jogos de amanhã"
-                  : periodo === "semana"
-                  ? "Jogos da semana"
-                  : "Jogos do dia"}
-              </h2>
-              {!loadingJogos && (
-                <Badge variant="secondary">{jogosFiltrados.length} jogos</Badge>
-              )}
-            </div>
-
-            {loadingJogos ? (
-              <div className="flex items-center justify-center py-10 text-muted-foreground">
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando jogos...
-              </div>
-            ) : jogosFiltrados.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                Nenhum jogo encontrado para este período. Os jogos são atualizados automaticamente.
-              </p>
-            ) : (
-              <div className="divide-y divide-border/60">
-                {jogosFiltrados.map((j) => {
-                  const oficial = escalacaoConfirmada(j);
-                  return (
-                    <div key={j.id} className="flex items-center gap-3 py-3">
-                      <button
-                        type="button"
-                        onClick={() => abrirEstatisticas(j)}
-                        className="flex min-w-0 flex-1 items-center gap-3 text-left transition-colors hover:bg-muted/40"
-                      >
-                        <div className="w-16 shrink-0 text-sm font-semibold text-primary">
-                          {j.status === "ao_vivo" ? (
-                            <span className="flex items-center gap-1">🔴 AO VIVO</span>
-                          ) : (
-                            new Date(j.inicio).toLocaleTimeString("pt-BR", {
-                              timeZone: "America/Sao_Paulo",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })
-                          )}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium">
-                            {traduzPaises(j.time_casa)} <span className="text-muted-foreground">x</span> {traduzPaises(j.time_fora)}
-                          </p>
-                          <div className="flex items-center gap-2">
-                            {j.liga && (
-                              <p className="truncate text-xs text-muted-foreground">{j.liga}</p>
-                            )}
-                            {oficial && (
-                              <Badge variant="secondary" className="h-4 gap-0.5 px-1.5 text-[10px] text-primary">
-                                <Zap className="h-2.5 w-2.5" /> Escalação Oficial
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      </button>
-                      {oficial && isStaff ? (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 shrink-0"
-                          title="Limpar cache e reanalisar com a escalação"
-                          disabled={reanalisandoId === j.id}
-                          onClick={() => handleReanalisar(j)}
-                        >
-                          {reanalisandoId === j.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <RefreshCw className="h-4 w-4 text-primary" />
-                          )}
-                        </Button>
-                      ) : (
-                        <TrendingUp className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </Card>
+        </div>
 
-          <Card className="h-fit border-primary/30 bg-card p-6 md:p-8 lg:sticky lg:top-6">
+        {/* Melhores entradas analisadas pela IA */}
+        {temAcesso && (
+          <Card className="border-primary/30 bg-card p-6 md:p-8">
             <div className="mb-4 flex items-center justify-between gap-3">
               <h2 className="flex items-center gap-2 text-lg font-bold">
                 <Flame className="h-5 w-5 text-primary" /> Melhores entradas
               </h2>
               {!loadingEntradas && entradasFiltradas.length > 0 && (
                 <Badge variant="secondary">{entradasFiltradas.length}</Badge>
-
               )}
             </div>
 
@@ -959,7 +1099,6 @@ function Index() {
               </div>
             )}
 
-
             {loadingEntradas ? (
               <div className="flex items-center justify-center py-10 text-muted-foreground">
                 <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando...
@@ -969,10 +1108,9 @@ function Index() {
                 As melhores entradas analisadas pela IA aparecem aqui. Aguarde a análise automática.
               </p>
             ) : (
-              <div className="space-y-3">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {entradasFiltradas.map((e, i) => (
                   <div key={`${e.jogo}-${i}`} className="rounded-lg border border-border/70 bg-muted/20 p-3">
-
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold">{traduzPaises(e.jogo)}</p>
@@ -1003,7 +1141,8 @@ function Index() {
               </div>
             )}
           </Card>
-        </div>
+        )}
+
 
 
 
