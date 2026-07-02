@@ -7,17 +7,17 @@ import { verificarCronSecret } from "@/lib/cron-auth";
 const LIVE_WINDOW_MIN = 150; // ~2h30 de duração de jogo
 const CASA_PADRAO = "betano";
 
-// Intervalo fixo de execução (jogos + estatísticas): a cada 4 minutos.
-const INTERVALO_FIXO_MIN = 4;
-
-async function getIntervaloMin(_chave: string): Promise<number> {
-  return INTERVALO_FIXO_MIN;
-}
+// Ritmo rápido (a cada 4 min): só o essencial — jogos ao vivo e odds de HOJE.
+const INTERVALO_RAPIDO_MIN = 4;
+// Ritmo lento (a cada 60 min): semana inteira (jogos + odds dos próximos dias).
+// Odds de jogos daqui a vários dias quase não mudam; puxá-las a cada 4 min
+// multiplica as chamadas e estoura o limite da API.
+const INTERVALO_SEMANA_MIN = 60;
 
 async function podeSincronizar(
   supabaseAdmin: any,
   id: string,
-  chave: string,
+  intervaloMin: number,
   now: number,
 ) {
   const { data: state, error } = await supabaseAdmin
@@ -28,21 +28,12 @@ async function podeSincronizar(
 
   if (error) {
     console.error(`sync_state ${id} indisponível; bloqueando chamada da API`, error);
-    return {
-      ok: false,
-      intervaloMin: await getIntervaloMin(chave),
-      minutesSinceLast: 0,
-    };
+    return { ok: false, intervaloMin, minutesSinceLast: 0 };
   }
 
   const last = state?.last_sync_at ? new Date(state.last_sync_at).getTime() : 0;
   const minutesSinceLast = (now - last) / 60_000;
-  const intervaloMin = await getIntervaloMin(chave);
-  return {
-    ok: minutesSinceLast >= intervaloMin,
-    intervaloMin,
-    minutesSinceLast,
-  };
+  return { ok: minutesSinceLast >= intervaloMin, intervaloMin, minutesSinceLast };
 }
 
 async function reservarSync(supabaseAdmin: any, id: string, now: number): Promise<boolean> {
