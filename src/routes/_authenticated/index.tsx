@@ -399,7 +399,7 @@ function Index() {
       try {
         let q = supabase
           .from("partidas")
-          .select("id, liga, time_casa, time_fora, inicio, status, arbitro")
+          .select("id, liga, time_casa, time_fora, logo_casa, logo_fora, inicio, status, arbitro")
           .in("liga", CAMPEONATOS)
           .order("inicio", { ascending: true });
 
