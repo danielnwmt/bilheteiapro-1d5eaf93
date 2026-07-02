@@ -1178,3 +1178,134 @@ export async function syncOddsFromOddsApi(
 
   return { ligas: sportsToQuery.length, chamadas, eventos, odds: rows.length };
 }
+
+// ============================================================================
+// Estatísticas AO VIVO de um jogo (placar, minuto e métricas em tempo real).
+// Busca direto na API-Football sem cache — usado apenas para jogos em andamento.
+// ============================================================================
+
+export type EstatAoVivoTime = {
+  posse: string | null;
+  chutes: number | null;
+  chutesAoGol: number | null;
+  escanteios: number | null;
+  faltas: number | null;
+  cartoesAmarelos: number | null;
+  cartoesVermelhos: number | null;
+  ataquesPerigosos: number | null;
+};
+
+export type EstatAoVivo = {
+  aoVivo: boolean;
+  statusCurto: string | null;
+  minuto: number | null;
+  golsCasa: number | null;
+  golsFora: number | null;
+  casa: EstatAoVivoTime;
+  fora: EstatAoVivoTime;
+};
+
+const STAT_LABELS: Record<string, keyof EstatAoVivoTime> = {
+  "ball possession": "posse",
+  "total shots": "chutes",
+  "shots on goal": "chutesAoGol",
+  "corner kicks": "escanteios",
+  "fouls": "faltas",
+  "yellow cards": "cartoesAmarelos",
+  "red cards": "cartoesVermelhos",
+  "dangerous attacks": "ataquesPerigosos",
+};
+
+function vazioTime(): EstatAoVivoTime {
+  return {
+    posse: null,
+    chutes: null,
+    chutesAoGol: null,
+    escanteios: null,
+    faltas: null,
+    cartoesAmarelos: null,
+    cartoesVermelhos: null,
+    ataquesPerigosos: null,
+  };
+}
+
+// Busca placar + minuto + estatísticas ao vivo de um fixture (external_id).
+export async function getEstatisticasAoVivo(externalId: string): Promise<EstatAoVivo> {
+  const key = await getApiFootballKey();
+  const vazio: EstatAoVivo = {
+    aoVivo: false,
+    statusCurto: null,
+    minuto: null,
+    golsCasa: null,
+    golsFora: null,
+    casa: vazioTime(),
+    fora: vazioTime(),
+  };
+
+  // 1) Placar e status.
+  await registrarChamada("API_FOOTBALL_KEY");
+  let fixture: {
+    fixture?: { status?: { short?: string; elapsed?: number | null } };
+    teams?: { home?: { id?: number }; away?: { id?: number } };
+    goals?: { home?: number | null; away?: number | null };
+  } | null = null;
+  try {
+    const res = await fetch(`${API_BASE}/fixtures?id=${externalId}`, {
+      headers: { "x-apisports-key": key },
+    });
+    if (res.ok) {
+      const json = (await res.json()) as { response?: unknown[] };
+      fixture = (json.response?.[0] as typeof fixture) ?? null;
+    }
+  } catch (e) {
+    console.error("getEstatisticasAoVivo: falha ao buscar fixture", e);
+  }
+  if (!fixture) return vazio;
+
+  const shortStatus = fixture.fixture?.status?.short ?? null;
+  const homeId = fixture.teams?.home?.id ?? null;
+
+  const result: EstatAoVivo = {
+    aoVivo: shortStatus ? STATUS_MAP[shortStatus] === "ao_vivo" : false,
+    statusCurto: shortStatus,
+    minuto: fixture.fixture?.status?.elapsed ?? null,
+    golsCasa: fixture.goals?.home ?? null,
+    golsFora: fixture.goals?.away ?? null,
+    casa: vazioTime(),
+    fora: vazioTime(),
+  };
+
+  // 2) Estatísticas por time.
+  await sleep(API_THROTTLE_MS);
+  await registrarChamada("API_FOOTBALL_KEY");
+  try {
+    const res = await fetch(`${API_BASE}/fixtures/statistics?fixture=${externalId}`, {
+      headers: { "x-apisports-key": key },
+    });
+    if (res.ok) {
+      const json = (await res.json()) as {
+        response?: Array<{
+          team?: { id?: number };
+          statistics?: Array<{ type?: string; value?: unknown }>;
+        }>;
+      };
+      for (const teamStats of json.response ?? []) {
+        const alvo = teamStats.team?.id === homeId ? result.casa : result.fora;
+        for (const s of teamStats.statistics ?? []) {
+          const campo = STAT_LABELS[String(s.type ?? "").toLowerCase()];
+          if (!campo) continue;
+          if (campo === "posse") {
+            alvo.posse = s.value == null ? null : String(s.value);
+          } else {
+            const n = typeof s.value === "number" ? s.value : Number(s.value);
+            (alvo[campo] as number | null) = Number.isFinite(n) ? n : null;
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.error("getEstatisticasAoVivo: falha ao buscar statistics", e);
+  }
+
+  return result;
+}
