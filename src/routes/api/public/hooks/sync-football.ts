@@ -90,32 +90,36 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
           });
         }
 
-        const footballSync = await podeSincronizar(supabaseAdmin, "football", "API_FOOTBALL_KEY", now);
-        let footballReservado = false;
+        const rapidoSync = await podeSincronizar(supabaseAdmin, "football", INTERVALO_RAPIDO_MIN, now);
+        const semanaSync = await podeSincronizar(supabaseAdmin, "football_semana", INTERVALO_SEMANA_MIN, now);
 
         try {
-          // Etapa "jogos": só chama API-Football quando passou o intervalo dela.
-          if (footballSync.ok) {
-            footballReservado = await reservarSync(supabaseAdmin, "football", now);
-            if (footballReservado) {
-              // Busca os jogos da semana inteira (hoje + próximos 7 dias) para
-              // que os filtros "amanhã" e "semana" tenham dados.
+          // Ritmo LENTO (1x/hora): semana inteira de jogos + odds dos próximos dias.
+          if (semanaSync.ok) {
+            if (await reservarSync(supabaseAdmin, "football_semana", now)) {
               fixturesHoje = await syncFixtures("semana");
+              const result = await syncOddsByLeagueDias(CASA_PADRAO, 8);
+              oddsCount = result.odds;
+            } else {
+              skipped.semana = "controle de intervalo indisponível";
+            }
+          } else {
+            skipped.semana = `dentro do intervalo de ${Math.round(semanaSync.intervaloMin)} min`;
+          }
+
+          // Ritmo RÁPIDO (a cada 4 min): só jogos ao vivo + odds de HOJE.
+          if (rapidoSync.ok) {
+            if (await reservarSync(supabaseAdmin, "football", now)) {
               if (hasLive) {
                 fixturesAoVivo = await syncFixtures("aovivo");
               }
+              const result = await syncOddsByLeagueDias(CASA_PADRAO, 1);
+              oddsCount += result.odds;
             } else {
-              skipped.API_FOOTBALL_KEY = "controle de intervalo indisponível";
+              skipped.rapido = "controle de intervalo indisponível";
             }
           } else {
-            skipped.API_FOOTBALL_KEY = `dentro do intervalo de ${Math.round(footballSync.intervaloMin)} min`;
-          }
-
-          // Etapa "odds": API-Football coleta as odds de todos os jogos da
-          // semana (uma chamada por liga/dia), não só das próximas 24h.
-          if (footballReservado) {
-            const result = await syncOddsByLeagueDias(CASA_PADRAO, 8);
-            oddsCount = result.odds;
+            skipped.rapido = `dentro do intervalo de ${Math.round(rapidoSync.intervaloMin)} min`;
           }
         } catch (e) {
           const msg = String(e);
