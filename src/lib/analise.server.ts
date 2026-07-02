@@ -414,12 +414,15 @@ export async function obterAnalisePartida(
     return { picks: [], analise: montarAnaliseSemIa(partida, casa).analise };
   }
 
-  // 2) Sem cache válido: chama a IA e salva.
+  // 2) Sem cache válido: gera a análise 100% LOCAL (Poisson + estatísticas).
+  // A IA não é mais usada — o motor local é determinístico e não depende de chave.
   let analise: AnalisePartida;
   try {
-    analise = await analisarComIa(model, partida, casa);
+    const { analisarLocal } = await import("./analise-local.server");
+    analise = analisarLocal(partida, casa);
+    if (!analise.picks.length) analise = montarAnaliseSemIa(partida, casa);
   } catch (e) {
-    if (!isRateLimitError(e)) throw e;
+    console.error("Falha na análise local", e);
     analise = montarAnaliseSemIa(partida, casa);
   }
   if (analise.picks.length) {
