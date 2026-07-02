@@ -43,6 +43,16 @@ function probUnder(lambda: number, linha: number): number {
   return clamp(poissonCdf(lambda, Math.floor(linha)), 0, 1);
 }
 
+// Uma linha de over/under só faz sentido se estiver perto da estimativa do jogo.
+// Ex.: jogo com ~7 escanteios não deve sugerir "Mais de 1.5" (ganho garantido,
+// odd inútil). Rejeitamos linhas triviais/absurdas fora da faixa esperada.
+function linhaRelevante(isOver: boolean, linha: number, lambda: number): boolean {
+  const margem = 2.5;
+  if (isOver) return linha >= lambda - margem;
+  return linha <= lambda + margem;
+}
+
+
 // Extrai o primeiro número (linha) de uma seleção, ex.: "Mais de 2.5" => 2.5.
 function extrairLinha(selecao: string): number | null {
   const m = selecao.match(/([0-9]+(?:[.,][0-9]+)?)/);
@@ -240,8 +250,8 @@ function probDaSelecao(
   if (m.includes("1") && m.includes("tempo")) {
     const linha = extrairLinha(selecao);
     if (linha == null) return null;
-    if (isOver) return probOver(ctx.lambda1t, linha);
-    if (isUnder) return probUnder(ctx.lambda1t, linha);
+    if (isOver && linhaRelevante(true, linha, ctx.lambda1t)) return probOver(ctx.lambda1t, linha);
+    if (isUnder && linhaRelevante(false, linha, ctx.lambda1t)) return probUnder(ctx.lambda1t, linha);
     return null;
   }
 
@@ -249,8 +259,8 @@ function probDaSelecao(
   if (m.includes("total de gols") || (m.includes("gols") && (isOver || isUnder))) {
     const linha = extrairLinha(selecao);
     if (linha == null) return null;
-    if (isOver) return probOver(ctx.lambdaTotal, linha);
-    if (isUnder) return probUnder(ctx.lambdaTotal, linha);
+    if (isOver && linhaRelevante(true, linha, ctx.lambdaTotal)) return probOver(ctx.lambdaTotal, linha);
+    if (isUnder && linhaRelevante(false, linha, ctx.lambdaTotal)) return probUnder(ctx.lambdaTotal, linha);
     return null;
   }
 
@@ -258,8 +268,8 @@ function probDaSelecao(
   if (m.includes("escanteio")) {
     const linha = extrairLinha(selecao);
     if (linha == null) return null;
-    if (isOver) return probOver(ctx.lambdaEscanteios, linha);
-    if (isUnder) return probUnder(ctx.lambdaEscanteios, linha);
+    if (isOver && linhaRelevante(true, linha, ctx.lambdaEscanteios)) return probOver(ctx.lambdaEscanteios, linha);
+    if (isUnder && linhaRelevante(false, linha, ctx.lambdaEscanteios)) return probUnder(ctx.lambdaEscanteios, linha);
     return null;
   }
 
@@ -267,10 +277,11 @@ function probDaSelecao(
   if (m.includes("cart")) {
     const linha = extrairLinha(selecao);
     if (linha == null) return null;
-    if (isOver) return probOver(ctx.lambdaCartoes, linha);
-    if (isUnder) return probUnder(ctx.lambdaCartoes, linha);
+    if (isOver && linhaRelevante(true, linha, ctx.lambdaCartoes)) return probOver(ctx.lambdaCartoes, linha);
+    if (isUnder && linhaRelevante(false, linha, ctx.lambdaCartoes)) return probUnder(ctx.lambdaCartoes, linha);
     return null;
   }
+
 
   return null;
 }
