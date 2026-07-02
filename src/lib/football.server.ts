@@ -1244,18 +1244,19 @@ export async function getEstatisticasAoVivo(externalId: string): Promise<EstatAo
 
   // 1) Placar e status.
   await registrarChamada("API_FOOTBALL_KEY");
-  let fixture: {
+  type FixtureLive = {
     fixture?: { status?: { short?: string; elapsed?: number | null } };
     teams?: { home?: { id?: number }; away?: { id?: number } };
     goals?: { home?: number | null; away?: number | null };
-  } | null = null;
+  };
+  let fixture: FixtureLive | null = null;
   try {
     const res = await fetch(`${API_BASE}/fixtures?id=${externalId}`, {
       headers: { "x-apisports-key": key },
     });
     if (res.ok) {
-      const json = (await res.json()) as { response?: unknown[] };
-      fixture = (json.response?.[0] as typeof fixture) ?? null;
+      const json = (await res.json()) as { response?: FixtureLive[] };
+      fixture = json.response?.[0] ?? null;
     }
   } catch (e) {
     console.error("getEstatisticasAoVivo: falha ao buscar fixture", e);
