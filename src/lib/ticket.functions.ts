@@ -667,3 +667,24 @@ export const listarBilhetes = createServerFn({ method: "GET" })
     }));
   });
 
+// ---- Deleta um bilhete salvo do usuário logado ----
+export const deletarBilhete = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) => z.object({ id: z.string() }).parse(data))
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // Garante que o bilhete pertence ao usuário antes de deletar
+    const { data: bilhete } = await supabaseAdmin
+      .from("bilhetes")
+      .select("id")
+      .eq("id", data.id)
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    if (!bilhete) throw new Error("Bilhete não encontrado.");
+
+    await supabaseAdmin.from("palpites").delete().eq("bilhete_id", data.id);
+    const { error } = await supabaseAdmin.from("bilhetes").delete().eq("id", data.id);
+    if (error) throw error;
+    return { ok: true };
+  });
+
