@@ -594,12 +594,114 @@ function UsuariosPage() {
                   </section>
                   <section>
                     <h2 className="mb-3 text-lg font-semibold">Clientes</h2>
-                    <div className="space-y-3">
-                      {clis.map(renderCard)}
-                      {clis.length === 0 && (
-                        <p className="py-6 text-center text-sm text-muted-foreground">Nenhum cliente ainda.</p>
-                      )}
+
+                    <div className="mb-4 flex flex-wrap items-center gap-2">
+                      <div className="relative min-w-[220px] flex-1">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          value={busca}
+                          onChange={(e) => setBusca(e.target.value)}
+                          placeholder="Buscar por nome ou e-mail"
+                          className="pl-9"
+                        />
+                      </div>
+                      <div className="flex gap-1 rounded-lg border border-border/60 bg-card p-1">
+                        {["todos", ...(planos.length ? planos.map((p) => p.plano) : PLANOS)].map((p) => (
+                          <button
+                            key={p}
+                            type="button"
+                            onClick={() => setFiltroPlano(p)}
+                            className={cn(
+                              "rounded-md px-3 py-1.5 text-sm font-medium transition",
+                              filtroPlano === p
+                                ? "bg-primary text-primary-foreground"
+                                : "text-muted-foreground hover:text-foreground",
+                            )}
+                          >
+                            {p === "todos" ? "Todos" : byPlano[p as Plano]?.nome ?? p}
+                          </button>
+                        ))}
+                      </div>
                     </div>
+
+                    {(() => {
+                      const q = busca.trim().toLowerCase();
+                      const filtrados = clis.filter((c) => {
+                        const matchQ =
+                          !q ||
+                          String(c.nome ?? "").toLowerCase().includes(q) ||
+                          String(c.email ?? "").toLowerCase().includes(q);
+                        const matchP = filtroPlano === "todos" || String(c.plano ?? "") === filtroPlano;
+                        return matchQ && matchP;
+                      });
+                      const selecionado = filtrados.find((c) => c.id === openId);
+                      return (
+                        <>
+                          <Card className="overflow-hidden border-border/60 bg-card p-0">
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-sm">
+                                <thead>
+                                  <tr className="border-b border-border/60 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                                    <th className="px-4 py-3">Cliente</th>
+                                    <th className="px-4 py-3">Plano</th>
+                                    <th className="px-4 py-3">Status</th>
+                                    <th className="px-4 py-3">Banca</th>
+                                    <th className="px-4 py-3">ROI</th>
+                                    <th className="px-4 py-3">Bilhetes</th>
+                                    <th className="px-4 py-3 text-right">Desde</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {filtrados.map((c) => {
+                                    const dias = diasRestantes(c.periodo_fim);
+                                    return (
+                                      <tr
+                                        key={c.id}
+                                        onClick={() => setOpenId(openId === c.id ? null : c.id)}
+                                        className={cn(
+                                          "cursor-pointer border-b border-border/40 transition hover:bg-muted/40",
+                                          openId === c.id && "bg-muted/40",
+                                        )}
+                                      >
+                                        <td className="px-4 py-3">
+                                          <p className="font-medium">{c.nome || c.email || c.id}</p>
+                                          <p className="text-xs text-muted-foreground">{c.email}</p>
+                                        </td>
+                                        <td className="px-4 py-3">{byPlano[c.plano as Plano]?.nome ?? "Sem plano"}</td>
+                                        <td className="px-4 py-3">
+                                          <div className="flex flex-wrap items-center gap-1">
+                                            {c.status === "cortesia" ? (
+                                              <Badge className="bg-emerald-600 text-[10px] text-white hover:bg-emerald-600">
+                                                Cortesia
+                                              </Badge>
+                                            ) : (
+                                              <span className="text-xs text-muted-foreground">{c.status}</span>
+                                            )}
+                                            {dias !== null && (
+                                              <Badge variant={dias <= 0 ? "destructive" : "secondary"} className="text-[10px]">
+                                                {dias <= 0 ? "Vencido" : `${dias}d`}
+                                              </Badge>
+                                            )}
+                                          </div>
+                                        </td>
+                                        <td className="px-4 py-3 text-muted-foreground">—</td>
+                                        <td className="px-4 py-3 text-muted-foreground">—</td>
+                                        <td className="px-4 py-3 text-muted-foreground">—</td>
+                                        <td className="px-4 py-3 text-right text-muted-foreground">{fmtData(c.created_at)}</td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                            {filtrados.length === 0 && (
+                              <p className="py-10 text-center text-sm text-muted-foreground">Nenhum cliente encontrado.</p>
+                            )}
+                          </Card>
+                          {selecionado && <div className="mt-4">{renderCard(selecionado)}</div>}
+                        </>
+                      );
+                    })()}
                   </section>
                 </>
               );
