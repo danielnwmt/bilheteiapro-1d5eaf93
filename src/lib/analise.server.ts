@@ -373,20 +373,23 @@ export async function obterAnalisePartida(
   casa: string,
   dia: string,
   somenteCache = false,
+  forcar = false,
 ): Promise<AnalisePartida> {
-  // 1) Tenta o cache do dia.
-  const { data: cached } = await supabaseAdmin
-    .from("analise_cache")
-    .select("payload")
-    .eq("partida_id", partida.id)
-    .eq("dia", dia)
-    .eq("casa", casa)
-    .maybeSingle();
+  // 1) Tenta o cache do dia (a menos que `forcar` peça reanálise).
+  if (!forcar) {
+    const { data: cached } = await supabaseAdmin
+      .from("analise_cache")
+      .select("payload")
+      .eq("partida_id", partida.id)
+      .eq("dia", dia)
+      .eq("casa", casa)
+      .maybeSingle();
 
-  if (cached?.payload) {
-    const payload = normalizarAnaliseCache(cached.payload as AnalisePartida);
-    if (Array.isArray(payload.picks) && payload.picks.length) {
-      return payload;
+    if (cached?.payload) {
+      const payload = normalizarAnaliseCache(cached.payload as AnalisePartida);
+      if (Array.isArray(payload.picks) && payload.picks.length) {
+        return payload;
+      }
     }
   }
 
