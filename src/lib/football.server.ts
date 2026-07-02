@@ -137,6 +137,8 @@ export async function syncFixtures(periodo: Periodo): Promise<number> {
       liga: LEAGUE_ID_TO_NAME[f.league.id],
       time_casa: f.teams.home.name,
       time_fora: f.teams.away.name,
+      logo_casa: f.teams.home.logo ?? null,
+      logo_fora: f.teams.away.logo ?? null,
       inicio: f.fixture.date,
       status: STATUS_MAP[f.fixture.status.short] ?? "agendado",
       arbitro: f.fixture.referee ?? null,
