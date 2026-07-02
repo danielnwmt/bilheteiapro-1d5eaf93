@@ -12,7 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Sparkles, Target, TrendingUp, Trophy, Building2, ExternalLink, ListChecks, LogOut, Lock, Crown, Users, Wallet, CalendarDays, UserCircle, Play, Flame, Zap, RefreshCw } from "lucide-react";
+import { Loader2, Sparkles, Target, TrendingUp, Trophy, Building2, ExternalLink, ListChecks, LogOut, Lock, Crown, Users, Wallet, CalendarDays, UserCircle, Play, Flame, Zap, RefreshCw, Flag, CreditCard, LineChart, TrendingDown } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import logo from "@/assets/bilheteia-logo.png";
 import { useAccess } from "@/hooks/useAccess";
@@ -1322,100 +1323,183 @@ function Index() {
       )}
 
       <Dialog open={!!estatJogo} onOpenChange={(o) => !o && setEstatJogo(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="text-base">
-              {estatJogo ? `${traduzPaises(estatJogo.time_casa)} x ${traduzPaises(estatJogo.time_fora)}` : "Estatísticas"}
-            </DialogTitle>
+            <DialogTitle className="text-lg font-bold">Análise detalhada</DialogTitle>
           </DialogHeader>
-          {estatJogo?.liga && (
-            <p className="-mt-2 text-xs text-muted-foreground">{estatJogo.liga}</p>
-          )}
 
           {loadingEstat ? (
-            <div className="flex items-center justify-center py-8 text-muted-foreground">
+            <div className="flex items-center justify-center py-12 text-muted-foreground">
               <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando estatísticas...
             </div>
           ) : !estatPayload ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">
+            <p className="py-10 text-center text-sm text-muted-foreground">
               Estatísticas ainda não coletadas para este jogo. Elas são atualizadas automaticamente pela operação.
             </p>
-          ) : (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3 text-center">
-                <div className="rounded-md border border-border/60 bg-muted/30 p-3">
-                  <p className="truncate text-xs font-semibold">{estatJogo ? traduzPaises(estatJogo.time_casa) : ""}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">Forma (últ. 10)</p>
-                  <p className="text-sm font-medium">{estatPayload.formaCasa ?? "—"}</p>
-                </div>
-                <div className="rounded-md border border-border/60 bg-muted/30 p-3">
-                  <p className="truncate text-xs font-semibold">{estatJogo ? traduzPaises(estatJogo.time_fora) : ""}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">Forma (últ. 10)</p>
-                  <p className="text-sm font-medium">{estatPayload.formaFora ?? "—"}</p>
-                </div>
-              </div>
-
-              <div className="space-y-2 rounded-md border border-border/60 p-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Gols feitos (média)</span>
-                  <span className="font-medium">{estatPayload.golsFeitosCasa ?? "—"} / {estatPayload.golsFeitosFora ?? "—"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Gols sofridos (média)</span>
-                  <span className="font-medium">{estatPayload.golsSofridosCasa ?? "—"} / {estatPayload.golsSofridosFora ?? "—"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Probabilidade (C/E/F)</span>
-                  <span className="font-medium">{estatPayload.percent.casa ?? "—"} / {estatPayload.percent.empate ?? "—"} / {estatPayload.percent.fora ?? "—"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Gols previstos</span>
-                  <span className="font-medium">{estatPayload.golsPrev.casa ?? "—"} / {estatPayload.golsPrev.fora ?? "—"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Tendência de gols</span>
-                  <span className="font-medium">{estatPayload.underOver ?? "—"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Média de escanteios</span>
-                  <span className="font-medium">{estatEscanteios ?? "—"}</span>
-                </div>
-              </div>
-
-
-
-
-              <div className="space-y-2 rounded-md border border-border/60 p-3 text-sm">
-                <p className="text-xs font-semibold uppercase text-muted-foreground">Cartões</p>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Média por time</span>
-                  <span className="font-medium">{estatPayload.cartoesCasa ?? "—"} / {estatPayload.cartoesFora ?? "—"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Média no confronto</span>
-                  <span className="font-medium">{estatPayload.cartoesConfronto ?? "—"}</span>
-                </div>
-                {estatJogo?.arbitro && String(estatJogo.arbitro).trim() ? (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Árbitro</span>
-                    <span className="font-medium">{estatJogo.arbitro}</span>
+          ) : (() => {
+            const pnum = (v: string | null | undefined) => {
+              const n = parseInt(String(v ?? "").replace(/[^0-9]/g, ""), 10);
+              return Number.isFinite(n) ? n : 0;
+            };
+            const pc = pnum(estatPayload.percent.casa);
+            const pe = pnum(estatPayload.percent.empate);
+            const pf = pnum(estatPayload.percent.fora);
+            const soma = pc + pe + pf || 1;
+            const confAlta = pc >= 55 || pf >= 55;
+            const forma = (s: string | null) =>
+              (s ?? "").toUpperCase().replace(/[^WDLVE]/g, "").split("").slice(-5);
+            const formaCor = (ch: string) =>
+              ch === "W" || ch === "V"
+                ? "bg-primary/20 text-primary"
+                : ch === "L" || ch === "D"
+                  ? "bg-destructive/20 text-destructive"
+                  : "bg-muted text-muted-foreground";
+            const formaLetra = (ch: string) =>
+              ch === "W" ? "V" : ch === "L" ? "D" : ch;
+            const temArbitro = !!(estatJogo?.arbitro && String(estatJogo.arbitro).trim());
+            return (
+              <div className="space-y-4">
+                {/* Cabeçalho do confronto */}
+                <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Trophy className="h-3.5 w-3.5" /> {estatJogo?.liga ?? "—"}
+                    </p>
+                    {confAlta && (
+                      <Badge className="gap-1 bg-primary/15 text-primary hover:bg-primary/15">
+                        <Sparkles className="h-3 w-3" /> Confiança Alta
+                      </Badge>
+                    )}
                   </div>
-                ) : (
-                  <div className="space-y-1">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Árbitro</span>
-                      <span className="font-medium">Não escalado</span>
+                  <h3 className="mt-2 text-xl font-bold">
+                    {estatJogo ? traduzPaises(estatJogo.time_casa) : ""}{" "}
+                    <span className="text-muted-foreground">x</span>{" "}
+                    {estatJogo ? traduzPaises(estatJogo.time_fora) : ""}
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Início {estatJogo ? new Date(estatJogo.inicio).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "—"}
+                  </p>
+                  <div className="mt-3 flex h-2 overflow-hidden rounded-full">
+                    <div className="bg-primary" style={{ width: `${(pc / soma) * 100}%` }} />
+                    <div className="bg-muted-foreground/50" style={{ width: `${(pe / soma) * 100}%` }} />
+                    <div className="bg-sky-500" style={{ width: `${(pf / soma) * 100}%` }} />
+                  </div>
+                  <div className="mt-1.5 flex justify-between text-xs font-medium">
+                    <span className="text-primary">1 · {pc}%</span>
+                    <span className="text-muted-foreground">X · {pe}%</span>
+                    <span className="text-sky-500">2 · {pf}%</span>
+                  </div>
+                </div>
+
+                <Tabs defaultValue="gols">
+                  <TabsList className="grid w-full grid-cols-4">
+                    <TabsTrigger value="gols" className="gap-1.5 text-xs"><Target className="h-3.5 w-3.5" /> Gols</TabsTrigger>
+                    <TabsTrigger value="escanteios" className="gap-1.5 text-xs"><Flag className="h-3.5 w-3.5" /> Escanteios</TabsTrigger>
+                    <TabsTrigger value="cartoes" className="gap-1.5 text-xs"><CreditCard className="h-3.5 w-3.5" /> Cartões</TabsTrigger>
+                    <TabsTrigger value="forma" className="gap-1.5 text-xs"><LineChart className="h-3.5 w-3.5" /> Forma</TabsTrigger>
+                  </TabsList>
+
+                  {/* GOLS */}
+                  <TabsContent value="gols" className="space-y-3 pt-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      {([
+                        { nome: estatJogo ? traduzPaises(estatJogo.time_casa) : "", feitos: estatPayload.golsFeitosCasa, sofridos: estatPayload.golsSofridosCasa },
+                        { nome: estatJogo ? traduzPaises(estatJogo.time_fora) : "", feitos: estatPayload.golsFeitosFora, sofridos: estatPayload.golsSofridosFora },
+                      ]).map((t, i) => (
+                        <div key={i} className="space-y-2">
+                          <p className="truncate text-xs font-bold">{t.nome}</p>
+                          <div className="flex items-center justify-between rounded-lg border border-border/60 p-3 text-sm">
+                            <span className="flex items-center gap-1.5 text-muted-foreground"><TrendingUp className="h-3.5 w-3.5 text-primary" /> Gols feitos / jogo</span>
+                            <span className="font-bold">{t.feitos ?? "—"}</span>
+                          </div>
+                          <div className="flex items-center justify-between rounded-lg border border-border/60 p-3 text-sm">
+                            <span className="flex items-center gap-1.5 text-muted-foreground"><TrendingDown className="h-3.5 w-3.5 text-destructive" /> Gols sofridos / jogo</span>
+                            <span className="font-bold">{t.sofridos ?? "—"}</span>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground">
-                      Estatísticas de cartões baseadas apenas no histórico dos times
-                    </Badge>
-                  </div>
-                )}
+                    <div className="rounded-lg border border-primary/40 bg-primary/5 p-3">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="font-medium">Gols previstos</span>
+                        <span className="font-bold">{estatPayload.golsPrev.casa ?? "—"} / {estatPayload.golsPrev.fora ?? "—"}</span>
+                      </div>
+                      {estatPayload.underOver && (
+                        <p className="mt-1 text-xs text-muted-foreground">Tendência · {estatPayload.underOver}</p>
+                      )}
+                    </div>
+                  </TabsContent>
+
+                  {/* ESCANTEIOS */}
+                  <TabsContent value="escanteios" className="space-y-2 pt-3">
+                    {estatEscanteios ? (
+                      <div className="rounded-lg border border-primary/40 bg-primary/5 p-4 text-center">
+                        <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground"><Flag className="h-3.5 w-3.5 text-primary" /> Tendência de escanteios</p>
+                        <p className="mt-1 text-lg font-bold">{estatEscanteios}</p>
+                      </div>
+                    ) : (
+                      <p className="py-6 text-center text-sm text-muted-foreground">Sem dados de escanteios para este jogo.</p>
+                    )}
+                  </TabsContent>
+
+                  {/* CARTÕES */}
+                  <TabsContent value="cartoes" className="space-y-2 pt-3">
+                    <div className="flex items-center justify-between rounded-lg border border-border/60 p-3 text-sm">
+                      <span className="flex items-center gap-1.5 text-muted-foreground"><CreditCard className="h-3.5 w-3.5 text-amber-500" /> {estatJogo ? traduzPaises(estatJogo.time_casa) : ""} · média cartões</span>
+                      <span className="font-bold">{estatPayload.cartoesCasa ?? "—"}</span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg border border-border/60 p-3 text-sm">
+                      <span className="flex items-center gap-1.5 text-muted-foreground"><CreditCard className="h-3.5 w-3.5 text-amber-500" /> {estatJogo ? traduzPaises(estatJogo.time_fora) : ""} · média cartões</span>
+                      <span className="font-bold">{estatPayload.cartoesFora ?? "—"}</span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg border border-primary/40 bg-primary/5 p-3 text-sm">
+                      <span className="text-muted-foreground">Média no confronto</span>
+                      <span className="font-bold">{estatPayload.cartoesConfronto ?? "—"}</span>
+                    </div>
+                    {temArbitro ? (
+                      <div className="flex items-center justify-between rounded-lg border border-border/60 p-3 text-sm">
+                        <span className="text-muted-foreground">Árbitro · {estatJogo?.arbitro}</span>
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border border-border/60 p-3">
+                        <p className="text-sm text-muted-foreground">Árbitro: Não escalado</p>
+                        <Badge variant="outline" className="mt-1.5 text-[10px] font-normal text-muted-foreground">
+                          Estatísticas de cartões baseadas apenas no histórico dos times
+                        </Badge>
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  {/* FORMA */}
+                  <TabsContent value="forma" className="space-y-4 pt-3">
+                    {([
+                      { nome: estatJogo ? traduzPaises(estatJogo.time_casa) : "", f: estatPayload.formaCasa },
+                      { nome: estatJogo ? traduzPaises(estatJogo.time_fora) : "", f: estatPayload.formaFora },
+                    ]).map((t, i) => (
+                      <div key={i}>
+                        <p className="mb-2 text-sm font-bold">{t.nome} · últimos 5</p>
+                        <div className="flex gap-2">
+                          {forma(t.f).length ? (
+                            forma(t.f).map((ch, j) => (
+                              <span key={j} className={`flex h-9 w-9 items-center justify-center rounded-md text-sm font-bold ${formaCor(ch)}`}>
+                                {formaLetra(ch)}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-sm text-muted-foreground">Sem dados de forma.</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    <p className="text-xs text-muted-foreground">V = vitória · E = empate · D = derrota</p>
+                  </TabsContent>
+                </Tabs>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </DialogContent>
       </Dialog>
+
     </main>
   );
 }
