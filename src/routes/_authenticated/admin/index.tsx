@@ -101,6 +101,7 @@ function AdminDashboard() {
     return msg;
   };
 
+  const [deployProgress, setDeployProgress] = useState(0);
   const atualizar = useServerFn(deploySystem);
   const mutDeploy = useMutation({
     mutationFn: () => atualizar(),
@@ -109,6 +110,20 @@ function AdminDashboard() {
     onError: (e: any) =>
       toast.error(limparErroUI(e?.message, "Erro ao atualizar o sistema"), { duration: 12000 }),
   });
+
+  // Barra de progresso da atualização (~100s até reiniciar)
+  useEffect(() => {
+    if (!mutDeploy.isSuccess) return;
+    setDeployProgress(0);
+    const inicio = Date.now();
+    const total = 100_000; // 100s estimados
+    const id = setInterval(() => {
+      const pct = Math.min(100, Math.round(((Date.now() - inicio) / total) * 100));
+      setDeployProgress(pct);
+      if (pct >= 100) clearInterval(id);
+    }, 500);
+    return () => clearInterval(id);
+  }, [mutDeploy.isSuccess]);
 
   const iniciar = useServerFn(iniciarOperacao);
   const mutOperacao = useMutation({
