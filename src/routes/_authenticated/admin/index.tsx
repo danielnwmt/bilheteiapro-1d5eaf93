@@ -40,6 +40,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Progress } from "@/components/ui/progress";
 import {
   LineChart,
   Line,
@@ -101,6 +102,7 @@ function AdminDashboard() {
     return msg;
   };
 
+  const [deployProgress, setDeployProgress] = useState(0);
   const atualizar = useServerFn(deploySystem);
   const mutDeploy = useMutation({
     mutationFn: () => atualizar(),
@@ -109,6 +111,20 @@ function AdminDashboard() {
     onError: (e: any) =>
       toast.error(limparErroUI(e?.message, "Erro ao atualizar o sistema"), { duration: 12000 }),
   });
+
+  // Barra de progresso da atualização (~100s até reiniciar)
+  useEffect(() => {
+    if (!mutDeploy.isSuccess) return;
+    setDeployProgress(0);
+    const inicio = Date.now();
+    const total = 100_000; // 100s estimados
+    const id = setInterval(() => {
+      const pct = Math.min(100, Math.round(((Date.now() - inicio) / total) * 100));
+      setDeployProgress(pct);
+      if (pct >= 100) clearInterval(id);
+    }, 500);
+    return () => clearInterval(id);
+  }, [mutDeploy.isSuccess]);
 
   const iniciar = useServerFn(iniciarOperacao);
   const mutOperacao = useMutation({
@@ -243,6 +259,26 @@ function AdminDashboard() {
             </Button>
           </div>
         </div>
+
+        {(mutDeploy.isPending || (mutDeploy.isSuccess && deployProgress < 100)) && (
+          <div className="mb-8 rounded-lg border border-primary/30 bg-primary/5 p-4">
+            <div className="mb-2 flex items-center justify-between text-sm">
+              <span className="flex items-center gap-2 font-medium">
+                <RefreshCw className="h-4 w-4 animate-spin text-primary" />
+                {mutDeploy.isPending ? "Iniciando atualização…" : "Atualizando o sistema…"}
+              </span>
+              <span className="text-muted-foreground">
+                {mutDeploy.isPending ? "" : `${deployProgress}%`}
+              </span>
+            </div>
+            <Progress value={mutDeploy.isPending ? undefined : deployProgress} />
+            <p className="mt-2 text-xs text-muted-foreground">
+              O servidor vai reiniciar em 1-2 minutos. Não feche esta página.
+            </p>
+          </div>
+        )}
+
+
 
         {isLoading ? (
           <div className="flex justify-center py-24">
