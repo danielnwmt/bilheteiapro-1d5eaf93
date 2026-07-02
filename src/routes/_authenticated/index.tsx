@@ -327,6 +327,9 @@ function Index() {
   const [oddMin, setOddMin] = useState("2.5");
   const [limiteJogos, setLimiteJogos] = useState("4");
   const [tipoBilhete, setTipoBilhete] = useState<"simples" | "multipla" | "mesmojogo">("multipla");
+  const [jogosSel, setJogosSel] = useState<string[]>([]);
+  const toggleJogoSel = (id: string) =>
+    setJogosSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
 
 
 
