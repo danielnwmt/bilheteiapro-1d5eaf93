@@ -577,29 +577,69 @@ export const getMyAccess = createServerFn({ method: "GET" })
     };
   });
 
-// Heartbeat: marca o usuário como online. Chamado periodicamente pelo app.
+// Heartbeat: marca o usuário como online e devolve a sessão ativa registrada.
+// O cliente compara com a sua própria sessão para forçar "1 conexão por conta".
 export const registrarPresenca = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { userId } = context;
+    let activeSession: string | null = null;
     try {
-      const { error } = await context.supabase.rpc("touch_last_seen");
-      if (error) {
-        // Fallback direto (self-host / RLS): grava via service-role.
-        const base = tryRestBase();
-        if (base) {
-          await restWrite(base, "profiles", {
-            method: "PATCH",
-            query: { id: `eq.${userId}` },
-            body: JSON.stringify({ last_seen: new Date().toISOString() }),
-          });
-        }
+      const base = tryRestBase();
+      if (base) {
+        await restWrite(base, "profiles", {
+          method: "PATCH",
+          query: { id: `eq.${userId}` },
+          body: JSON.stringify({ last_seen: new Date().toISOString() }),
+        });
+        const rows = await restSelect<{ active_session: string | null }>(
+          base,
+          "profiles",
+          { select: "active_session", id: `eq.${userId}`, limit: "1" },
+          "profiles (activeSession)",
+        );
+        activeSession = rows[0]?.active_session ?? null;
+      } else {
+        await context.supabase.rpc("touch_last_seen");
       }
     } catch (err) {
       console.error("registrarPresenca: falhou", err);
     }
+    return { ok: true, activeSession };
+  });
+
+// Reivindica a sessão ativa para este dispositivo. O último login vence e
+// derruba os demais no próximo heartbeat.
+export const claimSession = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) =>
+    z.object({ sessionId: z.string().trim().min(6).max(100) }).parse(data),
+  )
+  .handler(async ({ context, data }) => {
+    const { userId } = context;
+    try {
+      const base = tryRestBase();
+      if (base) {
+        await restWrite(base, "profiles", {
+          method: "PATCH",
+          query: { id: `eq.${userId}` },
+          body: JSON.stringify({
+            active_session: data.sessionId,
+            last_seen: new Date().toISOString(),
+          }),
+        });
+      } else {
+        await context.supabase
+          .from("profiles")
+          .update({ active_session: data.sessionId, last_seen: new Date().toISOString() })
+          .eq("id", userId);
+      }
+    } catch (err) {
+      console.error("claimSession: falhou", err);
+    }
     return { ok: true };
   });
+
 
 export const getMyProfile = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
