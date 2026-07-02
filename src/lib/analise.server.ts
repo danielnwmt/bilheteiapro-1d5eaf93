@@ -442,7 +442,7 @@ export async function obterAnalisePartida(
 // "nenhuma entrada" de "a IA falhou em todos os jogos".
 export async function analisarPartidas(
   supabaseAdmin: any,
-  model: LanguageModel,
+  model: LanguageModel | null,
   partidas: PartidaRow[],
   casa: string,
   dia: string,
