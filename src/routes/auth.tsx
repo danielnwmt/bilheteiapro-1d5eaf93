@@ -252,9 +252,15 @@ function AuthPage() {
                     id="nascimento"
                     type="date"
                     value={nascimento}
+                    max={new Date().toISOString().slice(0, 10)}
                     onChange={(e) => setNascimento(e.target.value)}
                     className="bg-input/40"
                   />
+                  {nascimento && idadeEmAnos(nascimento) < 18 && (
+                    <p className="mt-1 text-xs text-destructive">
+                      Apenas maiores de 18 anos podem se cadastrar na plataforma.
+                    </p>
+                  )}
                 </div>
               </>
             )}
