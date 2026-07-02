@@ -591,6 +591,7 @@ export type Database = {
         }[]
       }
       increment_api_usage: { Args: { _chave: string }; Returns: undefined }
+      limpar_dados_antigos: { Args: never; Returns: undefined }
       touch_last_seen: { Args: never; Returns: undefined }
     }
     Enums: {
