@@ -1356,10 +1356,22 @@ function Index() {
                   <span className="text-muted-foreground">Média no confronto</span>
                   <span className="font-medium">{estatPayload.cartoesConfronto ?? "—"}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Árbitro</span>
-                  <span className="font-medium">{estatJogo?.arbitro ?? "A definir"}</span>
-                </div>
+                {estatJogo?.arbitro && String(estatJogo.arbitro).trim() ? (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Árbitro</span>
+                    <span className="font-medium">{estatJogo.arbitro}</span>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Árbitro</span>
+                      <span className="font-medium">Não escalado</span>
+                    </div>
+                    <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground">
+                      Estatísticas de cartões baseadas apenas no histórico dos times
+                    </Badge>
+                  </div>
+                )}
               </div>
             </div>
           )}
