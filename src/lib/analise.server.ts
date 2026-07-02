@@ -368,7 +368,7 @@ export function diaSaoPaulo(now = new Date()): string {
 // cache já preenchido pelo robô a cada 5 min. Se não houver cache, retorna vazio.
 export async function obterAnalisePartida(
   supabaseAdmin: any,
-  model: LanguageModel,
+  model: LanguageModel | null,
   partida: PartidaRow,
   casa: string,
   dia: string,
@@ -414,12 +414,15 @@ export async function obterAnalisePartida(
     return { picks: [], analise: montarAnaliseSemIa(partida, casa).analise };
   }
 
-  // 2) Sem cache válido: chama a IA e salva.
+  // 2) Sem cache válido: gera a análise 100% LOCAL (Poisson + estatísticas).
+  // A IA não é mais usada — o motor local é determinístico e não depende de chave.
   let analise: AnalisePartida;
   try {
-    analise = await analisarComIa(model, partida, casa);
+    const { analisarLocal } = await import("./analise-local.server");
+    analise = analisarLocal(partida, casa);
+    if (!analise.picks.length) analise = montarAnaliseSemIa(partida, casa);
   } catch (e) {
-    if (!isRateLimitError(e)) throw e;
+    console.error("Falha na análise local", e);
     analise = montarAnaliseSemIa(partida, casa);
   }
   if (analise.picks.length) {
@@ -439,7 +442,7 @@ export async function obterAnalisePartida(
 // "nenhuma entrada" de "a IA falhou em todos os jogos".
 export async function analisarPartidas(
   supabaseAdmin: any,
-  model: LanguageModel,
+  model: LanguageModel | null,
   partidas: PartidaRow[],
   casa: string,
   dia: string,
