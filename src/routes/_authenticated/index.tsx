@@ -394,7 +394,7 @@ function Index() {
     }
 
     carregar(true);
-    timer = setInterval(() => carregar(false), 30_000);
+    timer = setInterval(() => carregar(false), 240_000);
     return () => {
       ativo = false;
       if (timer) clearInterval(timer);
