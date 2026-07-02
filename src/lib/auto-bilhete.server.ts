@@ -266,11 +266,21 @@ Responda APENAS em JSON, sem texto fora do JSON:
 
   let raw: Record<string, unknown>;
   try {
-    const { text } = await generateText({ model: await getAiModel(), prompt });
+    const text = await gerarComBackoff(prompt);
     raw = JSON.parse(extractJson(text)) as Record<string, unknown>;
   } catch (e) {
     console.error("auto-bilhete: falha na IA", e);
-    return { ok: false, tipo: cfg.tipo, jogosAnalisados: elegiveis.length, picks: 0, motivo: "Falha ao gerar/parsear resposta da IA." };
+    const msg = String((e as Error)?.message ?? e);
+    const rate = /too many requests|429|service unavailable|503|overloaded|rate/i.test(msg);
+    return {
+      ok: false,
+      tipo: cfg.tipo,
+      jogosAnalisados: elegiveis.length,
+      picks: 0,
+      motivo: rate
+        ? "IA temporariamente sobrecarregada (limite de requisições). O robô tentará novamente na próxima rodada."
+        : "Falha ao gerar/parsear resposta da IA.",
+    };
   }
 
   // 4) Valida picks contra o banco e aplica as regras.
