@@ -6,11 +6,12 @@ import { verificarCronSecret } from "@/lib/cron-auth";
 // Robô diário (1x por dia):
 // API-Football atualiza as partidas/ligas do dia E coleta as odds.
 const CASA_PADRAO = "betano";
-// Intervalo fixo de execução: a cada 4 minutos.
-const INTERVALO_FIXO_MIN = 4;
+// Compartilha a mesma janela semanal do robô principal (1x/hora) usando a
+// chave "football_semana". Assim os dois crons não puxam a semana em duplicidade.
+const INTERVALO_SEMANA_MIN = 60;
 
 async function getIntervaloMin(_chave: string): Promise<number> {
-  return INTERVALO_FIXO_MIN;
+  return INTERVALO_SEMANA_MIN;
 }
 
 
@@ -52,7 +53,7 @@ export const Route = createFileRoute("/api/public/hooks/sync-odds-diario")({
           const url = new URL(request.url);
           const casa = url.searchParams.get("casa") ?? CASA_PADRAO;
           const now = Date.now();
-          const footballSync = await podeSincronizar(supabaseAdmin, "football", "API_FOOTBALL_KEY", now);
+          const footballSync = await podeSincronizar(supabaseAdmin, "football_semana", "API_FOOTBALL_KEY", now);
           const skipped: Record<string, string> = {};
 
           if (!(await hasApiFootballKey())) {
@@ -72,7 +73,7 @@ export const Route = createFileRoute("/api/public/hooks/sync-odds-diario")({
           let fixturesHoje = 0;
           let result = { ligas: 0, chamadas: 0, odds: 0 };
           if (footballSync.ok) {
-            if (await reservarSync(supabaseAdmin, "football", now)) {
+            if (await reservarSync(supabaseAdmin, "football_semana", now)) {
               // Garante as partidas da SEMANA inteira (hoje + próximos 7 dias)
               // e coleta as odds de todos esses dias.
               fixturesHoje = await syncFixtures("semana");
