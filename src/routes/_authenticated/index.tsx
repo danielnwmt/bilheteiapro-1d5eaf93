@@ -569,28 +569,27 @@ function Index() {
 
 
 
-  // Chance combinada de acerto = produto das probabilidades de cada seleção.
-  const chancePct =
+  // Chance real de acerto = probabilidade implícita combinada (produto de 1/odd).
+  const chancePctNum =
     ticket && ticket.picks.length
-      ? Math.round(
-          ticket.picks.reduce((acc, p) => acc * ((p.confianca || 0) / 100), 1) * 100,
-        )
+      ? chanceRealDeAcerto(ticket.picks.map((p) => Number(p.odd) || 0))
       : 0;
+  const chancePct = chancePctNum.toFixed(2);
 
-  // Faixa de cor/aviso conforme a chance combinada de acerto.
-  const chanceNivel: "alta" | "media" | "baixa" =
-    chancePct >= 65 ? "alta" : chancePct >= 40 ? "media" : "baixa";
+  // Faixa de cor/aviso conforme a chance real: <10% alto, 10-30% médio, >30% baixo.
+  const chanceRisco = nivelDeRisco(chancePctNum);
+  const chanceRiscoLabel = rotuloRisco(chancePctNum);
 
   const chanceColor = {
-    alta: "bg-primary/20 text-primary border-primary/30",
-    media: "bg-accent/20 text-accent border-accent/30",
-    baixa: "bg-destructive/20 text-destructive border-destructive/30",
+    baixo: "bg-primary/20 text-primary border-primary/30",
+    medio: "bg-accent/20 text-accent border-accent/30",
+    alto: "bg-destructive/20 text-destructive border-destructive/30",
   } as const;
 
   const chanceAviso = {
-    alta: "Chance de acerto alta: seleções de alta confiança e odd combinada equilibrada.",
-    media: "Chance de acerto média: combinação equilibrada, com a incerteza natural das apostas.",
-    baixa: "Chance de acerto menor: quanto maior a odd, mais jogos precisam acertar juntos — aposte com cautela.",
+    baixo: "Chance real de acerto boa: probabilidade combinada favorável para essa odd.",
+    medio: "Chance real de acerto média: combinação equilibrada, com a incerteza natural das apostas.",
+    alto: "Chance real de acerto baixa: quanto maior a odd, mais jogos precisam acertar juntos — aposte com cautela.",
   } as const;
 
 
