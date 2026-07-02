@@ -240,7 +240,7 @@ export const gerarBilhete = createServerFn({ method: "POST" })
     const lerPartidas = async () => {
       const query = supabaseAdmin
         .from("partidas")
-        .select("id, external_id, liga, time_casa, time_fora, inicio, status, odds(casa, mercado, selecao, valor, external_odd_id)")
+        .select("id, external_id, liga, time_casa, time_fora, inicio, status, arbitro, odds(casa, mercado, selecao, valor, external_odd_id)")
         .gte("inicio", new Date(from).toISOString())
         .lte("inicio", new Date(to).toISOString())
         .neq("status", "encerrado")
