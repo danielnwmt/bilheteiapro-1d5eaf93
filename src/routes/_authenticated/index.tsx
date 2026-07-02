@@ -1072,6 +1072,56 @@ function Index() {
               </div>
             </div>
 
+            <details className="mt-4 rounded-md border border-border/60 bg-input/20 p-3" open={tipoBilhete !== "simples"}>
+              <summary className="cursor-pointer text-xs font-medium text-muted-foreground">
+                Jogos do bilhete {jogosSel.length > 0 && `(${jogosSel.length})`}
+              </summary>
+              <div className="mt-3 max-h-56 space-y-1.5 overflow-y-auto pr-1">
+                {jogosFiltrados.length === 0 ? (
+                  <p className="text-[11px] text-muted-foreground">Nenhum jogo neste período.</p>
+                ) : (
+                  jogosFiltrados.map((j) => {
+                    const active = jogosSel.includes(j.id);
+                    return (
+                      <button
+                        type="button"
+                        key={j.id}
+                        onClick={() => toggleJogoSel(j.id)}
+                        className={`flex w-full items-center gap-2 rounded-md border px-2.5 py-1.5 text-left text-[11px] font-medium transition-colors ${
+                          active
+                            ? "border-primary bg-primary/15 text-primary"
+                            : "border-border bg-input/40 text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        <span
+                          className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm border ${
+                            active ? "border-primary bg-primary text-primary-foreground" : "border-border"
+                          }`}
+                        >
+                          {active && <Check className="h-2.5 w-2.5" />}
+                        </span>
+                        <span className="truncate">
+                          {sigla(j.time_casa)} x {sigla(j.time_fora)}
+                        </span>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+              {jogosSel.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setJogosSel([])}
+                  className="mt-2 text-[11px] font-medium text-primary hover:underline"
+                >
+                  Limpar seleção
+                </button>
+              )}
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Escolha os jogos que quer na múltipla. Deixe vazio para a IA montar automaticamente.
+              </p>
+            </details>
+
             <details className="mt-4 rounded-md border border-border/60 bg-input/20 p-3">
               <summary className="cursor-pointer text-xs font-medium text-muted-foreground">
                 Mercados do bilhete {mercSel.length > 0 && `(${mercSel.length})`}
