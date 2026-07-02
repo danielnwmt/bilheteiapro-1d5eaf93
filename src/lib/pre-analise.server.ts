@@ -46,7 +46,8 @@ export interface PreAnaliseResult {
 
 export async function preAnalisarTodos(): Promise<PreAnaliseResult> {
   const supabase = admin();
-  const model = await getAiModel();
+  // Análise 100% local: não precisa de modelo de IA.
+  const model = null;
   const avisos: string[] = [];
   const now = Date.now();
   const dia = diaSaoPaulo(new Date(now));
