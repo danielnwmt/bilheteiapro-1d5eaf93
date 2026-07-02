@@ -211,7 +211,7 @@ function UsuariosPage() {
 
   return (
     <main className="min-h-screen bg-background">
-      <div className="mx-auto max-w-5xl px-4 py-10">
+      <div className="mx-auto max-w-6xl px-4 py-10">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
           <Button variant="ghost" size="sm" onClick={() => router.navigate({ to: "/admin" })}>
             <ArrowLeft className="mr-2 h-4 w-4" /> Painel
