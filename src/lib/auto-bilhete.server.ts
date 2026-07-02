@@ -446,8 +446,10 @@ export async function gerarSuperMultipla(): Promise<AutoResult> {
 }
 
 // Roda os dois tipos numa só passada do robô (usado pelo cron).
+// Espaça as duas chamadas de IA para não bater no rate limit do provedor.
 export async function gerarTodosBilhetes(): Promise<AutoResult[]> {
   const padrao = await gerarBilheteAutomatico();
+  await sleep(2_000);
   const superMultipla = await gerarSuperMultipla();
   return [padrao, superMultipla];
 }
