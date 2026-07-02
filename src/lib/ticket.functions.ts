@@ -380,6 +380,8 @@ export const gerarBilhete = createServerFn({ method: "POST" })
         for (const p of a.picks) {
           if (!mercadoOk(p.mercado, p.selecao)) continue;
           if (p.confianca < piso) continue;
+          if (p.odd < data.oddMin) continue; // respeita a odd mínima por seleção
+
           lista.push({
             jogo,
             data: formatMatchDate(r.inicio),
