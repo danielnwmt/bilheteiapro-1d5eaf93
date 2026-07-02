@@ -5,6 +5,7 @@ import { gerarBilhete, listarBilhetes, deletarBilhete, chanceRealDeAcerto, nivel
 import { getMelhoresEntradas, type MelhorEntrada } from "@/lib/entradas.functions";
 import { iniciarOperacao } from "@/lib/access.functions";
 import { reanalisarJogo } from "@/lib/reanalise.functions";
+import { getEstatisticasAoVivoPartida, type EstatAoVivo } from "@/lib/aovivo.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { useRouter } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
