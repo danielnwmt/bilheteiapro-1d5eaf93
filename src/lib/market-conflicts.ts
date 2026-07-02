@@ -97,3 +97,46 @@ export function selecoesConflitam(a: SelecaoMercado, b: SelecaoMercado): boolean
     ([x, y]) => (ta.has(x) && tb.has(y)) || (ta.has(y) && tb.has(x)),
   );
 }
+
+// ---------------------------------------------------------------------------
+// Grupos de categoria (diversificação obrigatória do bilhete).
+// Cada mercado cai em UM dos 4 grandes grupos. O gerador limita o número de
+// seleções por grupo para evitar bilhetes "de um mercado só" (ex.: só gols).
+// ---------------------------------------------------------------------------
+export type GrupoCategoria =
+  | "resultado" // 1X2, Dupla chance, DNB, Handicap asiático, Placar exato
+  | "gols" // Mais/Menos gols, Ambas marcam, Gols 1º tempo, Time marca
+  | "escanteios" // Total de escanteios, Escanteios Mais/Menos
+  | "cartoes" // Total de cartões, Cartões Mais/Menos
+  | "outro";
+
+export function grupoDoMercado(p: SelecaoMercado): GrupoCategoria {
+  const t = norm(`${p.mercado} ${p.selecao}`);
+
+  // Escanteios (checa antes de gols porque pode conter "mais/menos").
+  if (/escanteio|corner|corners/.test(t)) return "escanteios";
+
+  // Cartões
+  if (/cartao|cartoes|card|cards|amarelo|vermelho/.test(t)) return "cartoes";
+
+  // Gols / ambas marcam / time marca / 1º tempo
+  if (
+    /gol|goal|ambas|both teams|btts|marca|score|1o tempo|1 tempo|primeiro tempo|first half/.test(
+      t,
+    )
+  ) {
+    return "gols";
+  }
+
+  // Resultado / geral
+  if (
+    /1x2|resultado|match winner|vencedor|dupla chance|double chance|empate anula|dnb|draw no bet|handicap|placar|correct score/.test(
+      t,
+    )
+  ) {
+    return "resultado";
+  }
+
+  return "outro";
+}
+
