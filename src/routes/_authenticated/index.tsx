@@ -1538,12 +1538,14 @@ function Index() {
                 </div>
 
                 <Tabs defaultValue="gols">
-                  <TabsList className="grid w-full grid-cols-4">
+                  <TabsList className="grid w-full grid-cols-5">
                     <TabsTrigger value="gols" className="gap-1.5 text-xs"><Target className="h-3.5 w-3.5" /> Gols</TabsTrigger>
                     <TabsTrigger value="escanteios" className="gap-1.5 text-xs"><Flag className="h-3.5 w-3.5" /> Escanteios</TabsTrigger>
                     <TabsTrigger value="cartoes" className="gap-1.5 text-xs"><CreditCard className="h-3.5 w-3.5" /> Cartões</TabsTrigger>
                     <TabsTrigger value="forma" className="gap-1.5 text-xs"><LineChart className="h-3.5 w-3.5" /> Forma</TabsTrigger>
+                    <TabsTrigger value="contexto" className="gap-1.5 text-xs"><AlertTriangle className="h-3.5 w-3.5" /> Contexto</TabsTrigger>
                   </TabsList>
+
 
                   {/* GOLS */}
                   <TabsContent value="gols" className="space-y-3 pt-3">
