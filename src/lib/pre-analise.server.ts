@@ -155,12 +155,12 @@ export async function preAnalisarTodos(): Promise<PreAnaliseResult> {
     c.partida.estatisticas = statsMap.get(c.partida.id) ?? null;
   }
 
-  // Análise LOCAL: é grátis e instantânea, então analisamos TODOS os jogos
-  // pendentes numa só passada (sem budget nem espera entre chamadas de IA).
+  // Análise LOCAL: é grátis e instantânea, então reanalisamos TODOS os jogos
+  // numa só passada e sobrescrevemos o cache do dia (forcar = true).
   let analisados = 0;
   for (const c of pendentes) {
     try {
-      const a = await obterAnalisePartida(supabase, model, c.partida, c.casa, dia, false);
+      const a = await obterAnalisePartida(supabase, model, c.partida, c.casa, dia, false, true);
       if (a.picks.length) analisados++;
     } catch (e) {
       console.error("pre-analise: falha ao analisar", c.partida.id, c.casa, e);
@@ -171,7 +171,7 @@ export async function preAnalisarTodos(): Promise<PreAnaliseResult> {
     ok: true,
     jogos: rows.length,
     analisados,
-    jaEmCache: candidatos.length - pendentes.length,
+    jaEmCache: candidatos.filter((c) => cacheSet.has(c.partida.id)).length,
     estatisticas,
     budget: BUDGET_POR_RUN,
     avisos,
