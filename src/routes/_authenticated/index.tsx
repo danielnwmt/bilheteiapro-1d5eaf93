@@ -455,6 +455,18 @@ function Index() {
       .catch(() => {});
   }
 
+  async function handleDeletarBilhete(id: string) {
+    setDeletandoId(id);
+    try {
+      await removerBilhete({ data: { id } });
+      setSalvos((prev) => prev.filter((b) => b.id !== id));
+    } catch (e) {
+      console.error("Falha ao deletar bilhete", e);
+    } finally {
+      setDeletandoId(null);
+    }
+  }
+
   useEffect(() => {
     if (!temAcesso) return;
     carregarSalvos();
