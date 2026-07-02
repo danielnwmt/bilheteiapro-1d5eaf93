@@ -249,6 +249,29 @@ function traduzTermo(texto: string): string {
     .replace(/([+-]\d+(?:\.\d+)?)\s+\d+(?:\.\d+)?/g, "$1");
 }
 
+// Deixa a seleção mais limpa: remove o substantivo que já aparece no mercado
+// (ex.: "Escanteios" + "Mais de 1.5 escanteios" -> "Mais de 1.5"), troca "1.5"
+// por "1,5" (pt-BR) e simplifica o "(1ºT)".
+function selecaoLimpa(mercado: string, selecao: string): string {
+  let s = traduzTermo(selecao || "").trim();
+  const m = traduzTermo(mercado || "").toLowerCase();
+  for (const n of ["escanteios", "cartões", "cartoes", "gols", "gol"]) {
+    if (m.includes(n)) s = s.replace(new RegExp(`\\s*\\b${n}\\b`, "gi"), " ").trim();
+  }
+  s = s
+    .replace(/\(\s*1º?\s*T\.?\s*\)/gi, "no 1º tempo")
+    .replace(/\(\s*2º?\s*T\.?\s*\)/gi, "no 2º tempo")
+    .replace(/(\d)\.(\d)/g, "$1,$2")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  return s;
+}
+
+// Uma linha legível do palpite, usada na cópia do bilhete.
+function linhaAposta(p: { jogo: string; mercado: string; selecao: string; oddEstimada: number }): string {
+  return `${traduzPaises(p.jogo)} — ${traduzTermo(p.mercado)}: ${selecaoLimpa(p.mercado, p.selecao)} @ ${p.oddEstimada.toFixed(2)}`;
+}
+
 // Gera uma sigla curta (3 letras) a partir do nome do time para os cards.
 function sigla(nome: string): string {
   const n = traduzPaises(nome || "").trim();
@@ -1212,7 +1235,7 @@ function Index() {
                           <span className="font-medium text-foreground/80">{traduzTermo(p.mercado)}</span>
                         </div>
                         <h3 className="mt-1 text-base font-semibold">{traduzPaises(p.jogo)}</h3>
-                        <p className="mt-1 text-primary font-medium">{traduzTermo(p.selecao)}</p>
+                        <p className="mt-1 text-primary font-medium">{selecaoLimpa(p.mercado, p.selecao)}</p>
                       </div>
                       <div className="text-right">
                         <div className="font-display text-2xl font-bold text-primary">
@@ -1277,7 +1300,7 @@ function Index() {
                             {grupo.picks.map((p, pi) => (
                               <div key={`${p.selecao}-${pi}`} className="flex items-end justify-between gap-3">
                                 <div>
-                                  <p className="text-sm font-semibold">{traduzTermo(p.selecao)}</p>
+                                  <p className="text-sm font-semibold">{selecaoLimpa(p.mercado, p.selecao)}</p>
                                   <p className="text-[10px] text-muted-foreground">{traduzTermo(p.mercado)}</p>
                                 </div>
                                 <div className="text-right">
@@ -1331,7 +1354,7 @@ function Index() {
                     className="mt-4 w-full font-semibold"
                     onClick={() => {
                       const txt = ticket.picks
-                        .map((p, i) => `${i + 1}. ${p.jogo} — ${traduzTermo(p.mercado)}: ${traduzTermo(p.selecao)} @ ${p.oddEstimada.toFixed(2)}`)
+                        .map((p, i) => `${i + 1}. ${linhaAposta(p)}`)
                         .join("\n");
                       navigator.clipboard.writeText(`${txt}\n\nOdd total: ${ticket.oddTotal.toFixed(2)}\nValor: R$ ${valorAposta}\nPrêmio potencial: ${premioPotencial.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`);
                       toast.success("Bilhete pronto copiado!");
@@ -1398,7 +1421,7 @@ function Index() {
                 variant="secondary"
                 onClick={() => {
                   const txt = ticket.picks
-                    .map((p, i) => `${i + 1}. ${p.jogo} — ${traduzTermo(p.mercado)}: ${traduzTermo(p.selecao)} @ ${p.oddEstimada.toFixed(2)}`)
+                    .map((p, i) => `${i + 1}. ${linhaAposta(p)}`)
                     .join("\n");
                   navigator.clipboard.writeText(`${txt}\n\nOdd total: ${ticket.oddTotal.toFixed(2)}`);
                   toast.success("Bilhete copiado!");
@@ -1453,7 +1476,7 @@ function Index() {
                     <ul className="mt-3 space-y-1 text-xs">
                       {b.picks.map((p: any, i: number) => (
                         <li key={i} className="flex justify-between gap-2">
-                          <span className="truncate">{traduzTermo(p.mercado)}: {traduzTermo(p.selecao)}</span>
+                          <span className="truncate">{traduzTermo(p.mercado)}: {selecaoLimpa(p.mercado, p.selecao)}</span>
                           <span className="shrink-0 font-medium">@ {Number(p.odd).toFixed(2)}</span>
                         </li>
                       ))}
