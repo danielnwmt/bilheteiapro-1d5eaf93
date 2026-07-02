@@ -15,6 +15,7 @@ const InputSchema = z.object({
   tipoBilhete: z.enum(["simples", "multipla", "mesmojogo"]).optional().default("multipla"),
   oddMin: z.number().min(1).max(1000).optional().default(1),
   limiteJogos: z.number().min(1).max(20).optional().default(8),
+  partidasSelecionadas: z.array(z.string()).optional().default([]),
 });
 
 const PickSchema = z.object({
