@@ -411,6 +411,15 @@ export const gerarBilhete = createServerFn({ method: "POST" })
       return true;
     };
 
+    // Exclusão mútua: uma seleção não pode entrar se for contraditória (ou de
+    // correlação negativa) com outra já escolhida do MESMO jogo. Ex.: "Ambas
+    // Marcam: Não" x "Mais de 2.5 Gols". Nesses casos o algoritmo descarta a
+    // seleção conflitante e busca o próximo mercado válido.
+    const conflitaComEscolhidos = (p: Cand) =>
+      chosen.some(
+        (c) => c._partidaId === p._partidaId && selecoesConflitam(c, p),
+      );
+
     // Passo a passo: adiciona a seleção que deixa o produto mais próximo da
     // odd alvo. Para quando nenhuma seleção conseguir aproximar mais.
     while (true) {
@@ -419,6 +428,7 @@ export const gerarBilhete = createServerFn({ method: "POST" })
       let melhorDist = distAtual;
       for (const p of candidatos) {
         if (usedMarket.has(marketKey(p))) continue;
+        if (conflitaComEscolhidos(p)) continue;
         const d = Math.abs(target - prod * p.odd);
         if (
           d < melhorDist - 1e-9 ||
