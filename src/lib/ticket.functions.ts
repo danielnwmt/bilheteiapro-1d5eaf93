@@ -374,6 +374,8 @@ export const gerarBilhete = createServerFn({ method: "POST" })
     const buildPorJogo = (piso: number) => {
       const map = new Map<string, Cand[]>();
       for (const r of aAnalisar) {
+        // Se o cliente escolheu jogos específicos, usa só eles.
+        if (data.partidasSelecionadas.length && !data.partidasSelecionadas.includes(r.id)) continue;
         const a = analises.get(r.id);
         if (!a) continue;
         const jogo = `${r.time_casa} x ${r.time_fora}`;
