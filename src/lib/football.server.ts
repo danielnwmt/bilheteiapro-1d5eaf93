@@ -123,6 +123,7 @@ export async function syncFixtures(periodo: Periodo): Promise<number> {
     const dates = datesForPeriodo(periodo);
     for (const d of dates) {
       fixtures.push(...(await apiGet(`/fixtures?date=${d}&timezone=America/Sao_Paulo`, key)));
+      await sleep(API_THROTTLE_MS);
     }
   }
 
