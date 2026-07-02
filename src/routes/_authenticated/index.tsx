@@ -325,6 +325,8 @@ function Index() {
   const [estatPayload, setEstatPayload] = useState<EstatPayload | null>(null);
   const [estatEscanteios, setEstatEscanteios] = useState<string | null>(null);
   const [loadingEstat, setLoadingEstat] = useState(false);
+  const [aoVivo, setAoVivo] = useState<EstatAoVivo | null>(null);
+  const [loadingAoVivo, setLoadingAoVivo] = useState(false);
   const [statsMap, setStatsMap] = useState<Record<string, { pc: number; pe: number; pf: number }>>({});
   const [oddMin, setOddMin] = useState("2.5");
   const [limiteJogos, setLimiteJogos] = useState("4");
