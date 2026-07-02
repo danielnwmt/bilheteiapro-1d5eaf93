@@ -323,6 +323,7 @@ function confiancaPorOddSegura(odd: number) {
 function picksSoOdds(partida: PartidaRow, casa: string): PickAnalise[] {
   return partida.odds
     .filter((o) => normKey(o.casa) === normKey(casa) && o.valor >= 1.2 && o.valor <= 4.5)
+    .filter((o) => linhaSensata(o.mercado || "", o.selecao))
     .sort((a, b) => a.valor - b.valor)
     .slice(0, 5)
     .map((o) => ({
