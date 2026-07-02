@@ -572,7 +572,7 @@ function Index() {
   // Chance real de acerto = probabilidade implícita combinada (produto de 1/odd).
   const chancePctNum =
     ticket && ticket.picks.length
-      ? chanceRealDeAcerto(ticket.picks.map((p) => Number(p.odd) || 0))
+      ? chanceRealDeAcerto(ticket.picks.map((p) => Number(p.oddEstimada) || 0))
       : 0;
   const chancePct = chancePctNum.toFixed(2);
 
