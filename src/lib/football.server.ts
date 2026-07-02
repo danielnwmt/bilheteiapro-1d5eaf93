@@ -466,7 +466,60 @@ export interface EstatisticasResumo {
   cartoesCasa: string | null;
   cartoesFora: string | null;
   cartoesConfronto: string | null;
+  // Lesões / suspensões / desfalques (API-Football /injuries) e escalação
+  // oficial confirmada (API-Football /fixtures/lineups). Tratados localmente.
+  lesoesCasa: string[];
+  lesoesFora: string[];
+  escalacaoConfirmada: boolean;
 }
+
+// Normaliza nome de time para casar lesões com o lado certo do confronto.
+function nkeyTime(s: string): string {
+  return (s || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+interface ApiInjuryResponse {
+  player?: { id?: number | null; name?: string | null } | null;
+  team?: { id?: number | null; name?: string | null } | null;
+  type?: string | null;
+  reason?: string | null;
+}
+
+// Lesões / suspensões de um jogo. Não lança erro — sem dados retorna [].
+async function apiGetInjuries(fixtureId: string, key: string): Promise<ApiInjuryResponse[]> {
+  await registrarChamada("API_FOOTBALL_KEY");
+  try {
+    const res = await fetch(`${API_BASE}/injuries?fixture=${fixtureId}`, {
+      headers: { "x-apisports-key": key },
+    });
+    if (!res.ok) return [];
+    const json = (await res.json()) as { response?: ApiInjuryResponse[] };
+    return json.response ?? [];
+  } catch {
+    return [];
+  }
+}
+
+// Escalação oficial: > 0 quando os times já divulgaram a escalação confirmada.
+async function apiGetLineupsCount(fixtureId: string, key: string): Promise<number> {
+  await registrarChamada("API_FOOTBALL_KEY");
+  try {
+    const res = await fetch(`${API_BASE}/fixtures/lineups?fixture=${fixtureId}`, {
+      headers: { "x-apisports-key": key },
+    });
+    if (!res.ok) return 0;
+    const json = (await res.json()) as { response?: unknown[] };
+    return json.response?.length ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
 
 async function apiGetPredictions(fixtureId: string, key: string): Promise<ApiPredResponse[]> {
   await registrarChamada("API_FOOTBALL_KEY");
