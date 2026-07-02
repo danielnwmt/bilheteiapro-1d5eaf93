@@ -21,9 +21,12 @@ export const reanalisarJogo = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     // Só staff pode disparar reanálise.
-    const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
-    const { data: isOperador } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "operador" });
-    if (!isAdmin && !isOperador) {
+    const { data: roleRows } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", context.userId);
+    const roles = (roleRows ?? []).map((r) => r.role);
+    if (!roles.includes("admin") && !roles.includes("operador")) {
       throw new Error("Apenas administradores podem forçar a reanálise.");
     }
 
