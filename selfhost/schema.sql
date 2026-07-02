@@ -283,7 +283,7 @@ BEGIN
     ),
     NEW.email,
     NEW.raw_user_meta_data->>'cpf',
-    NULLIF(NEW.raw_user_meta_data->>'data_nascimento','')::date,
+    _nasc,
     NEW.raw_user_meta_data->>'telefone'
   )
   ON CONFLICT (id) DO UPDATE SET
