@@ -263,7 +263,7 @@ Responda SOMENTE com JSON válido neste formato:
 // Monta as estatísticas do jogo (escanteios, gols, chutes, cartões) a partir
 // dos números REAIS da API-Football (tabela estatisticas). É usado quando a IA
 // não está disponível (limite atingido) e para preencher o que a IA deixar vazio.
-function analiseDeEstatisticas(partida: PartidaRow): AnaliseJogoStats {
+export function analiseDeEstatisticas(partida: PartidaRow): AnaliseJogoStats {
   const est = partida.estatisticas;
   const casa = partida.time_casa;
   const fora = partida.time_fora;
