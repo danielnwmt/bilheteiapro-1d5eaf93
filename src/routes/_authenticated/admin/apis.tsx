@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AlertTriangle, ArrowLeft, Loader2, Plus, Plug, ArrowDown, Workflow, PlayCircle, Activity } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Loader2, Plus, Plug, ArrowDown, Workflow, PlayCircle, Activity, Eye, EyeOff } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -57,6 +57,7 @@ function ApisPage() {
   const [novaChave, setNovaChave] = useState("");
   const [currentEmail, setCurrentEmail] = useState<string | null>(null);
   const [flow, setFlow] = useState<Record<string, string>>({ ...FLUXO_PADRAO });
+  const [revelar, setRevelar] = useState<Record<string, boolean>>({});
 
   const { data: config, isLoading, error } = useQuery({
     queryKey: ["system-config"],
@@ -333,13 +334,23 @@ function ApisPage() {
                   <Label className="text-sm font-semibold">{chave}</Label>
                   {descricao && <p className="mb-2 text-xs text-muted-foreground">{descricao}</p>}
                   <div className="flex gap-2">
-                    <Input
-                      type="password"
-                      placeholder="••••••••"
-                      value={vals[chave] ?? ""}
-                      onChange={(e) => setVals((v) => ({ ...v, [chave]: e.target.value }))}
-                      className="bg-input/40"
-                    />
+                    <div className="relative flex-1">
+                      <Input
+                        type={revelar[chave] ? "text" : "password"}
+                        placeholder="••••••••"
+                        value={vals[chave] ?? ""}
+                        onChange={(e) => setVals((v) => ({ ...v, [chave]: e.target.value }))}
+                        className="bg-input/40 pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setRevelar((r) => ({ ...r, [chave]: !r[chave] }))}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        aria-label={revelar[chave] ? "Ocultar chave" : "Mostrar chave"}
+                      >
+                        {revelar[chave] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                     <Button
                       disabled={mut.isPending}
                       onClick={() => mut.mutate({ chave, valor: vals[chave] ?? "", descricao })}
@@ -347,6 +358,7 @@ function ApisPage() {
                       Salvar
                     </Button>
                   </div>
+
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <Button
                       variant="secondary"
