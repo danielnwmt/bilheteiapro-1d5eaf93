@@ -87,14 +87,17 @@ export async function preAnalisarTodos(): Promise<PreAnaliseResult> {
     if (casa) candidatos.push({ partida: p, casa });
   }
 
-  // Quais jogos já têm análise hoje (em qualquer casa)?
+  // Quantos jogos já tinham análise hoje (só para relatório).
   const { data: jaCache } = await supabase
     .from("analise_cache")
     .select("partida_id")
     .eq("dia", dia);
   const cacheSet = new Set((jaCache ?? []).map((c: any) => String(c.partida_id)));
 
-  const pendentes = candidatos.filter((c) => !cacheSet.has(c.partida.id));
+  // Reanalisa TODOS os candidatos e sobrescreve o cache do dia. Como a análise
+  // é 100% local (grátis e instantânea), regravar garante que odds/estatísticas
+  // novas — e correções do motor — sejam sempre refletidas nos bilhetes.
+  const pendentes = candidatos;
 
   // Coleta estatísticas reais (API-Football /predictions) dos jogos que serão
   // analisados e ainda não têm estatísticas salvas. 1 chamada por jogo.
