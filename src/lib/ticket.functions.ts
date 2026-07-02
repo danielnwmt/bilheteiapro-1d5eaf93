@@ -97,6 +97,33 @@ function riskFromPicks(picks: Ticket["picks"], oddTotal: number): Ticket["risco"
   return "medio";
 }
 
+/**
+ * Chance real de acerto de um bilhete = probabilidade implícita combinada.
+ * Para cada seleção, probabilidade = 1 / odd. A chance combinada é o produto
+ * das probabilidades de todas as seleções.
+ * Ex: [1.91, 1.88, 1.79, 1.71, 1.71] => ~0.0532 (5.32%).
+ * Retorna o valor em porcentagem (0-100).
+ */
+export function chanceRealDeAcerto(odds: number[]): number {
+  const validas = odds.filter((o) => Number.isFinite(o) && o > 0);
+  if (!validas.length) return 0;
+  const prob = validas.reduce((acc, o) => acc * (1 / o), 1);
+  return prob * 100;
+}
+
+/** Classifica o risco pela chance real: <10% alto, 10-30% médio, >30% baixo. */
+export function nivelDeRisco(chancePct: number): "alto" | "medio" | "baixo" {
+  if (chancePct < 10) return "alto";
+  if (chancePct <= 30) return "medio";
+  return "baixo";
+}
+
+/** Rótulo em português para o nível de risco. */
+export function rotuloRisco(chancePct: number): string {
+  const n = nivelDeRisco(chancePct);
+  return n === "alto" ? "Risco Alto" : n === "medio" ? "Risco Médio" : "Risco Baixo";
+}
+
 
 
 

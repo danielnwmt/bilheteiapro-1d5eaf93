@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { gerarBilhete, listarBilhetes, deletarBilhete } from "@/lib/ticket.functions";
+import { gerarBilhete, listarBilhetes, deletarBilhete, chanceRealDeAcerto, nivelDeRisco, rotuloRisco } from "@/lib/ticket.functions";
 import { getMelhoresEntradas, type MelhorEntrada } from "@/lib/entradas.functions";
 import { iniciarOperacao } from "@/lib/access.functions";
 import { reanalisarJogo } from "@/lib/reanalise.functions";
@@ -569,28 +569,27 @@ function Index() {
 
 
 
-  // Chance combinada de acerto = produto das probabilidades de cada seleção.
-  const chancePct =
+  // Chance real de acerto = probabilidade implícita combinada (produto de 1/odd).
+  const chancePctNum =
     ticket && ticket.picks.length
-      ? Math.round(
-          ticket.picks.reduce((acc, p) => acc * ((p.confianca || 0) / 100), 1) * 100,
-        )
+      ? chanceRealDeAcerto(ticket.picks.map((p) => Number(p.oddEstimada) || 0))
       : 0;
+  const chancePct = chancePctNum.toFixed(2);
 
-  // Faixa de cor/aviso conforme a chance combinada de acerto.
-  const chanceNivel: "alta" | "media" | "baixa" =
-    chancePct >= 65 ? "alta" : chancePct >= 40 ? "media" : "baixa";
+  // Faixa de cor/aviso conforme a chance real: <10% alto, 10-30% médio, >30% baixo.
+  const chanceRisco = nivelDeRisco(chancePctNum);
+  const chanceRiscoLabel = rotuloRisco(chancePctNum);
 
   const chanceColor = {
-    alta: "bg-primary/20 text-primary border-primary/30",
-    media: "bg-accent/20 text-accent border-accent/30",
-    baixa: "bg-destructive/20 text-destructive border-destructive/30",
+    baixo: "bg-primary/20 text-primary border-primary/30",
+    medio: "bg-accent/20 text-accent border-accent/30",
+    alto: "bg-destructive/20 text-destructive border-destructive/30",
   } as const;
 
   const chanceAviso = {
-    alta: "Chance de acerto alta: seleções de alta confiança e odd combinada equilibrada.",
-    media: "Chance de acerto média: combinação equilibrada, com a incerteza natural das apostas.",
-    baixa: "Chance de acerto menor: quanto maior a odd, mais jogos precisam acertar juntos — aposte com cautela.",
+    baixo: "Chance real de acerto boa: probabilidade combinada favorável para essa odd.",
+    medio: "Chance real de acerto média: combinação equilibrada, com a incerteza natural das apostas.",
+    alto: "Chance real de acerto baixa: quanto maior a odd, mais jogos precisam acertar juntos — aposte com cautela.",
   } as const;
 
 
@@ -1021,13 +1020,18 @@ function Index() {
                     Odd total: <span className="text-primary">{ticket.oddTotal.toFixed(2)}</span>
                   </h2>
                 </div>
-                <Badge className={`${chanceColor[chanceNivel]} border px-3 py-1 text-xs uppercase`}>
-                  Chance de acerto · {chancePct}%
-                </Badge>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge className={`${chanceColor[chanceRisco]} border px-3 py-1 text-xs`}>
+                    Chance real de acerto: {chancePct}%
+                  </Badge>
+                  <Badge className={`${chanceColor[chanceRisco]} border px-3 py-1 text-xs uppercase`}>
+                    {chanceRiscoLabel}
+                  </Badge>
+                </div>
               </div>
               <p className="mt-3 text-sm text-muted-foreground">{ticket.resumo}</p>
-              <div className={`mt-3 rounded-lg border p-3 text-sm ${chanceColor[chanceNivel]}`}>
-                {chanceAviso[chanceNivel]}
+              <div className={`mt-3 rounded-lg border p-3 text-sm ${chanceColor[chanceRisco]}`}>
+                {chanceAviso[chanceRisco]}
               </div>
 
             </div>
@@ -1306,21 +1310,26 @@ function Index() {
             <Card className="max-w-md p-4">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-sm font-semibold">
-                  Odd total: <span className="text-primary">9.14</span>
+                  Odd total: <span className="text-primary">18.79</span>
                 </p>
                 <Badge variant="secondary">Exemplo</Badge>
               </div>
-              <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                <span>4 seleções</span>
-                <span>· Confiança 91%</span>
-                <span>· Risco alto</span>
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                <span>5 seleções</span>
+                <Badge className="bg-destructive/20 text-destructive border border-destructive/30 px-2 py-0.5 text-[11px]">
+                  Chance real de acerto: 5.32%
+                </Badge>
+                <Badge className="bg-destructive/20 text-destructive border border-destructive/30 px-2 py-0.5 text-[11px] uppercase">
+                  Risco Alto
+                </Badge>
               </div>
               <ul className="mt-3 space-y-1 text-xs">
                 {[
-                  { jogo: "Flamengo x Palmeiras", mercado: "Resultado (1X2)", selecao: "Casa vence", odd: 1.75 },
-                  { jogo: "Real Madrid x Getafe", mercado: "Ambas marcam", selecao: "Sim", odd: 1.65 },
-                  { jogo: "Liverpool x Everton", mercado: "Total de escanteios", selecao: "Mais de 9.5", odd: 1.80 },
-                  { jogo: "Inter x Milan", mercado: "Total de cartões", selecao: "Mais de 4.5", odd: 1.76 },
+                  { jogo: "Flamengo x Palmeiras", mercado: "Resultado (1X2)", selecao: "Casa vence", odd: 1.91 },
+                  { jogo: "Real Madrid x Getafe", mercado: "Ambas marcam", selecao: "Sim", odd: 1.88 },
+                  { jogo: "Liverpool x Everton", mercado: "Total de escanteios", selecao: "Mais de 9.5", odd: 1.79 },
+                  { jogo: "Inter x Milan", mercado: "Total de cartões", selecao: "Mais de 4.5", odd: 1.71 },
+                  { jogo: "Bayern x Dortmund", mercado: "Total de gols", selecao: "Mais de 1.5", odd: 1.71 },
                 ].map((p, i) => (
                   <li key={i} className="flex flex-col gap-0.5 border-b border-border/40 pb-1 last:border-0">
                     <div className="flex justify-between gap-2">
