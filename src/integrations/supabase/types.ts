@@ -442,6 +442,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          active_session: string | null
           cpf: string | null
           created_at: string
           data_nascimento: string | null
@@ -453,6 +454,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          active_session?: string | null
           cpf?: string | null
           created_at?: string
           data_nascimento?: string | null
@@ -464,6 +466,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          active_session?: string | null
           cpf?: string | null
           created_at?: string
           data_nascimento?: string | null
