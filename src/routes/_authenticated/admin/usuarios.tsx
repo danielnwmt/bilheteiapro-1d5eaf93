@@ -206,6 +206,9 @@ function UsuariosPage() {
     return Math.ceil((fim - Date.now()) / 86_400_000);
   };
 
+  const fmtData = (d?: string | null) =>
+    d ? new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—";
+
   return (
     <main className="min-h-screen bg-background">
       <div className="mx-auto max-w-5xl px-4 py-10">
