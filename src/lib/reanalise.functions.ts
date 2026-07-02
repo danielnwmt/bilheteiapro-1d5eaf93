@@ -67,12 +67,11 @@ export const reanalisarJogo = createServerFn({ method: "POST" })
       .maybeSingle();
     row.estatisticas = (statsRow?.payload ?? null) as never;
 
-    // 4) Escolhe a casa com odds e reanalisa com a IA.
+    // 4) Escolhe a casa com odds e reanalisa 100% localmente (sem IA).
     let casa = APP_CASAS.find((c) => row.odds.some((o) => normKey(o.casa) === normKey(c)));
     if (!casa) casa = row.odds[0].casa;
 
-    const model = await getAiModel();
-    const analise = await obterAnalisePartida(supabaseAdmin, model, row, casa, dia, false);
+    const analise = await obterAnalisePartida(supabaseAdmin, null, row, casa, dia, false);
 
     return { ok: true, reanalisado: analise.picks.length > 0, picks: analise.picks.length };
   });
