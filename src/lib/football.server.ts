@@ -816,6 +816,7 @@ export async function syncOddsByLeagueDias(
         }
 
         page++;
+        await sleep(API_THROTTLE_MS);
       } while (page <= totalPages);
     }
   }
