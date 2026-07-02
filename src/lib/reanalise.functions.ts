@@ -28,7 +28,7 @@ export const reanalisarJogo = createServerFn({ method: "POST" })
     }
 
     const { getAiModel } = await import("@/lib/ai-gateway.server");
-    const { obterAnalisePartida, diaSaoPaulo, type PartidaRow } = await import("@/lib/analise.server");
+    const { obterAnalisePartida, diaSaoPaulo } = await import("@/lib/analise.server");
     const { hasApiFootballKey, syncEstatisticas } = await import("@/lib/football.server");
 
     const dia = diaSaoPaulo(new Date());
