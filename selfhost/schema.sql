@@ -28,6 +28,19 @@ GRANT SELECT ON public.estatisticas TO anon, authenticated;
 GRANT ALL ON public.estatisticas TO service_role;
 ALTER TABLE public.estatisticas ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Estatisticas sao publicas" ON public.estatisticas FOR SELECT USING (true);
+-- Necessario para o upsert onConflict "partida_id,tipo" em syncEstatisticas.
+-- Sem este indice unico o gravamento das estatisticas falha e a tabela fica vazia.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'estatisticas_unique_partida_tipo'
+  ) THEN
+    ALTER TABLE public.estatisticas
+      ADD CONSTRAINT estatisticas_unique_partida_tipo UNIQUE (partida_id, tipo);
+  END IF;
+END $$;
+
+
 
 -- ===== Odds =====
 CREATE TABLE public.odds (
