@@ -354,6 +354,7 @@ export function analisarLocal(partida: PartidaRow, casa: string): AnalisePartida
 
   for (const o of oddsCasa) {
     if (!Number.isFinite(o.valor) || o.valor < 1.15 || o.valor > 8) continue;
+    if (!linhaSensata(o.mercado || "", o.selecao)) continue;
     const prob = probDaSelecao(o.mercado, o.selecao, ctx, partida.time_casa, partida.time_fora);
     if (prob == null || !Number.isFinite(prob) || prob <= 0) continue;
 
