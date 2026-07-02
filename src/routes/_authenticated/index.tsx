@@ -841,35 +841,64 @@ function Index() {
               </p>
             ) : (
               <div className="divide-y divide-border/60">
-                {jogosFiltrados.map((j) => (
-                  <button
-                    key={j.id}
-                    type="button"
-                    onClick={() => abrirEstatisticas(j)}
-                    className="flex w-full items-center gap-3 py-3 text-left transition-colors hover:bg-muted/40"
-                  >
-                    <div className="w-16 shrink-0 text-sm font-semibold text-primary">
-                      {j.status === "ao_vivo" ? (
-                        <span className="flex items-center gap-1">🔴 AO VIVO</span>
+                {jogosFiltrados.map((j) => {
+                  const oficial = escalacaoConfirmada(j);
+                  return (
+                    <div key={j.id} className="flex items-center gap-3 py-3">
+                      <button
+                        type="button"
+                        onClick={() => abrirEstatisticas(j)}
+                        className="flex min-w-0 flex-1 items-center gap-3 text-left transition-colors hover:bg-muted/40"
+                      >
+                        <div className="w-16 shrink-0 text-sm font-semibold text-primary">
+                          {j.status === "ao_vivo" ? (
+                            <span className="flex items-center gap-1">🔴 AO VIVO</span>
+                          ) : (
+                            new Date(j.inicio).toLocaleTimeString("pt-BR", {
+                              timeZone: "America/Sao_Paulo",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium">
+                            {traduzPaises(j.time_casa)} <span className="text-muted-foreground">x</span> {traduzPaises(j.time_fora)}
+                          </p>
+                          <div className="flex items-center gap-2">
+                            {j.liga && (
+                              <p className="truncate text-xs text-muted-foreground">{j.liga}</p>
+                            )}
+                            {oficial && (
+                              <Badge variant="secondary" className="h-4 gap-0.5 px-1.5 text-[10px] text-primary">
+                                <Zap className="h-2.5 w-2.5" /> Escalação Oficial
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                      {oficial && isStaff ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 shrink-0"
+                          title="Limpar cache e reanalisar com a escalação"
+                          disabled={reanalisandoId === j.id}
+                          onClick={() => handleReanalisar(j)}
+                        >
+                          {reanalisandoId === j.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <RefreshCw className="h-4 w-4 text-primary" />
+                          )}
+                        </Button>
                       ) : (
-                        new Date(j.inicio).toLocaleTimeString("pt-BR", {
-                          timeZone: "America/Sao_Paulo",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
+                        <TrendingUp className="h-4 w-4 shrink-0 text-muted-foreground" />
                       )}
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">
-                        {traduzPaises(j.time_casa)} <span className="text-muted-foreground">x</span> {traduzPaises(j.time_fora)}
-                      </p>
-                      {j.liga && (
-                        <p className="truncate text-xs text-muted-foreground">{j.liga}</p>
-                      )}
-                    </div>
-                    <TrendingUp className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  </button>
-                ))}
+                  );
+                })}
               </div>
             )}
           </Card>
