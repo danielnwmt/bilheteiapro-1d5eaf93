@@ -588,10 +588,11 @@ function resumirPredicao(p: ApiPredResponse): EstatisticasResumo {
 /**
  * Coleta estatísticas reais (endpoint /predictions da API-Football) para as
  * partidas indicadas e grava em public.estatisticas (tipo "predicoes").
- * 1 chamada por jogo. Retorna quantos jogos tiveram estatísticas salvas.
+ * Também busca lesões/desfalques (/injuries) e a escalação oficial
+ * (/fixtures/lineups) e trata tudo localmente. Retorna quantos jogos foram salvos.
  */
 export async function syncEstatisticas(
-  fixtures: Array<{ id: string; external_id: string | null }>,
+  fixtures: Array<{ id: string; external_id: string | null; time_casa?: string; time_fora?: string }>,
   maxFixtures = 60,
 ): Promise<number> {
   const key = await getApiFootballKey();
@@ -611,11 +612,39 @@ export async function syncEstatisticas(
       const resp = await apiGetPredictions(String(f.external_id), key);
       const entry = resp[0];
       if (!entry) continue;
-      rows.push({ partida_id: f.id, tipo: "predicoes", payload: resumirPredicao(entry) });
+      const payload = resumirPredicao(entry);
+
+      // Lesões / suspensões / desfalques, divididos por time.
+      try {
+        const injuries = await apiGetInjuries(String(f.external_id), key);
+        const kc = nkeyTime(f.time_casa ?? "");
+        const kf = nkeyTime(f.time_fora ?? "");
+        const vistos = new Set<string>();
+        for (const inj of injuries) {
+          const nome = (inj.player?.name ?? "").trim();
+          if (!nome) continue;
+          const t = nkeyTime(inj.team?.name ?? "");
+          const chave = `${t}|${nome}`;
+          if (vistos.has(chave)) continue;
+          vistos.add(chave);
+          if (kc && (t.includes(kc) || kc.includes(t))) payload.lesoesCasa.push(nome);
+          else if (kf && (t.includes(kf) || kf.includes(t))) payload.lesoesFora.push(nome);
+        }
+      } catch (e) {
+        console.error("Falha ao buscar lesões da partida", f.external_id, e);
+      }
+
+      // Escalação oficial confirmada.
+      try {
+        payload.escalacaoConfirmada = (await apiGetLineupsCount(String(f.external_id), key)) > 0;
+      } catch { /* sem escalação ainda */ }
+
+      rows.push({ partida_id: f.id, tipo: "predicoes", payload });
     } catch (e) {
       console.error("Falha ao buscar estatísticas da partida", f.external_id, e);
     }
   }
+
 
   if (!rows.length) return 0;
 
