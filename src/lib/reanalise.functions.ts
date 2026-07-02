@@ -30,7 +30,6 @@ export const reanalisarJogo = createServerFn({ method: "POST" })
       throw new Error("Apenas administradores podem forçar a reanálise.");
     }
 
-    const { getAiModel } = await import("@/lib/ai-gateway.server");
     const { obterAnalisePartida, diaSaoPaulo } = await import("@/lib/analise.server");
     const { hasApiFootballKey, syncEstatisticas } = await import("@/lib/football.server");
 
