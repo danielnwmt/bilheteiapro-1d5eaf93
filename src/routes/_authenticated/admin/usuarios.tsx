@@ -9,9 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Loader2, KeyRound, Settings, Pencil, UserPlus, ShieldPlus, Gift } from "lucide-react";
+import { ArrowLeft, Loader2, KeyRound, Settings, Pencil, UserPlus, ShieldPlus, Gift, Search } from "lucide-react";
 import { PLANOS, type Plano } from "@/lib/planos";
 import { usePlanos } from "@/hooks/usePlanos";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin/usuarios")({
