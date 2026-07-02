@@ -7,8 +7,8 @@ import { verificarCronSecret } from "@/lib/cron-auth";
 const LIVE_WINDOW_MIN = 150; // ~2h30 de duração de jogo
 const CASA_PADRAO = "betano";
 
-// Intervalo fixo de execução para todas as APIs: a cada 7 minutos.
-const INTERVALO_FIXO_MIN = 7;
+// Intervalo fixo de execução (jogos + estatísticas): a cada 4 minutos.
+const INTERVALO_FIXO_MIN = 4;
 
 async function getIntervaloMin(_chave: string): Promise<number> {
   return INTERVALO_FIXO_MIN;
