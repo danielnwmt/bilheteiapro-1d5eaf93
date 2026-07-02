@@ -103,6 +103,15 @@ function montarContexto(partida: PartidaRow): Contexto | null {
   if (!Number.isFinite(lambdaCasa) && !Number.isFinite(lambdaFora)) return null;
   lambdaCasa = clamp(Number.isFinite(lambdaCasa) ? lambdaCasa : 1.2, 0.15, 4.5);
   lambdaFora = clamp(Number.isFinite(lambdaFora) ? lambdaFora : 1.0, 0.15, 4.5);
+
+  // Desfalques (lesões/suspensões): cada ausência reduz o poder de ataque do
+  // time. Penalidade limitada a ~28% para não zerar o modelo. Tratado 100% local.
+  const nLesCasa = Array.isArray(est.lesoesCasa) ? est.lesoesCasa.length : 0;
+  const nLesFora = Array.isArray(est.lesoesFora) ? est.lesoesFora.length : 0;
+  const penalDesfalque = (n: number) => clamp(1 - 0.035 * n, 0.72, 1);
+  lambdaCasa *= penalDesfalque(nLesCasa);
+  lambdaFora *= penalDesfalque(nLesFora);
+
   const lambdaTotal = lambdaCasa + lambdaFora;
 
   // 1X2: usa as probabilidades da API quando existirem; senão calcula pela
