@@ -12,6 +12,9 @@ const InputSchema = z.object({
   mercados: z.array(z.string()).optional().default([]),
   casa: z.string().optional().default("Betano"),
   minConfianca: z.number().min(0).max(100).optional().default(90),
+  tipoBilhete: z.enum(["simples", "multipla", "mesmojogo"]).optional().default("multipla"),
+  oddMin: z.number().min(1).max(1000).optional().default(1),
+  limiteJogos: z.number().min(1).max(20).optional().default(8),
 });
 
 const PickSchema = z.object({
