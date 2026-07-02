@@ -65,6 +65,8 @@ type JogoDia = {
   liga: string | null;
   time_casa: string;
   time_fora: string;
+  logo_casa?: string | null;
+  logo_fora?: string | null;
   inicio: string;
   status: string;
   arbitro?: string | null;
