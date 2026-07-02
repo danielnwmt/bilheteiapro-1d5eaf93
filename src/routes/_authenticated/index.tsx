@@ -1020,13 +1020,18 @@ function Index() {
                     Odd total: <span className="text-primary">{ticket.oddTotal.toFixed(2)}</span>
                   </h2>
                 </div>
-                <Badge className={`${chanceColor[chanceNivel]} border px-3 py-1 text-xs uppercase`}>
-                  Chance de acerto · {chancePct}%
-                </Badge>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge className={`${chanceColor[chanceRisco]} border px-3 py-1 text-xs`}>
+                    Chance real de acerto: {chancePct}%
+                  </Badge>
+                  <Badge className={`${chanceColor[chanceRisco]} border px-3 py-1 text-xs uppercase`}>
+                    {chanceRiscoLabel}
+                  </Badge>
+                </div>
               </div>
               <p className="mt-3 text-sm text-muted-foreground">{ticket.resumo}</p>
-              <div className={`mt-3 rounded-lg border p-3 text-sm ${chanceColor[chanceNivel]}`}>
-                {chanceAviso[chanceNivel]}
+              <div className={`mt-3 rounded-lg border p-3 text-sm ${chanceColor[chanceRisco]}`}>
+                {chanceAviso[chanceRisco]}
               </div>
 
             </div>
