@@ -1440,48 +1440,8 @@ function Index() {
           </div>
         )}
 
-        {temAcesso && salvos.length === 0 && (
-          <div className="mt-8">
-            <h2 className="mb-1 text-lg font-bold">Exemplo de bilhete diversificado</h2>
-            <p className="mb-3 text-xs text-muted-foreground">
-              Simulação: cada linha é de um jogo e mercado diferente (Resultado, Gols, Escanteios e Cartões) para uma odd alta montada de forma inteligente.
-            </p>
-            <Card className="max-w-md p-4">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-semibold">
-                  Odd total: <span className="text-primary">18.79</span>
-                </p>
-                <Badge variant="secondary">Exemplo</Badge>
-              </div>
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <span>5 seleções</span>
-                <Badge className="bg-destructive/20 text-destructive border border-destructive/30 px-2 py-0.5 text-[11px]">
-                  Chance real de acerto: 5.32%
-                </Badge>
-                <Badge className="bg-destructive/20 text-destructive border border-destructive/30 px-2 py-0.5 text-[11px] uppercase">
-                  Risco Alto
-                </Badge>
-              </div>
-              <ul className="mt-3 space-y-1 text-xs">
-                {[
-                  { jogo: "Flamengo x Palmeiras", mercado: "Resultado (1X2)", selecao: "Casa vence", odd: 1.91 },
-                  { jogo: "Real Madrid x Getafe", mercado: "Ambas marcam", selecao: "Sim", odd: 1.88 },
-                  { jogo: "Liverpool x Everton", mercado: "Total de escanteios", selecao: "Mais de 9.5", odd: 1.79 },
-                  { jogo: "Inter x Milan", mercado: "Total de cartões", selecao: "Mais de 4.5", odd: 1.71 },
-                  { jogo: "Bayern x Dortmund", mercado: "Total de gols", selecao: "Mais de 1.5", odd: 1.71 },
-                ].map((p, i) => (
-                  <li key={i} className="flex flex-col gap-0.5 border-b border-border/40 pb-1 last:border-0">
-                    <div className="flex justify-between gap-2">
-                      <span className="truncate font-medium">{p.mercado}: {p.selecao}</span>
-                      <span className="shrink-0 font-medium">@ {p.odd.toFixed(2)}</span>
-                    </div>
-                    <span className="truncate text-[11px] text-muted-foreground">{p.jogo}</span>
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          </div>
-        )}
+
+
 
 
 
