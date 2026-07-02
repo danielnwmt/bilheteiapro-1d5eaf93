@@ -6,6 +6,30 @@ import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { getAiModel } from "./ai-gateway.server";
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// Chama a IA com backoff exponencial para sobreviver a "Too Many Requests"
+// (429) e "Service Unavailable" (503) do provedor, em vez de estourar após
+// as 3 tentativas padrão do SDK e não gerar nenhum pick.
+async function gerarComBackoff(prompt: string, tentativas = 5): Promise<string> {
+  let ultimoErro: unknown;
+  for (let i = 0; i < tentativas; i++) {
+    try {
+      const { text } = await generateText({ model: await getAiModel(), prompt, maxRetries: 0 });
+      return text;
+    } catch (e) {
+      ultimoErro = e;
+      const msg = String((e as Error)?.message ?? e);
+      const rate = /too many requests|429|service unavailable|503|overloaded|rate limit/i.test(msg);
+      if (!rate || i === tentativas - 1) throw e;
+      const espera = Math.min(45_000, 3_000 * 2 ** i) + Math.floor(Math.random() * 1_000);
+      console.warn(`auto-bilhete: IA sobrecarregada, aguardando ${Math.round(espera)}ms (tentativa ${i + 1}/${tentativas})`);
+      await sleep(espera);
+    }
+  }
+  throw ultimoErro;
+}
+
 // Configuração de cada tipo de bilhete que o robô monta.
 export interface BilheteConfig {
   tipo: string;
