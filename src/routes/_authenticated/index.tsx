@@ -1614,6 +1614,76 @@ function Index() {
             <DialogTitle className="text-lg font-bold">Análise detalhada</DialogTitle>
           </DialogHeader>
 
+          {/* Estatísticas AO VIVO em tempo real (atualiza a cada 30s) */}
+          {(loadingAoVivo || aoVivo) && (() => {
+            const linhas: Array<{ rotulo: string; casa: number | string | null; fora: number | string | null }> = aoVivo
+              ? [
+                  { rotulo: "Posse de bola", casa: aoVivo.casa.posse, fora: aoVivo.fora.posse },
+                  { rotulo: "Finalizações", casa: aoVivo.casa.chutes, fora: aoVivo.fora.chutes },
+                  { rotulo: "Chutes ao gol", casa: aoVivo.casa.chutesAoGol, fora: aoVivo.fora.chutesAoGol },
+                  { rotulo: "Escanteios", casa: aoVivo.casa.escanteios, fora: aoVivo.fora.escanteios },
+                  { rotulo: "Faltas", casa: aoVivo.casa.faltas, fora: aoVivo.fora.faltas },
+                  { rotulo: "Cartões amarelos", casa: aoVivo.casa.cartoesAmarelos, fora: aoVivo.fora.cartoesAmarelos },
+                  { rotulo: "Ataques perigosos", casa: aoVivo.casa.ataquesPerigosos, fora: aoVivo.fora.ataquesPerigosos },
+                ].filter((l) => l.casa != null || l.fora != null)
+              : [];
+            return (
+              <div className="mb-1 rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-xs font-semibold text-destructive">
+                    <span className="relative flex h-2 w-2">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive/70" />
+                      <span className="relative inline-flex h-2 w-2 rounded-full bg-destructive" />
+                    </span>
+                    {aoVivo?.aoVivo ? "AO VIVO" : "TEMPO REAL"}
+                    {aoVivo?.minuto != null && <span className="text-muted-foreground">· {aoVivo.minuto}'</span>}
+                  </span>
+                  {loadingAoVivo && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+                </div>
+
+                {aoVivo ? (
+                  <>
+                    {/* Placar */}
+                    <div className="mt-3 flex items-center justify-center gap-4">
+                      <span className="min-w-0 flex-1 truncate text-right text-sm font-medium">
+                        {estatJogo ? traduzPaises(estatJogo.time_casa) : ""}
+                      </span>
+                      <span className="shrink-0 text-2xl font-bold tabular-nums">
+                        {aoVivo.golsCasa ?? 0} <span className="text-muted-foreground">×</span> {aoVivo.golsFora ?? 0}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-left text-sm font-medium">
+                        {estatJogo ? traduzPaises(estatJogo.time_fora) : ""}
+                      </span>
+                    </div>
+
+                    {/* Métricas time a time */}
+                    {linhas.length > 0 ? (
+                      <div className="mt-3 space-y-2">
+                        {linhas.map((l) => (
+                          <div key={l.rotulo} className="flex items-center gap-2 text-xs">
+                            <span className="w-10 text-right font-semibold tabular-nums">{l.casa ?? "-"}</span>
+                            <span className="flex-1 text-center text-[11px] text-muted-foreground">{l.rotulo}</span>
+                            <span className="w-10 text-left font-semibold tabular-nums">{l.fora ?? "-"}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-center text-xs text-muted-foreground">
+                        {aoVivo.aoVivo
+                          ? "Estatísticas detalhadas ainda não disponíveis para este jogo."
+                          : "Este jogo não está ao vivo no momento."}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <p className="mt-3 text-center text-xs text-muted-foreground">Carregando dados ao vivo...</p>
+                )}
+              </div>
+            );
+          })()}
+
+
+
           {loadingEstat ? (
             <div className="flex items-center justify-center py-12 text-muted-foreground">
               <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Carregando estatísticas...
