@@ -612,11 +612,9 @@ export const gerarBilhete = createServerFn({ method: "POST" })
 
     const resumoBase = dentroDaMargem
       ? `Aposta múltipla de ${picks.length} ${picks.length === 1 ? "seleção" : "seleções"} com odd total ${oddFmt}, dentro da margem de 15% da odd alvo (${data.oddAlvo}).`
-      : `Não foi possível atingir a odd alvo (${data.oddAlvo}) com os jogos disponíveis: a melhor combinação possível chegou a ${oddFmt} com ${picks.length} ${picks.length === 1 ? "seleção" : "seleções"} de alta confiança. Amplie os campeonatos ou o período para alcançar odds maiores.`;
+      : `Aposta múltipla de ${picks.length} ${picks.length === 1 ? "seleção" : "seleções"} com odd total ${oddFmt}.`;
 
-    const observacoes = dentroDaMargem
-      ? "Análises salvas do dia; as odds podem variar até a confirmação na casa."
-      : `Odd alvo ${data.oddAlvo} não alcançável com o filtro atual (poucos jogos/mercados de alta confiança). Análises salvas do dia; as odds podem variar até a confirmação na casa.`;
+    const observacoes = "Análises salvas do dia; as odds podem variar até a confirmação na casa.";
 
     const ticket: Ticket = {
       resumo: resumoBase,
