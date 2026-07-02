@@ -1415,12 +1415,17 @@ function Index() {
                     })}
                   </div>
 
-                  <div className="mt-3 rounded-md border border-primary/30 bg-primary/10 p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs font-bold uppercase text-primary">Supermúltipla</p>
-                      <span className="text-lg">🙂</span>
-                    </div>
-                    <p className="mt-1 text-[11px] text-muted-foreground">Bilhete pronto para copiar e conferir em qualquer casa de aposta.</p>
+                  <div className="mt-3 flex justify-end">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground hover:text-destructive"
+                      onClick={() => setTicket(null)}
+                    >
+                      <X className="mr-1 h-4 w-4" />
+                      Deletar bilhete
+                    </Button>
                   </div>
 
                   <div className="mt-4 grid grid-cols-2 gap-2">
