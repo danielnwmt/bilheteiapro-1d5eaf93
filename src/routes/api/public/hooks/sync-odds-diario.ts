@@ -6,8 +6,8 @@ import { verificarCronSecret } from "@/lib/cron-auth";
 // Robô diário (1x por dia):
 // API-Football atualiza as partidas/ligas do dia E coleta as odds.
 const CASA_PADRAO = "betano";
-// Intervalo fixo de execução: a cada 7 minutos.
-const INTERVALO_FIXO_MIN = 7;
+// Intervalo fixo de execução: a cada 4 minutos.
+const INTERVALO_FIXO_MIN = 4;
 
 async function getIntervaloMin(_chave: string): Promise<number> {
   return INTERVALO_FIXO_MIN;
