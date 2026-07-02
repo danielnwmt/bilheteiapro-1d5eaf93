@@ -455,6 +455,49 @@ function Index() {
     };
   }, [temAcesso, fetchEntradas]);
 
+  // Carrega as probabilidades (1X2) de todos os jogos visíveis num só lote para
+  // desenhar as barras de probabilidade nos cards.
+  useEffect(() => {
+    let ativo = true;
+    const ids = jogos.map((j) => j.id);
+    if (ids.length === 0) {
+      setStatsMap({});
+      return;
+    }
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from("estatisticas")
+          .select("partida_id, payload")
+          .eq("tipo", "predicoes")
+          .in("partida_id", ids);
+        if (!ativo) return;
+        const pnum = (v: unknown) => {
+          const n = parseInt(String(v ?? "").replace(/[^0-9]/g, ""), 10);
+          return Number.isFinite(n) ? n : 0;
+        };
+        const map: Record<string, { pc: number; pe: number; pf: number }> = {};
+        for (const row of data ?? []) {
+          const p = (row as { payload?: EstatPayload }).payload;
+          if (!p) continue;
+          map[(row as { partida_id: string }).partida_id] = {
+            pc: pnum(p.percent?.casa),
+            pe: pnum(p.percent?.empate),
+            pf: pnum(p.percent?.fora),
+          };
+        }
+        setStatsMap(map);
+      } catch {
+        if (ativo) setStatsMap({});
+      }
+    })();
+    return () => {
+      ativo = false;
+    };
+  }, [jogos]);
+
+
+
   function carregarSalvos() {
     fetchSalvos()
       .then((r) => setSalvos(r ?? []))
