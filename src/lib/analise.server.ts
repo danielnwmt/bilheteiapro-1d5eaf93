@@ -337,7 +337,7 @@ function montarAnaliseSemIa(partida: PartidaRow, casa: string): AnalisePartida {
       selecao: traduzSelecaoCache(o.selecao),
       odd: o.valor,
       confianca: confiancaPorOddSegura(o.valor),
-      justificativa: "Seleção baseada nas odds reais salvas; a IA atingiu o limite temporário de chamadas.",
+      justificativa: "",
       external_odd_id: o.external_odd_id,
     })),
     analise: analiseDeEstatisticas(partida),
