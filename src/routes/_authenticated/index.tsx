@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { gerarBilhete, listarBilhetes } from "@/lib/ticket.functions";
 import { getMelhoresEntradas, type MelhorEntrada } from "@/lib/entradas.functions";
 import { iniciarOperacao } from "@/lib/access.functions";
+import { reanalisarJogo } from "@/lib/reanalise.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { useRouter } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
