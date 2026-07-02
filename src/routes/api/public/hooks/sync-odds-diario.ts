@@ -6,11 +6,12 @@ import { verificarCronSecret } from "@/lib/cron-auth";
 // Robô diário (1x por dia):
 // API-Football atualiza as partidas/ligas do dia E coleta as odds.
 const CASA_PADRAO = "betano";
-// Intervalo fixo de execução: a cada 4 minutos.
-const INTERVALO_FIXO_MIN = 4;
+// Compartilha a mesma janela semanal do robô principal (1x/hora) usando a
+// chave "football_semana". Assim os dois crons não puxam a semana em duplicidade.
+const INTERVALO_SEMANA_MIN = 60;
 
 async function getIntervaloMin(_chave: string): Promise<number> {
-  return INTERVALO_FIXO_MIN;
+  return INTERVALO_SEMANA_MIN;
 }
 
 
