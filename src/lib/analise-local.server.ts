@@ -52,6 +52,30 @@ function linhaRelevante(isOver: boolean, linha: number, lambda: number): boolean
   return linha <= lambda + margem;
 }
 
+// Lambdas típicos por mercado quando NÃO há estatísticas do jogo (fallback).
+// Usados para barrar linhas triviais mesmo sem contexto (ex.: "Mais de 1,5
+// escanteios" ou "Mais de 0,5 cartões" — ganho quase garantido, sem valor).
+const LAMBDA_PADRAO: Array<{ re: RegExp; lambda: number }> = [
+  { re: /escanteio/, lambda: 9.5 },
+  { re: /cart/, lambda: 4.2 },
+  { re: /(1|primeiro).*tempo|tempo.*(1|primeiro)/, lambda: 1.1 },
+  { re: /gol/, lambda: 2.6 },
+];
+
+// Barra linhas over/under absurdas para o mercado, sem depender do contexto do
+// jogo. Retorna true se a seleção NÃO for uma linha over/under trivial.
+function linhaSensata(mercado: string, selecao: string): boolean {
+  const s = normKey(selecao);
+  const isOver = s.includes("mais de");
+  const isUnder = s.includes("menos de");
+  if (!isOver && !isUnder) return true; // não é over/under: mantém
+  const linha = extrairLinha(selecao);
+  if (linha == null) return true;
+  const m = normKey(mercado);
+  const found = LAMBDA_PADRAO.find((x) => x.re.test(m) || x.re.test(s));
+  if (!found) return true;
+  return linhaRelevante(isOver, linha, found.lambda);
+}
 
 // Extrai o primeiro número (linha) de uma seleção, ex.: "Mais de 2.5" => 2.5.
 function extrairLinha(selecao: string): number | null {
@@ -60,6 +84,7 @@ function extrairLinha(selecao: string): number | null {
   const n = Number(m[1].replace(",", "."));
   return Number.isFinite(n) ? n : null;
 }
+
 
 // ---------- Contexto probabilístico do jogo ----------
 interface Contexto {
@@ -298,6 +323,7 @@ function confiancaPorOddSegura(odd: number) {
 function picksSoOdds(partida: PartidaRow, casa: string): PickAnalise[] {
   return partida.odds
     .filter((o) => normKey(o.casa) === normKey(casa) && o.valor >= 1.2 && o.valor <= 4.5)
+    .filter((o) => linhaSensata(o.mercado || "", o.selecao))
     .sort((a, b) => a.valor - b.valor)
     .slice(0, 5)
     .map((o) => ({
@@ -328,6 +354,7 @@ export function analisarLocal(partida: PartidaRow, casa: string): AnalisePartida
 
   for (const o of oddsCasa) {
     if (!Number.isFinite(o.valor) || o.valor < 1.15 || o.valor > 8) continue;
+    if (!linhaSensata(o.mercado || "", o.selecao)) continue;
     const prob = probDaSelecao(o.mercado, o.selecao, ctx, partida.time_casa, partida.time_fora);
     if (prob == null || !Number.isFinite(prob) || prob <= 0) continue;
 
