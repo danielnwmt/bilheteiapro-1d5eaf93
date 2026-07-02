@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Sparkles, Target, TrendingUp, Trophy, Building2, ExternalLink, ListChecks, LogOut, Lock, Crown, Users, Wallet, CalendarDays, UserCircle, Play, Flame, Zap, RefreshCw, Flag, CreditCard, LineChart, TrendingDown, Trash2, AlertTriangle } from "lucide-react";
+import { Loader2, Sparkles, Target, TrendingUp, Trophy, Building2, ExternalLink, ListChecks, LogOut, Lock, Crown, Users, Wallet, CalendarDays, UserCircle, Play, Flame, Zap, RefreshCw, Flag, CreditCard, LineChart, TrendingDown, Trash2, AlertTriangle, Check } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import logo from "@/assets/bilheteia-logo.png";
@@ -327,6 +327,9 @@ function Index() {
   const [oddMin, setOddMin] = useState("2.5");
   const [limiteJogos, setLimiteJogos] = useState("4");
   const [tipoBilhete, setTipoBilhete] = useState<"simples" | "multipla" | "mesmojogo">("multipla");
+  const [jogosSel, setJogosSel] = useState<string[]>([]);
+  const toggleJogoSel = (id: string) =>
+    setJogosSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
 
 
 
@@ -597,6 +600,7 @@ function Index() {
           tipoBilhete,
           oddMin: Math.max(1, parseFloat(oddMin) || 1),
           limiteJogos: Math.min(20, Math.max(1, parseInt(limiteJogos, 10) || 8)),
+          partidasSelecionadas: jogosSel,
         },
       });
       setTicket(r);
@@ -1067,6 +1071,56 @@ function Index() {
                 })}
               </div>
             </div>
+
+            <details className="mt-4 rounded-md border border-border/60 bg-input/20 p-3" open={tipoBilhete !== "simples"}>
+              <summary className="cursor-pointer text-xs font-medium text-muted-foreground">
+                Jogos do bilhete {jogosSel.length > 0 && `(${jogosSel.length})`}
+              </summary>
+              <div className="mt-3 max-h-56 space-y-1.5 overflow-y-auto pr-1">
+                {jogosFiltrados.length === 0 ? (
+                  <p className="text-[11px] text-muted-foreground">Nenhum jogo neste período.</p>
+                ) : (
+                  jogosFiltrados.map((j) => {
+                    const active = jogosSel.includes(j.id);
+                    return (
+                      <button
+                        type="button"
+                        key={j.id}
+                        onClick={() => toggleJogoSel(j.id)}
+                        className={`flex w-full items-center gap-2 rounded-md border px-2.5 py-1.5 text-left text-[11px] font-medium transition-colors ${
+                          active
+                            ? "border-primary bg-primary/15 text-primary"
+                            : "border-border bg-input/40 text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        <span
+                          className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm border ${
+                            active ? "border-primary bg-primary text-primary-foreground" : "border-border"
+                          }`}
+                        >
+                          {active && <Check className="h-2.5 w-2.5" />}
+                        </span>
+                        <span className="truncate">
+                          {sigla(j.time_casa)} x {sigla(j.time_fora)}
+                        </span>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+              {jogosSel.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setJogosSel([])}
+                  className="mt-2 text-[11px] font-medium text-primary hover:underline"
+                >
+                  Limpar seleção
+                </button>
+              )}
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Escolha os jogos que quer na múltipla. Deixe vazio para a IA montar automaticamente.
+              </p>
+            </details>
 
             <details className="mt-4 rounded-md border border-border/60 bg-input/20 p-3">
               <summary className="cursor-pointer text-xs font-medium text-muted-foreground">

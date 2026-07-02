@@ -15,6 +15,7 @@ const InputSchema = z.object({
   tipoBilhete: z.enum(["simples", "multipla", "mesmojogo"]).optional().default("multipla"),
   oddMin: z.number().min(1).max(1000).optional().default(1),
   limiteJogos: z.number().min(1).max(20).optional().default(8),
+  partidasSelecionadas: z.array(z.string()).optional().default([]),
 });
 
 const PickSchema = z.object({
@@ -373,6 +374,8 @@ export const gerarBilhete = createServerFn({ method: "POST" })
     const buildPorJogo = (piso: number) => {
       const map = new Map<string, Cand[]>();
       for (const r of aAnalisar) {
+        // Se o cliente escolheu jogos específicos, usa só eles.
+        if (data.partidasSelecionadas.length && !data.partidasSelecionadas.includes(r.id)) continue;
         const a = analises.get(r.id);
         if (!a) continue;
         const jogo = `${r.time_casa} x ${r.time_fora}`;
