@@ -356,6 +356,8 @@ export type Database = {
           id: string
           inicio: string
           liga: string | null
+          logo_casa: string | null
+          logo_fora: string | null
           status: string
           time_casa: string
           time_fora: string
@@ -369,6 +371,8 @@ export type Database = {
           id?: string
           inicio: string
           liga?: string | null
+          logo_casa?: string | null
+          logo_fora?: string | null
           status?: string
           time_casa: string
           time_fora: string
@@ -382,6 +386,8 @@ export type Database = {
           id?: string
           inicio?: string
           liga?: string | null
+          logo_casa?: string | null
+          logo_fora?: string | null
           status?: string
           time_casa?: string
           time_fora?: string

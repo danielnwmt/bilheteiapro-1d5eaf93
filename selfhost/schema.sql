@@ -5,12 +5,17 @@ CREATE TABLE public.partidas (
   liga text,
   time_casa text NOT NULL,
   time_fora text NOT NULL,
+  logo_casa text,
+  logo_fora text,
   arbitro text,
   inicio timestamptz NOT NULL,
   status text NOT NULL DEFAULT 'agendado',
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+-- Upgrade seguro para instalações locais já existentes:
+ALTER TABLE public.partidas ADD COLUMN IF NOT EXISTS logo_casa text;
+ALTER TABLE public.partidas ADD COLUMN IF NOT EXISTS logo_fora text;
 GRANT SELECT ON public.partidas TO anon, authenticated;
 GRANT ALL ON public.partidas TO service_role;
 ALTER TABLE public.partidas ENABLE ROW LEVEL SECURITY;

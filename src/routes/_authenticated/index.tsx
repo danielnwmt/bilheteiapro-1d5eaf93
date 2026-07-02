@@ -65,6 +65,8 @@ type JogoDia = {
   liga: string | null;
   time_casa: string;
   time_fora: string;
+  logo_casa?: string | null;
+  logo_fora?: string | null;
   inicio: string;
   status: string;
   arbitro?: string | null;
@@ -399,7 +401,7 @@ function Index() {
       try {
         let q = supabase
           .from("partidas")
-          .select("id, liga, time_casa, time_fora, inicio, status, arbitro")
+          .select("id, liga, time_casa, time_fora, logo_casa, logo_fora, inicio, status, arbitro")
           .in("liga", CAMPEONATOS)
           .order("inicio", { ascending: true });
 
@@ -851,14 +853,34 @@ function Index() {
                       </div>
 
                       <div className="mt-3 flex items-center justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          <p className="text-2xl font-bold leading-none">{sigla(j.time_casa)}</p>
-                          <p className="mt-1 truncate text-xs text-muted-foreground">{traduzPaises(j.time_casa)}</p>
+                        <div className="flex min-w-0 flex-1 items-center gap-2">
+                          {j.logo_casa ? (
+                            <img
+                              src={j.logo_casa}
+                              alt={traduzPaises(j.time_casa)}
+                              loading="lazy"
+                              className="h-8 w-8 shrink-0 object-contain"
+                            />
+                          ) : null}
+                          <div className="min-w-0">
+                            <p className="text-2xl font-bold leading-none">{sigla(j.time_casa)}</p>
+                            <p className="mt-1 truncate text-xs text-muted-foreground">{traduzPaises(j.time_casa)}</p>
+                          </div>
                         </div>
                         <span className="shrink-0 text-xs text-muted-foreground">vs</span>
-                        <div className="min-w-0 flex-1 text-right">
-                          <p className="text-2xl font-bold leading-none">{sigla(j.time_fora)}</p>
-                          <p className="mt-1 truncate text-xs text-muted-foreground">{traduzPaises(j.time_fora)}</p>
+                        <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
+                          <div className="min-w-0 text-right">
+                            <p className="text-2xl font-bold leading-none">{sigla(j.time_fora)}</p>
+                            <p className="mt-1 truncate text-xs text-muted-foreground">{traduzPaises(j.time_fora)}</p>
+                          </div>
+                          {j.logo_fora ? (
+                            <img
+                              src={j.logo_fora}
+                              alt={traduzPaises(j.time_fora)}
+                              loading="lazy"
+                              className="h-8 w-8 shrink-0 object-contain"
+                            />
+                          ) : null}
                         </div>
                       </div>
 
