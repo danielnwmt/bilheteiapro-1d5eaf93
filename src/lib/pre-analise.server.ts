@@ -147,11 +147,11 @@ export async function preAnalisarTodos(): Promise<PreAnaliseResult> {
     c.partida.estatisticas = statsMap.get(c.partida.id) ?? null;
   }
 
+  // Análise LOCAL: é grátis e instantânea, então analisamos TODOS os jogos
+  // pendentes numa só passada (sem budget nem espera entre chamadas de IA).
   let analisados = 0;
   for (const c of pendentes) {
-    if (analisados >= BUDGET_POR_RUN) break;
     try {
-      if (analisados > 0) await sleep(1500);
       const a = await obterAnalisePartida(supabase, model, c.partida, c.casa, dia, false);
       if (a.picks.length) analisados++;
     } catch (e) {
