@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { type Plano } from "./planos";
-import { analisarPartidas, diaSaoPaulo, type PartidaRow as AnalisePartidaRow } from "./analise.server";
+import { analisarPartidas, analiseDeEstatisticas, diaSaoPaulo, type PartidaRow as AnalisePartidaRow } from "./analise.server";
 
 const InputSchema = z.object({
   oddAlvo: z.number().min(1.1).max(1000),
@@ -468,12 +468,36 @@ export const gerarBilhete = createServerFn({ method: "POST" })
     const contagem = new Map<string, number>();
     for (const p of picks) contagem.set(p._partidaId, (contagem.get(p._partidaId) ?? 0) + 1);
     const multiplos = new Set([...contagem.entries()].filter(([, n]) => n > 1).map(([k]) => k));
-    const analiseJogos = [...multiplos]
+
+    // Estatísticas ao vivo: em vez de reaproveitar o texto que ficou salvo no
+    // cache (que pode ter sido gravado antes das estatísticas existirem), lemos
+    // agora a tabela `estatisticas` e recalculamos os números reais. Assim que
+    // a API-Football coleta as predições, elas aparecem sem depender do cache.
+    const multiplosIds = [...multiplos];
+    const statsMap = new Map<string, unknown>();
+    if (multiplosIds.length) {
+      const { data: statsRows } = await supabaseAdmin
+        .from("estatisticas")
+        .select("partida_id, payload")
+        .eq("tipo", "predicoes")
+        .in("partida_id", multiplosIds);
+      for (const s of statsRows ?? []) {
+        statsMap.set(String((s as { partida_id: string }).partida_id), (s as { payload: unknown }).payload);
+      }
+    }
+
+    const analiseJogos = multiplosIds
       .map((pid) => {
         const r = aAnalisar.find((x) => x.id === pid);
         const a = analises.get(pid);
         if (!r || !a) return null;
-        return { jogo: `${r.time_casa} x ${r.time_fora}`, ...a.analise };
+        const est = statsMap.get(pid);
+        // Se há estatísticas reais salvas, recalcula os números; senão usa o
+        // que veio do cache da IA.
+        const analise = est
+          ? analiseDeEstatisticas({ ...(r as unknown as AnalisePartidaRow), estatisticas: est as never })
+          : a.analise;
+        return { jogo: `${r.time_casa} x ${r.time_fora}`, ...analise };
       })
       .filter((x): x is NonNullable<typeof x> => x !== null);
 
