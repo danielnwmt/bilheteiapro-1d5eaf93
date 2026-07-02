@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { type Plano } from "./planos";
 import { analisarPartidas, analiseDeEstatisticas, diaSaoPaulo, type PartidaRow as AnalisePartidaRow } from "./analise.server";
-import { selecoesConflitam } from "./market-conflicts";
+import { selecoesConflitam, grupoDoMercado, type GrupoCategoria } from "./market-conflicts";
 
 const InputSchema = z.object({
   oddAlvo: z.number().min(1.1).max(1000),
@@ -398,48 +398,81 @@ export const gerarBilhete = createServerFn({ method: "POST" })
     const candidatos: Cand[] = [];
     for (const lista of porJogo.values()) for (const p of lista) candidatos.push(p);
 
+    // Limite máximo de seleções por Grupo de Categoria em um único bilhete.
+    // Força a mesclagem de mercados (ex.: no máx. 2 de gols, o resto tem que
+    // ser escanteios/cartões/resultado). Ver grupoDoMercado em market-conflicts.
+    const MAX_POR_GRUPO = 2;
+
     const chosen: Cand[] = [];
-    const usedMarket = new Set<string>();
+    const usedMatch = new Set<string>(); // trava: 1 seleção por partida
+    const grupoCount = new Map<GrupoCategoria, number>();
     let prod = 1;
-    const marketKey = (p: Cand) => `${p._partidaId}::${normKey(p.mercado)}`;
+
+    const grupoDe = (p: Cand): GrupoCategoria =>
+      grupoDoMercado({ mercado: p.mercado, selecao: p.selecao });
+
     const tryAdd = (p: Cand) => {
-      const mk = marketKey(p);
-      if (usedMarket.has(mk)) return false;
+      if (usedMatch.has(p._partidaId)) return false;
+      const g = grupoDe(p);
+      if ((grupoCount.get(g) ?? 0) >= MAX_POR_GRUPO) return false;
       chosen.push(p);
-      usedMarket.add(mk);
+      usedMatch.add(p._partidaId);
+      grupoCount.set(g, (grupoCount.get(g) ?? 0) + 1);
       prod *= p.odd;
       return true;
     };
 
-    // Exclusão mútua: uma seleção não pode entrar se for contraditória (ou de
-    // correlação negativa) com outra já escolhida do MESMO jogo. Ex.: "Ambas
-    // Marcam: Não" x "Mais de 2.5 Gols". Nesses casos o algoritmo descarta a
-    // seleção conflitante e busca o próximo mercado válido.
-    const conflitaComEscolhidos = (p: Cand) =>
-      chosen.some(
-        (c) => c._partidaId === p._partidaId && selecoesConflitam(c, p),
-      );
+    // Uma seleção é elegível se: (a) o jogo ainda não está no bilhete (trava de
+    // seleção única por partida), (b) o grupo de categoria não estourou o limite
+    // e (c) não conflita com nenhuma seleção já escolhida.
+    const elegivel = (p: Cand) => {
+      if (usedMatch.has(p._partidaId)) return false;
+      if ((grupoCount.get(grupoDe(p)) ?? 0) >= MAX_POR_GRUPO) return false;
+      if (chosen.some((c) => selecoesConflitam(c, p))) return false;
+      return true;
+    };
 
-    // Passo a passo: adiciona a seleção que deixa o produto mais próximo da
-    // odd alvo. Para quando nenhuma seleção conseguir aproximar mais.
+    // Passo a passo guloso com diversificação: a cada iteração escolhe a
+    // seleção que mais aproxima o produto da odd alvo, priorizando grupos de
+    // categoria ainda NÃO usados no bilhete (varia entre resultado/gols/
+    // escanteios/cartões). Só cai para um grupo repetido se nenhum grupo novo
+    // conseguir aproximar melhor da odd alvo.
     while (true) {
       const distAtual = Math.abs(target - prod);
+      const gruposUsados = new Set(chosen.map((c) => grupoDe(c)));
+
       let melhor: Cand | null = null;
       let melhorDist = distAtual;
+      let melhorGrupoNovo = false;
+
       for (const p of candidatos) {
-        if (usedMarket.has(marketKey(p))) continue;
-        if (conflitaComEscolhidos(p)) continue;
+        if (!elegivel(p)) continue;
+        const grupoNovo = !gruposUsados.has(grupoDe(p));
         const d = Math.abs(target - prod * p.odd);
-        if (
-          d < melhorDist - 1e-9 ||
-          (Math.abs(d - melhorDist) <= 1e-9 && melhor && p.confianca > melhor.confianca)
-        ) {
+
+        // Preferência: 1) grupo novo, 2) menor distância da odd alvo,
+        // 3) maior confiança.
+        let melhorQue = false;
+        if (melhor == null) {
+          melhorQue = d < melhorDist - 1e-9;
+        } else if (grupoNovo !== melhorGrupoNovo) {
+          melhorQue = grupoNovo; // grupo novo tem prioridade
+        } else if (d < melhorDist - 1e-9) {
+          melhorQue = true;
+        } else if (Math.abs(d - melhorDist) <= 1e-9) {
+          melhorQue = p.confianca > melhor.confianca;
+        }
+
+        if (melhorQue) {
           melhor = p;
           melhorDist = d;
+          melhorGrupoNovo = grupoNovo;
         }
       }
       if (!melhor) break;
-      tryAdd(melhor);
+      // Se não aproxima da odd alvo e já temos ao menos 1 seleção, para.
+      if (melhorDist >= distAtual - 1e-9 && chosen.length && !melhorGrupoNovo) break;
+      if (!tryAdd(melhor)) break;
     }
 
     // Garante pelo menos 1 seleção (odd alvo muito baixa).
@@ -447,6 +480,7 @@ export const gerarBilhete = createServerFn({ method: "POST" })
       const all = [...candidatos].sort((a, b) => b.confianca - a.confianca);
       if (all[0]) tryAdd(all[0]);
     }
+
 
     // Tabela de tradução de deep links
     const { data: templates } = await supabaseAdmin.from("deep_links").select("casa, mercado, url_template");
