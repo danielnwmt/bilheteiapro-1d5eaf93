@@ -33,7 +33,7 @@ type Mensagem = {
   created_at: string;
 };
 
-type FluxoOpcao = { label: string; resposta: string; ouvidoria?: boolean };
+type FluxoOpcao = { label: string; resposta: string; ouvidoria?: boolean; destino?: string };
 type Fluxo = { saudacao: string; opcoes: FluxoOpcao[]; mensagens?: string[] };
 type Bolha = { id: string; autor: "cliente" | "suporte"; conteudo: string };
 
