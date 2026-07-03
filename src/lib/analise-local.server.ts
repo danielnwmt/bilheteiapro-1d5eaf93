@@ -369,7 +369,7 @@ export function analisarLocal(partida: PartidaRow, casa: string): AnalisePartida
       prob,
       valor,
       justificativa:
-        `Modelo local (Poisson): chance ${Math.round(prob * 100)}% vs. odd ${o.valor.toFixed(2)} ` +
+        `Chance ${Math.round(prob * 100)}% vs. odd ${o.valor.toFixed(2)} ` +
         `(implícita ${Math.round(implicita * 100)}%${valor > 0 ? `, valor +${Math.round(valor * 100)}%` : ""}). ` +
         `Gols esperados ${ctx.lambdaTotal.toFixed(1)} (${partida.time_casa} ${ctx.lambdaCasa.toFixed(1)} / ${partida.time_fora} ${ctx.lambdaFora.toFixed(1)}).`,
       external_odd_id: o.external_odd_id,
