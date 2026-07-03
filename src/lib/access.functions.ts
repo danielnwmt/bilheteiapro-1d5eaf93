@@ -1468,6 +1468,30 @@ export const setSystemConfig = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+// Lê os dados de suporte (WhatsApp/e-mail/mensagem) — disponível a qualquer
+// usuário autenticado para exibir o botão de suporte no app.
+export const getSuporte = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
+    const base = tryRestBase();
+    const vazio = { whatsapp: "", email: "", mensagem: "" };
+    if (!base) return vazio;
+    const rows = await restSelect<{ chave: string; valor: string }>(
+      base,
+      "system_config",
+      { select: "chave,valor", chave: "in.(SUPORTE_WHATSAPP,SUPORTE_EMAIL,SUPORTE_MENSAGEM)" },
+      "suporte",
+    );
+    const map = new Map(rows.map((r) => [r.chave, r.valor ?? ""]));
+    return {
+      whatsapp: map.get("SUPORTE_WHATSAPP") ?? "",
+      email: map.get("SUPORTE_EMAIL") ?? "",
+      mensagem: map.get("SUPORTE_MENSAGEM") ?? "",
+    };
+  });
+
+
+
 // Faz uma primeira chamada de teste à API para validar a chave e informar erro.
 export const testApiKey = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

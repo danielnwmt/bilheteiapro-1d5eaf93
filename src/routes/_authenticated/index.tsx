@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { gerarBilhete, listarBilhetes, deletarBilhete, chanceRealDeAcerto, nivelDeRisco, rotuloRisco } from "@/lib/ticket.functions";
 import { getMelhoresEntradas, type MelhorEntrada } from "@/lib/entradas.functions";
-import { iniciarOperacao } from "@/lib/access.functions";
+import { iniciarOperacao, getSuporte } from "@/lib/access.functions";
 import { reanalisarJogo } from "@/lib/reanalise.functions";
 import { getEstatisticasAoVivoPartida, type EstatAoVivo } from "@/lib/aovivo.functions";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Sparkles, Target, TrendingUp, Trophy, Building2, ExternalLink, ListChecks, LogOut, Lock, Crown, Users, Wallet, CalendarDays, UserCircle, Play, Flame, Zap, RefreshCw, Flag, CreditCard, LineChart, TrendingDown, Trash2, AlertTriangle, Check, X } from "lucide-react";
+import { Loader2, Sparkles, Target, TrendingUp, Trophy, Building2, ExternalLink, ListChecks, LogOut, Lock, Crown, Users, Wallet, CalendarDays, UserCircle, Play, Flame, Zap, RefreshCw, Flag, CreditCard, LineChart, TrendingDown, Trash2, AlertTriangle, Check, X, LifeBuoy } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import logo from "@/assets/bilheteia-logo.png";
@@ -298,6 +298,28 @@ function Index() {
   const [deletandoId, setDeletandoId] = useState<string | null>(null);
   const reanalisar = useServerFn(reanalisarJogo);
   const fetchAoVivo = useServerFn(getEstatisticasAoVivoPartida);
+  const fetchSuporte = useServerFn(getSuporte);
+  const [suporte, setSuporte] = useState<{ whatsapp: string; email: string; mensagem: string } | null>(null);
+
+  useEffect(() => {
+    fetchSuporte()
+      .then((s) => setSuporte(s))
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function abrirSuporte() {
+    const s = suporte;
+    if (!s) return;
+    const msg = encodeURIComponent(s.mensagem || "Olá! Preciso de ajuda.");
+    if (s.whatsapp) {
+      const num = s.whatsapp.replace(/\D/g, "");
+      window.open(`https://wa.me/${num}?text=${msg}`, "_blank");
+    } else if (s.email) {
+      window.location.href = `mailto:${s.email}?subject=${encodeURIComponent("Suporte")}&body=${msg}`;
+    }
+  }
+  const temSuporte = !!(suporte?.whatsapp || suporte?.email);
   const [reanalisandoId, setReanalisandoId] = useState<string | null>(null);
   const [iniciando, setIniciando] = useState(false);
   const { data: access, refetch: refetchAccess } = useAccess();
@@ -808,6 +830,11 @@ function Index() {
             <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/planos" })}>
               <Crown className="mr-2 h-4 w-4" /> Planos
             </Button>
+            {temSuporte && (
+              <Button variant="outline" size="sm" onClick={abrirSuporte}>
+                <LifeBuoy className="mr-2 h-4 w-4" /> Suporte
+              </Button>
+            )}
             <Button variant="outline" size="sm" onClick={handleSignOut}>
               <LogOut className="mr-2 h-4 w-4" /> Sair
             </Button>
