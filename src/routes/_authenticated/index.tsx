@@ -830,6 +830,11 @@ function Index() {
             <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/planos" })}>
               <Crown className="mr-2 h-4 w-4" /> Planos
             </Button>
+            {temSuporte && (
+              <Button variant="outline" size="sm" onClick={abrirSuporte}>
+                <LifeBuoy className="mr-2 h-4 w-4" /> Suporte
+              </Button>
+            )}
             <Button variant="outline" size="sm" onClick={handleSignOut}>
               <LogOut className="mr-2 h-4 w-4" /> Sair
             </Button>
