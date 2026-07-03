@@ -179,6 +179,7 @@ function SuportePage() {
           </Card>
         ) : (
           <div className="space-y-6">
+            {modoConfig && (
             <Card className="border-border/60 bg-card p-6">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-lg font-bold">Configuração</h2>
