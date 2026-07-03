@@ -512,6 +512,33 @@ export type Database = {
         }
         Relationships: []
       }
+      suporte_mensagens: {
+        Row: {
+          autor: string
+          conteudo: string
+          created_at: string
+          id: string
+          lida: boolean
+          user_id: string
+        }
+        Insert: {
+          autor: string
+          conteudo: string
+          created_at?: string
+          id?: string
+          lida?: boolean
+          user_id: string
+        }
+        Update: {
+          autor?: string
+          conteudo?: string
+          created_at?: string
+          id?: string
+          lida?: boolean
+          user_id?: string
+        }
+        Relationships: []
+      }
       sync_state: {
         Row: {
           id: string
