@@ -47,6 +47,7 @@ function SuportePage() {
   const carregarSuporte = useServerFn(getSuporte);
   const salvarConfig = useServerFn(setSystemConfig);
   const carregarConversas = useServerFn(listSuporteConversas);
+  const carregarMetricas = useServerFn(getSuporteMetricas);
 
   const [suporte, setSuporte] = useState({ whatsapp: "", email: "", mensagem: "", modo: "whatsapp" });
   const [conversas, setConversas] = useState<SuporteConversa[]>([]);
@@ -55,6 +56,7 @@ function SuportePage() {
   const [resposta, setResposta] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [busca, setBusca] = useState("");
+  const [metricas, setMetricas] = useState<SuporteMetricas | null>(null);
   const fimRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
