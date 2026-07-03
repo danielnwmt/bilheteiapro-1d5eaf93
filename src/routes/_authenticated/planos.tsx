@@ -189,11 +189,13 @@ function PlanosPage() {
           <CartaoPagamento
             plano={checkout}
             ciclo={ciclo}
+            cpf={cpfDigits}
             precoCentavos={precoCicloCentavos(checkoutCfg, ciclo)}
             precoLabel={formatarReais(precoCicloCentavos(checkoutCfg, ciclo))}
             onSucesso={() => router.navigate({ to: "/" })}
             onCancelar={() => setTelaCartao(false)}
           />
+
         ) : checkout && checkoutCfg ? (
           <Card className="mx-auto mt-8 max-w-md border-border/60 bg-card p-6">
             <div className="mb-1 flex items-center justify-between">
