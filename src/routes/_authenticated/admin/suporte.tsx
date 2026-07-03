@@ -318,6 +318,7 @@ function SuportePage() {
                 </p>
                 <FluxoBuilder fluxo={fluxo} setFluxo={setFluxo} />
               </div>
+              <SuporteAdminConfig />
             </Card>
             )}
 
