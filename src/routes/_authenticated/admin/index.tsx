@@ -13,6 +13,7 @@ import {
   UserX,
   Crown,
   KeyRound,
+  LifeBuoy,
   Settings,
   LayoutDashboard,
   LogOut,
@@ -234,6 +235,9 @@ function AdminDashboard() {
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => router.navigate({ to: "/admin/apis" })}>
                   <KeyRound className="mr-2 h-4 w-4" /> APIs
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.navigate({ to: "/admin/suporte" })}>
+                  <LifeBuoy className="mr-2 h-4 w-4" /> Suporte
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => router.navigate({ to: "/admin/backup" })}>
                   <Cog className="mr-2 h-4 w-4" /> Backup
