@@ -70,6 +70,41 @@ export type Database = {
         }
         Relationships: []
       }
+      avaliacoes: {
+        Row: {
+          comentario: string | null
+          conversa_id: string
+          created_at: string
+          id: string
+          nota: number
+          user_id: string
+        }
+        Insert: {
+          comentario?: string | null
+          conversa_id: string
+          created_at?: string
+          id?: string
+          nota: number
+          user_id: string
+        }
+        Update: {
+          comentario?: string | null
+          conversa_id?: string
+          created_at?: string
+          id?: string
+          nota?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "avaliacoes_conversa_id_fkey"
+            columns: ["conversa_id"]
+            isOneToOne: false
+            referencedRelation: "suporte_conversas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       banca_depositos: {
         Row: {
           created_at: string
@@ -183,6 +218,60 @@ export type Database = {
           tipo?: string
           updated_at?: string
           url_deeplink?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      chatbot_fluxo: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          id: string
+          json: Json
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          json?: Json
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          json?: Json
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      chatbot_logs: {
+        Row: {
+          conversa_id: string | null
+          created_at: string
+          detalhes: Json | null
+          evento: string
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          conversa_id?: string | null
+          created_at?: string
+          detalhes?: Json | null
+          evento: string
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          conversa_id?: string | null
+          created_at?: string
+          detalhes?: Json | null
+          evento?: string
+          id?: string
           user_id?: string | null
         }
         Relationships: []
@@ -481,28 +570,61 @@ export type Database = {
       }
       reclamacoes: {
         Row: {
+          arquivada: boolean
           conteudo: string
           created_at: string
           id: string
+          resolvido_em: string | null
+          resposta: string | null
           status: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          arquivada?: boolean
           conteudo: string
           created_at?: string
           id?: string
+          resolvido_em?: string | null
+          resposta?: string | null
           status?: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          arquivada?: boolean
           conteudo?: string
           created_at?: string
           id?: string
+          resolvido_em?: string | null
+          resposta?: string | null
           status?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      respostas_rapidas: {
+        Row: {
+          atalho: string
+          created_at: string
+          id: string
+          texto: string
+          updated_at: string
+        }
+        Insert: {
+          atalho: string
+          created_at?: string
+          id?: string
+          texto: string
+          updated_at?: string
+        }
+        Update: {
+          atalho?: string
+          created_at?: string
+          id?: string
+          texto?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -539,32 +661,115 @@ export type Database = {
         }
         Relationships: []
       }
-      suporte_mensagens: {
+      suporte_config: {
         Row: {
-          autor: string
-          conteudo: string
-          created_at: string
+          dias: Json
+          id: boolean
+          mensagem_offline: string
+          updated_at: string
+        }
+        Insert: {
+          dias?: Json
+          id?: boolean
+          mensagem_offline?: string
+          updated_at?: string
+        }
+        Update: {
+          dias?: Json
+          id?: boolean
+          mensagem_offline?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      suporte_conversas: {
+        Row: {
+          assunto: string | null
+          atendente_id: string | null
+          atendente_nome: string | null
+          atualizado_em: string
+          criado_em: string
+          finalizado_em: string | null
           id: string
-          lida: boolean
+          status: string
+          tags: string[]
           user_id: string
         }
         Insert: {
-          autor: string
-          conteudo: string
-          created_at?: string
+          assunto?: string | null
+          atendente_id?: string | null
+          atendente_nome?: string | null
+          atualizado_em?: string
+          criado_em?: string
+          finalizado_em?: string | null
           id?: string
-          lida?: boolean
+          status?: string
+          tags?: string[]
           user_id: string
         }
         Update: {
-          autor?: string
-          conteudo?: string
-          created_at?: string
+          assunto?: string | null
+          atendente_id?: string | null
+          atendente_nome?: string | null
+          atualizado_em?: string
+          criado_em?: string
+          finalizado_em?: string | null
           id?: string
-          lida?: boolean
+          status?: string
+          tags?: string[]
           user_id?: string
         }
         Relationships: []
+      }
+      suporte_mensagens: {
+        Row: {
+          arquivo_nome: string | null
+          arquivo_url: string | null
+          autor: string
+          autor_nome: string | null
+          conteudo: string
+          conversa_id: string | null
+          created_at: string
+          id: string
+          lida: boolean
+          tipo: string
+          user_id: string
+        }
+        Insert: {
+          arquivo_nome?: string | null
+          arquivo_url?: string | null
+          autor: string
+          autor_nome?: string | null
+          conteudo: string
+          conversa_id?: string | null
+          created_at?: string
+          id?: string
+          lida?: boolean
+          tipo?: string
+          user_id: string
+        }
+        Update: {
+          arquivo_nome?: string | null
+          arquivo_url?: string | null
+          autor?: string
+          autor_nome?: string | null
+          conteudo?: string
+          conversa_id?: string | null
+          created_at?: string
+          id?: string
+          lida?: boolean
+          tipo?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suporte_mensagens_conversa_id_fkey"
+            columns: ["conversa_id"]
+            isOneToOne: false
+            referencedRelation: "suporte_conversas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       suporte_status: {
         Row: {
@@ -672,6 +877,8 @@ export type Database = {
         }[]
       }
       increment_api_usage: { Args: { _chave: string }; Returns: undefined }
+      is_suporte_gestor: { Args: { _uid: string }; Returns: boolean }
+      is_suporte_staff: { Args: { _uid: string }; Returns: boolean }
       limpar_dados_antigos: { Args: never; Returns: undefined }
       touch_last_seen: { Args: never; Returns: undefined }
     }
