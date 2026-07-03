@@ -73,11 +73,11 @@ export const createInfinitePayCheckout = createServerFn({ method: "POST" })
 // ============ ASAAS (cobrança — Pix/Boleto/Cartão) ============
 export const createAsaasCheckout = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { plano: Plano; ciclo?: Ciclo; returnUrl: string; metodo?: "pix" | "cartao" }) => {
+  .inputValidator((data: { plano: Plano; ciclo?: Ciclo; returnUrl: string; metodo?: "pix" | "cartao"; cpf?: string }) => {
     if (!data.plano) throw new Error("Plano inválido");
     const ciclo: Ciclo = CICLOS.includes(data.ciclo as Ciclo) ? (data.ciclo as Ciclo) : "mensal";
     const metodo: "pix" | "cartao" = data.metodo === "cartao" ? "cartao" : "pix";
-    return { plano: data.plano, ciclo, returnUrl: data.returnUrl, metodo };
+    return { plano: data.plano, ciclo, returnUrl: data.returnUrl, metodo, cpf: (data.cpf ?? "").replace(/\D/g, "") };
   })
   .handler(async ({ data, context }): Promise<CheckoutResult> => {
     try {
@@ -93,6 +93,16 @@ export const createAsaasCheckout = createServerFn({ method: "POST" })
       const precoCentavos = precoCicloCentavos(cfg, data.ciclo);
       if (precoCentavos <= 0) throw new Error("Preço do plano inválido");
 
+      // CPF/CNPJ é obrigatório no Asaas. Usa o informado ou o do cadastro.
+      const cpf = data.cpf || (profile?.cpf ?? "").replace(/\D/g, "");
+      if (cpf.length !== 11 && cpf.length !== 14) {
+        throw new Error("Informe um CPF ou CNPJ válido para gerar a cobrança.");
+      }
+      // Persiste o CPF no perfil para os próximos pagamentos.
+      if (cpf && cpf !== (profile?.cpf ?? "").replace(/\D/g, "")) {
+        await supabase.from("profiles").update({ cpf }).eq("id", userId);
+      }
+
       // externalReference carrega userId|plano|ciclo para liberar o acesso no webhook.
       const externalReference = `${userId}|${data.plano}|${data.ciclo}`;
 
@@ -104,10 +114,11 @@ export const createAsaasCheckout = createServerFn({ method: "POST" })
         customer: {
           name: profile?.nome ?? user?.user_metadata?.nome,
           email: user?.email ?? undefined,
-          cpfCnpj: (profile?.cpf ?? "").replace(/\D/g, "") || undefined,
+          cpfCnpj: cpf,
         },
       });
       return { url };
+
     } catch (error) {
       return { error: error instanceof Error ? error.message : "Falha no pagamento" };
     }
