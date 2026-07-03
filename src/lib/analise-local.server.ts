@@ -319,21 +319,43 @@ function confiancaPorOddSegura(odd: number) {
   return 78;
 }
 
+// Traduz seleções em inglês para PT (evita "Under 3.5" e "Menos de 3.5" duplicados).
+function traduzPt(selecao: string) {
+  return String(selecao ?? "")
+    .replace(/\bOver\s*([0-9.]+)?/gi, (_m, n) => `Mais de${n ? ` ${n}` : ""}`)
+    .replace(/\bUnder\s*([0-9.]+)?/gi, (_m, n) => `Menos de${n ? ` ${n}` : ""}`)
+    .replace(/\bDraw\b/gi, "Empate")
+    .replace(/\bYes\b/gi, "Sim")
+    .replace(/\bNo\b/gi, "Não")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 // Fallback sem estatísticas: usa as próprias odds (favoritos = mais chance).
 function picksSoOdds(partida: PartidaRow, casa: string): PickAnalise[] {
-  return partida.odds
+  const vistos = new Set<string>();
+  const picks: PickAnalise[] = [];
+  for (const o of partida.odds
     .filter((o) => normKey(o.casa) === normKey(casa) && o.valor >= 1.2 && o.valor <= 4.5)
     .filter((o) => linhaSensata(o.mercado || "", o.selecao))
-    .sort((a, b) => a.valor - b.valor)
-    .slice(0, 5)
-    .map((o) => ({
-      mercado: o.mercado || "Resultado Final",
-      selecao: o.selecao,
+    .sort((a, b) => a.valor - b.valor)) {
+    const mercado = o.mercado || "Resultado Final";
+    const selecao = traduzPt(o.selecao);
+    // Dedupe pela seleção já traduzida (une "Under 3.5" e "Menos de 3.5").
+    const chave = `${normKey(mercado)}|${normKey(selecao)}`;
+    if (vistos.has(chave)) continue;
+    vistos.add(chave);
+    picks.push({
+      mercado,
+      selecao,
       odd: o.valor,
       confianca: confiancaPorOddSegura(o.valor),
       justificativa: `Análise local pelas odds: favorito com odd ${o.valor.toFixed(2)} (chance implícita ${Math.round((1 / o.valor) * 100)}%).`,
       external_odd_id: o.external_odd_id,
-    }));
+    });
+    if (picks.length >= 5) break;
+  }
+  return picks;
 }
 
 /**
@@ -363,7 +385,7 @@ export function analisarLocal(partida: PartidaRow, casa: string): AnalisePartida
     const confianca = clamp(Math.round(prob * 100), 1, 99);
     const cand: Cand = {
       mercado: o.mercado || "Resultado Final",
-      selecao: o.selecao,
+      selecao: traduzPt(o.selecao),
       odd: o.valor,
       confianca,
       prob,
