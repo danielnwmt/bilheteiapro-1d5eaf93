@@ -281,7 +281,7 @@ export function SuporteChat({
                 enviar();
               }
             }}
-            placeholder="Digite sua mensagem..."
+            placeholder={modoReclamacao ? "Descreva sua reclamação..." : "Digite sua mensagem..."}
           />
           <Button size="icon" onClick={enviar} disabled={enviando || !texto.trim()}>
             {enviando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
