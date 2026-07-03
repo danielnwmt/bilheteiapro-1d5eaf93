@@ -48,7 +48,7 @@ type Mensagem = {
 
 function SuportePage() {
   const router = useRouter();
-  const { config: modoConfig } = Route.useSearch();
+  const modoConfig = true;
   const { data: access } = useAccess();
   const [currentEmail, setCurrentEmail] = useState("");
   const isAdmin = (access?.roles ?? []).includes("admin") || currentEmail === ADMIN_EMAIL;
