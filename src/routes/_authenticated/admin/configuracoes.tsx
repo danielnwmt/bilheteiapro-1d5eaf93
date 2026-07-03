@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Loader2, Plus, Save, ShieldAlert, Trash2, LifeBuoy } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, Save, ShieldAlert, Trash2 } from "lucide-react";
 import {
   TODAS_LIGAS,
   RECURSO_LABELS,
