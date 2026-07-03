@@ -1474,21 +1474,39 @@ export const getSuporte = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async () => {
     const base = tryRestBase();
-    const vazio = { whatsapp: "", email: "", mensagem: "", modo: "whatsapp" };
+    const vazio = { whatsapp: "", email: "", mensagem: "", modo: "whatsapp", fluxo: { saudacao: "", opcoes: [] as { label: string; resposta: string }[] } };
     if (!base) return vazio;
     const rows = await restSelect<{ chave: string; valor: string }>(
       base,
       "system_config",
-      { select: "chave,valor", chave: "in.(SUPORTE_WHATSAPP,SUPORTE_EMAIL,SUPORTE_MENSAGEM,SUPORTE_MODO)" },
+      { select: "chave,valor", chave: "in.(SUPORTE_WHATSAPP,SUPORTE_EMAIL,SUPORTE_MENSAGEM,SUPORTE_MODO,SUPORTE_FLUXO)" },
       "suporte",
     );
     const map = new Map(rows.map((r) => [r.chave, r.valor ?? ""]));
     const modo = (map.get("SUPORTE_MODO") ?? "whatsapp").trim();
+    let fluxo = vazio.fluxo;
+    try {
+      const raw = map.get("SUPORTE_FLUXO");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        fluxo = {
+          saudacao: typeof parsed?.saudacao === "string" ? parsed.saudacao : "",
+          opcoes: Array.isArray(parsed?.opcoes)
+            ? parsed.opcoes
+                .map((o: any) => ({ label: String(o?.label ?? ""), resposta: String(o?.resposta ?? "") }))
+                .filter((o: any) => o.label.trim())
+            : [],
+        };
+      }
+    } catch {
+      // fluxo inválido — usa vazio
+    }
     return {
       whatsapp: map.get("SUPORTE_WHATSAPP") ?? "",
       email: map.get("SUPORTE_EMAIL") ?? "",
       mensagem: map.get("SUPORTE_MENSAGEM") ?? "",
       modo: ["whatsapp", "chat", "ambos"].includes(modo) ? modo : "whatsapp",
+      fluxo,
     };
   });
 
