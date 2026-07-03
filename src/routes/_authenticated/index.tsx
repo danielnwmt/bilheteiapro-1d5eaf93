@@ -812,9 +812,9 @@ function Index() {
               <LogOut className="mr-2 h-4 w-4" /> Sair
             </Button>
           </div>
-          <div className="text-center">
-            <img src={logo} alt="BilheteIA PRO" className="mx-auto mb-4 w-64 max-w-full md:w-80" />
-            <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
+          <div className="text-left">
+            <img src={logo} alt="BilheteIA PRO" className="mb-4 w-40 max-w-full md:w-48" />
+            <p className="mt-3 max-w-xl text-muted-foreground">
               Pare de perder tempo analisando jogos. A IA encontra as melhores combinações para você em segundos.
             </p>
           </div>
