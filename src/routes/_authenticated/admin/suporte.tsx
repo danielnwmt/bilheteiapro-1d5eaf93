@@ -67,7 +67,7 @@ function SuportePage() {
   const [busca, setBusca] = useState("");
   const [aba, setAba] = useState<"abertos" | "encerrados">("abertos");
   const [metricas, setMetricas] = useState<SuporteMetricas | null>(null);
-  const [fluxo, setFluxo] = useState<{ saudacao: string; opcoes: { label: string; resposta: string; ouvidoria?: boolean }[]; mensagens?: string[] }>({
+  const [fluxo, setFluxo] = useState<{ saudacao: string; opcoes: { label: string; resposta: string; ouvidoria?: boolean; destino?: string }[]; mensagens?: string[] }>({
     saudacao: "",
     opcoes: [],
     mensagens: [],
