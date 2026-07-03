@@ -290,6 +290,51 @@ function SuportePage() {
 
 
 
+            {mostraChat && metricas && (
+              <div className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <Card className="border-border/60 bg-card p-4">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <CheckCircle2 className="h-4 w-4 text-primary" /> Finalizados
+                    </div>
+                    <p className="mt-1 text-2xl font-bold">{metricas.finalizados}</p>
+                  </Card>
+                  <Card className="border-border/60 bg-card p-4">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <MessageCircle className="h-4 w-4 text-primary" /> Em aberto
+                    </div>
+                    <p className="mt-1 text-2xl font-bold">{metricas.abertos}</p>
+                  </Card>
+                  <Card className="border-border/60 bg-card p-4">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Timer className="h-4 w-4 text-primary" /> Tempo médio resposta
+                    </div>
+                    <p className="mt-1 text-2xl font-bold">{metricas.tempoMedioMin} min</p>
+                  </Card>
+                </div>
+
+                <Card className="border-border/60 bg-card p-4">
+                  <h2 className="mb-3 text-sm font-semibold">Últimos 7 dias</h2>
+                  <ChartContainer
+                    config={{
+                      finalizados: { label: "Finalizados", color: "hsl(var(--primary))" },
+                      tempoEsperaMin: { label: "Espera (min)", color: "hsl(var(--muted-foreground))" },
+                    }}
+                    className="h-[220px] w-full"
+                  >
+                    <BarChart data={metricas.serie}>
+                      <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                      <XAxis dataKey="dia" tickLine={false} axisLine={false} fontSize={12} />
+                      <YAxis tickLine={false} axisLine={false} fontSize={12} width={28} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar dataKey="finalizados" fill="var(--color-finalizados)" radius={4} />
+                      <Bar dataKey="tempoEsperaMin" fill="var(--color-tempoEsperaMin)" radius={4} />
+                    </BarChart>
+                  </ChartContainer>
+                </Card>
+              </div>
+            )}
+
             {mostraChat && (
               <Card className="overflow-hidden border-border/60 bg-card p-0">
                 <div className="grid md:grid-cols-[280px_1fr]">
