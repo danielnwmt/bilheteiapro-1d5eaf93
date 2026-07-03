@@ -129,6 +129,7 @@ type CartaoInput = {
   plano: Plano;
   ciclo?: Ciclo;
   parcelas?: number;
+  cpf?: string;
   cartao: { holderName: string; number: string; expiryMonth: string; expiryYear: string; ccv: string };
 };
 
