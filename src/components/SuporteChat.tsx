@@ -179,8 +179,12 @@ export function SuporteChat({
         { event: "UPDATE", schema: "public", table: "suporte_conversas", filter: `id=eq.${conversaId}` },
         (payload) => {
           const st = (payload.new as any).status as string;
+          if (st === "finalizado") {
+            toast.info("Atendimento encerrado. Voltando ao menu.");
+            novoAtendimento();
+            return;
+          }
           setStatus(st);
-          if (st === "finalizado") setAvaliando(true);
         },
       )
       .on("broadcast", { event: "typing" }, (p) => {
@@ -520,19 +524,8 @@ export function SuporteChat({
                 </div>
               )}
 
-              {/* Voltar ao menu */}
-              {(modoReclamacao || (falandoAtendente && temFluxo)) && status !== "finalizado" && (
-                <div className="pt-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-xs text-primary"
-                    onClick={voltarAoMenu}
-                  >
-                    <ArrowLeft className="mr-1 h-3.5 w-3.5" /> Voltar ao menu
-                  </Button>
-                </div>
-              )}
+
+
 
               {/* Avaliação ao finalizar */}
               {avaliando && !avaliada && (
