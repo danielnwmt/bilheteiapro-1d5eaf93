@@ -130,6 +130,24 @@ function ApisPage() {
     }
   }
 
+  const limpar = useServerFn(limparAnalises);
+  const [limpando, setLimpando] = useState(false);
+  async function limparAnalisesAgora() {
+    if (!confirm("Limpar todas as análises? O robô vai reanalisar os jogos do zero.")) return;
+    setLimpando(true);
+    const tid = toast.loading("Limpando análises…");
+    try {
+      await limpar();
+      toast.success("Análises limpas. O robô vai reanalisar em breve.", { id: tid });
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao limpar análises", { id: tid });
+    } finally {
+      setLimpando(false);
+    }
+  }
+
+
+
 
   async function ativarETestar(chave: string) {
     const valor = vals[chave] ?? "";
