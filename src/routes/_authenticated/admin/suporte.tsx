@@ -13,11 +13,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Loader2, Save, ShieldAlert, LifeBuoy, Send, MessageSquare, Search, MessageCircle } from "lucide-react";
+import { ArrowLeft, Loader2, Save, ShieldAlert, LifeBuoy, Send, MessageSquare, Search, MessageCircle, CheckCircle2, Clock, Timer } from "lucide-react";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { useAccess } from "@/hooks/useAccess";
 import { supabase } from "@/integrations/supabase/client";
 import { getSuporte, setSystemConfig } from "@/lib/access.functions";
-import { listSuporteConversas, type SuporteConversa } from "@/lib/suporte.functions";
+import {
+  listSuporteConversas,
+  getSuporteMetricas,
+  type SuporteConversa,
+  type SuporteMetricas,
+} from "@/lib/suporte.functions";
 import { toast } from "sonner";
 
 const ADMIN_EMAIL = "contato@protenexus.com";
