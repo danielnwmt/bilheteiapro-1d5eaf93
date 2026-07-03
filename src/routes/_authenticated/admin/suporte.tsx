@@ -91,6 +91,7 @@ function SuportePage() {
         setFluxo({
           saudacao: s.fluxo?.saudacao ?? "",
           opcoes: s.fluxo?.opcoes ?? [],
+          mensagens: s.fluxo?.mensagens ?? [],
         });
       })
       .catch(() => {});
