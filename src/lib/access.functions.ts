@@ -1578,7 +1578,7 @@ export const testApiKey = createServerFn({ method: "POST" })
             : "https://api.asaas.com/v3";
         const amb = env === "sandbox" ? "Sandbox" : "Produção";
         const res = await fetch(`${baseUrl}/myAccount`, {
-          headers: { access_token: valor },
+          headers: { access_token: valor, "User-Agent": "BilheteiaPro" },
         });
         if (res.status === 401 || res.status === 403) {
           return { ok: false, error: `Asaas (${amb}): chave inválida ou de outro ambiente.` };
