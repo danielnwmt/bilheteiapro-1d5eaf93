@@ -24,6 +24,9 @@ const ADMIN_EMAIL = "contato@protenexus.com";
 
 export const Route = createFileRoute("/_authenticated/admin/suporte")({
   head: () => ({ meta: [{ title: "Suporte — Admin BilheteIA" }] }),
+  validateSearch: (search: Record<string, unknown>) => ({
+    config: search.config === true || search.config === "true" || search.config === 1,
+  }),
   component: SuportePage,
 });
 
@@ -36,6 +39,7 @@ type Mensagem = {
 
 function SuportePage() {
   const router = useRouter();
+  const { config: modoConfig } = Route.useSearch();
   const { data: access } = useAccess();
   const [currentEmail, setCurrentEmail] = useState("");
   const isAdmin = (access?.roles ?? []).includes("admin") || currentEmail === ADMIN_EMAIL;
@@ -152,7 +156,7 @@ function SuportePage() {
     setResposta("");
   }
 
-  const mostraChat = suporte.modo === "chat" || suporte.modo === "ambos";
+  const mostraChat = !modoConfig && (suporte.modo === "chat" || suporte.modo === "ambos");
 
   return (
     <main className="min-h-screen bg-background">
@@ -175,6 +179,7 @@ function SuportePage() {
           </Card>
         ) : (
           <div className="space-y-6">
+            {modoConfig && (
             <Card className="border-border/60 bg-card p-6">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-lg font-bold">Configuração</h2>
@@ -229,6 +234,9 @@ function SuportePage() {
                 </div>
               </div>
             </Card>
+            )}
+
+
 
             {mostraChat && (
               <Card className="overflow-hidden border-border/60 bg-card p-0">
