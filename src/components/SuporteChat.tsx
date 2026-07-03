@@ -339,10 +339,13 @@ export function SuporteChat({
     if (!userId) return;
     const cId = await ensureConversa("aguardando_atendente");
     if (!cId) return;
-    await supabase
-      .from("suporte_conversas")
-      .update({ status: "aguardando_atendente" })
-      .eq("id", cId);
+    if (status !== "em_atendimento") {
+      await supabase
+        .from("suporte_conversas")
+        .update({ status: "aguardando_atendente" })
+        .eq("id", cId)
+        .is("atendente_id", null);
+    }
     await supabase.from("suporte_mensagens").insert({
       user_id: userId,
       conversa_id: cId,
@@ -356,7 +359,7 @@ export function SuporteChat({
       detalhes: {},
     });
     setFalandoAtendente(true);
-    setStatus("aguardando_atendente");
+    setStatus((atual) => (atual === "em_atendimento" ? atual : "aguardando_atendente"));
     toast.success("Um atendente foi notificado. Aguarde um instante.");
   }
 
