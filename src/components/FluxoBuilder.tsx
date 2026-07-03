@@ -156,6 +156,53 @@ export function FluxoBuilder({
           </No>
         </div>
 
+        {/* Caixas extras de mensagem */}
+        {(fluxo.mensagens ?? []).map((m, i) => (
+          <div key={i} className="relative">
+            <No titulo="Enviar mensagem" icon={<MessageSquareText className="h-3.5 w-3.5 text-primary" />}>
+              <div className="flex items-center gap-1">
+                <Input
+                  value={m}
+                  onChange={(e) =>
+                    setFluxo((f) => ({
+                      ...f,
+                      mensagens: (f.mensagens ?? []).map((x, j) => (j === i ? e.target.value : x)),
+                    }))
+                  }
+                  placeholder="Digite a mensagem…"
+                  className="text-xs"
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFluxo((f) => ({ ...f, mensagens: (f.mensagens ?? []).filter((_, j) => j !== i) }))
+                  }
+                  className="shrink-0 text-muted-foreground hover:text-destructive"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <Porta side="left" anchorRef={(el) => { extraInRefs.current[i] = el; }} />
+              <Porta side="right" anchorRef={(el) => { extraOutRefs.current[i] = el; }} />
+            </No>
+          </div>
+        ))}
+
+        {/* Botão adicionar caixa */}
+        <div className="relative flex items-center">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-9 text-xs"
+            onClick={() => setFluxo((f) => ({ ...f, mensagens: [...(f.mensagens ?? []), ""] }))}
+          >
+            <Plus className="mr-1 h-3.5 w-3.5" /> Adicionar caixa
+          </Button>
+        </div>
+
+
+
         {/* Pedir para escolher */}
         <div className="relative">
           <No titulo="Pedir para escolher" icon={<ListChecks className="h-3.5 w-3.5 text-primary" />}>
