@@ -304,9 +304,19 @@ function mapBetValue(betName: string, rawValue: unknown, jogoCasa: string, jogoF
   }
   // Time Marca Gol (To Score / Team To Score)
   if (bn.includes("to score")) {
-    if (bn.includes("home") || v === "home") return { mercado: "Time Marca Gol", selecao: `${jogoCasa} marca +0.5 (pelo menos 1 gol)` };
-    if (bn.includes("away") || v === "away") return { mercado: "Time Marca Gol", selecao: `${jogoFora} marca +0.5 (pelo menos 1 gol)` };
-    return { mercado: "Time Marca Gol", selecao: v === "yes" ? "Marca +0.5 (pelo menos 1 gol)" : v === "no" ? "Não marca" : value };
+    if (bn.includes("home") || v === "home")
+      return { mercado: "Time Marca Gol", selecao: `${jogoCasa} marca pelo menos 1 gol` };
+    if (bn.includes("away") || v === "away")
+      return { mercado: "Time Marca Gol", selecao: `${jogoFora} marca pelo menos 1 gol` };
+    return {
+      mercado: "Time Marca Gol",
+      selecao:
+        v === "yes"
+          ? "O time marca pelo menos 1 gol"
+          : v === "no"
+            ? "O time NÃO marca gol"
+            : value,
+    };
   }
   return null;
 }
