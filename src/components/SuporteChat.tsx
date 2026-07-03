@@ -43,6 +43,7 @@ export function SuporteChat({
   const [carregando, setCarregando] = useState(true);
   const [fluxoLocal, setFluxoLocal] = useState<Bolha[]>([]);
   const [iniciado, setIniciado] = useState(false);
+  const [modoReclamacao, setModoReclamacao] = useState(false);
   const fimRef = useRef<HTMLDivElement | null>(null);
 
   const temFluxo = Boolean(fluxo && (fluxo.saudacao.trim() || fluxo.opcoes.length));
