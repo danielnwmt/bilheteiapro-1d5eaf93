@@ -298,6 +298,8 @@ function Index() {
   const [deletandoId, setDeletandoId] = useState<string | null>(null);
   const reanalisar = useServerFn(reanalisarJogo);
   const fetchAoVivo = useServerFn(getEstatisticasAoVivoPartida);
+  const fetchSuporte = useServerFn(getSuporte);
+  const [suporte, setSuporte] = useState<{ whatsapp: string; email: string; mensagem: string } | null>(null);
   const [reanalisandoId, setReanalisandoId] = useState<string | null>(null);
   const [iniciando, setIniciando] = useState(false);
   const { data: access, refetch: refetchAccess } = useAccess();
