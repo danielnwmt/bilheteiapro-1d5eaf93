@@ -385,7 +385,7 @@ export function analisarLocal(partida: PartidaRow, casa: string): AnalisePartida
     const confianca = clamp(Math.round(prob * 100), 1, 99);
     const cand: Cand = {
       mercado: o.mercado || "Resultado Final",
-      selecao: o.selecao,
+      selecao: traduzPt(o.selecao),
       odd: o.valor,
       confianca,
       prob,
