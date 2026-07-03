@@ -60,6 +60,9 @@ export function FluxoBuilder({
   const escInRef = useRef<HTMLSpanElement | null>(null);
   const optOutRefs = useRef<(HTMLSpanElement | null)[]>([]);
   const respInRefs = useRef<(HTMLSpanElement | null)[]>([]);
+  const extraInRefs = useRef<(HTMLSpanElement | null)[]>([]);
+  const extraOutRefs = useRef<(HTMLSpanElement | null)[]>([]);
+
 
   const [linhas, setLinhas] = useState<Linha[]>([]);
   const [size, setSize] = useState({ w: 0, h: 0 });
