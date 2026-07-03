@@ -63,6 +63,7 @@ function SuportePage() {
   const [resposta, setResposta] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [busca, setBusca] = useState("");
+  const [aba, setAba] = useState<"abertos" | "encerrados">("abertos");
   const [metricas, setMetricas] = useState<SuporteMetricas | null>(null);
   const fimRef = useRef<HTMLDivElement | null>(null);
 
@@ -114,7 +115,8 @@ function SuportePage() {
       return;
     }
     toast.success("Chamado encerrado");
-    setSelecionado((s) => (s ? { ...s, encerrada: true } : s));
+    setSelecionado(null);
+    setAba("encerrados");
     recarregarConversas();
   }
 
@@ -131,7 +133,8 @@ function SuportePage() {
       return;
     }
     toast.success("Chamado reaberto");
-    setSelecionado((s) => (s ? { ...s, encerrada: false } : s));
+    setSelecionado(null);
+    setAba("abertos");
     recarregarConversas();
   }
 
@@ -342,6 +345,24 @@ function SuportePage() {
                   <div className="flex h-[560px] flex-col border-b border-border/60 bg-muted/30 md:border-b-0 md:border-r">
                     <div className="border-b border-border/60 px-4 py-4">
                       <h2 className="text-lg font-bold">Chat</h2>
+                      <div className="mt-3 grid grid-cols-2 gap-1 rounded-full bg-background/60 p-1">
+                        <button
+                          onClick={() => { setAba("abertos"); setSelecionado(null); }}
+                          className={`rounded-full py-1.5 text-xs font-medium transition-colors ${
+                            aba === "abertos" ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+                          }`}
+                        >
+                          Abertos
+                        </button>
+                        <button
+                          onClick={() => { setAba("encerrados"); setSelecionado(null); }}
+                          className={`rounded-full py-1.5 text-xs font-medium transition-colors ${
+                            aba === "encerrados" ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+                          }`}
+                        >
+                          Encerrados
+                        </button>
+                      </div>
                       <div className="relative mt-3">
                         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                         <Input
@@ -353,22 +374,22 @@ function SuportePage() {
                       </div>
                     </div>
                     <div className="flex-1 space-y-1 overflow-y-auto p-2">
-                      {conversas.filter((c) =>
-                        (c.nome || c.email || "")
-                          .toLowerCase()
-                          .includes(busca.trim().toLowerCase()),
-                      ).length === 0 ? (
-                        <p className="py-6 text-center text-sm text-muted-foreground">
-                          Nenhuma conversa.
-                        </p>
-                      ) : (
-                        conversas
-                          .filter((c) =>
+                      {(() => {
+                        const lista = conversas.filter(
+                          (c) =>
+                            Boolean(c.encerrada) === (aba === "encerrados") &&
                             (c.nome || c.email || "")
                               .toLowerCase()
                               .includes(busca.trim().toLowerCase()),
-                          )
-                          .map((c) => (
+                        );
+                        if (lista.length === 0) {
+                          return (
+                            <p className="py-6 text-center text-sm text-muted-foreground">
+                              {aba === "encerrados" ? "Nenhum chamado encerrado." : "Nenhuma conversa."}
+                            </p>
+                          );
+                        }
+                        return lista.map((c) => (
                             <button
                               key={c.userId}
                               onClick={() => setSelecionado(c)}
@@ -395,8 +416,8 @@ function SuportePage() {
                                 </span>
                               </div>
                             </button>
-                          ))
-                      )}
+                          ));
+                      })()}
                     </div>
                   </div>
 
