@@ -104,7 +104,8 @@ export function FluxoBuilder({
 
   return (
     <div className="overflow-x-auto rounded-xl border border-border/60 bg-muted/20">
-      <div ref={wrapRef} className="relative flex min-w-max items-start gap-16 p-8">
+      <div ref={wrapRef} className="relative flex min-h-[520px] min-w-max items-start gap-16 p-10">
+
         <svg
           className="pointer-events-none absolute left-0 top-0"
           width={size.w}
