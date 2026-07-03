@@ -28,6 +28,7 @@ async function asaasFetch(path: string, init: RequestInit): Promise<any> {
     ...init,
     headers: {
       "Content-Type": "application/json",
+      "User-Agent": "BilheteiaPro",
       access_token: apiKey,
       ...(init.headers ?? {}),
     },
