@@ -179,8 +179,12 @@ export function SuporteChat({
         { event: "UPDATE", schema: "public", table: "suporte_conversas", filter: `id=eq.${conversaId}` },
         (payload) => {
           const st = (payload.new as any).status as string;
+          if (st === "finalizado") {
+            toast.info("Atendimento encerrado. Voltando ao menu.");
+            novoAtendimento();
+            return;
+          }
           setStatus(st);
-          if (st === "finalizado") setAvaliando(true);
         },
       )
       .on("broadcast", { event: "typing" }, (p) => {
