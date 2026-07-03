@@ -26,6 +26,7 @@ import {
   Play,
   Wifi,
   MessageSquare,
+  Megaphone,
 
 
 
@@ -242,6 +243,9 @@ function AdminDashboard() {
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => router.navigate({ to: "/admin/suporte", search: { config: true } })}>
                   <LifeBuoy className="mr-2 h-4 w-4" /> Suporte
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => router.navigate({ to: "/admin/reclamacoes" })}>
+                  <Megaphone className="mr-2 h-4 w-4" /> Ouvidoria
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => router.navigate({ to: "/admin/backup" })}>
                   <Cog className="mr-2 h-4 w-4" /> Backup

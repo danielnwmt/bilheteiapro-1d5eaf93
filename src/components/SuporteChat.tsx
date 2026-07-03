@@ -17,7 +17,7 @@ type Mensagem = {
   created_at: string;
 };
 
-type FluxoOpcao = { label: string; resposta: string };
+type FluxoOpcao = { label: string; resposta: string; ouvidoria?: boolean };
 type Fluxo = { saudacao: string; opcoes: FluxoOpcao[]; mensagens?: string[] };
 
 // Bolhas locais do fluxo automático (não persistidas no banco).
@@ -43,6 +43,7 @@ export function SuporteChat({
   const [carregando, setCarregando] = useState(true);
   const [fluxoLocal, setFluxoLocal] = useState<Bolha[]>([]);
   const [iniciado, setIniciado] = useState(false);
+  const [modoReclamacao, setModoReclamacao] = useState(false);
   const fimRef = useRef<HTMLDivElement | null>(null);
 
   const temFluxo = Boolean(fluxo && (fluxo.saudacao.trim() || fluxo.opcoes.length));
@@ -91,6 +92,28 @@ export function SuporteChat({
     const conteudo = texto.trim();
     if (!conteudo || !userId || enviando) return;
     setEnviando(true);
+
+    if (modoReclamacao) {
+      // Reclamação de ouvidoria: salva em local separado, NÃO vai para o atendente.
+      const { error } = await supabase
+        .from("reclamacoes")
+        .insert({ user_id: userId, conteudo });
+      setEnviando(false);
+      if (error) return;
+      setTexto("");
+      setModoReclamacao(false);
+      setFluxoLocal((prev) => [
+        ...prev,
+        { id: `cli-${Date.now()}`, autor: "cliente", conteudo },
+        {
+          id: `bot-${Date.now() + 1}`,
+          autor: "suporte",
+          conteudo: "Sua reclamação foi registrada na ouvidoria. Obrigado!",
+        },
+      ]);
+      return;
+    }
+
     const { error } = await supabase
       .from("suporte_mensagens")
       .insert({ user_id: userId, autor: "cliente", conteudo });
@@ -105,6 +128,21 @@ export function SuporteChat({
       ...prev,
       { id: `cli-${Date.now()}`, autor: "cliente", conteudo: op.label },
     ]);
+
+    if (op.ouvidoria) {
+      // Não envia ao atendente: entra em modo reclamação.
+      setModoReclamacao(true);
+      setFluxoLocal((prev) => [
+        ...prev,
+        {
+          id: `bot-${Date.now()}`,
+          autor: "suporte",
+          conteudo: op.resposta.trim() || "Descreva sua reclamação abaixo. Ela será registrada na ouvidoria.",
+        },
+      ]);
+      return;
+    }
+
     // Registra a escolha do cliente (persiste para o atendente ver).
     await supabase.from("suporte_mensagens").insert({ user_id: userId, autor: "cliente", conteudo: op.label });
     // Resposta automática do chatbot exibida localmente.
@@ -193,7 +231,7 @@ export function SuporteChat({
                 </div>
               ))}
 
-              {fluxoAtivo && mostraMenu && fluxo && fluxo.opcoes.length > 0 && (
+              {fluxoAtivo && !modoReclamacao && mostraMenu && fluxo && fluxo.opcoes.length > 0 && (
                 <div className="flex flex-col items-start gap-2 pt-1">
                   <p className="text-xs text-muted-foreground">Selecione uma opção:</p>
                   {fluxo.opcoes.map((op, i) => (
@@ -243,7 +281,7 @@ export function SuporteChat({
                 enviar();
               }
             }}
-            placeholder="Digite sua mensagem..."
+            placeholder={modoReclamacao ? "Descreva sua reclamação..." : "Digite sua mensagem..."}
           />
           <Button size="icon" onClick={enviar} disabled={enviando || !texto.trim()}>
             {enviando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}

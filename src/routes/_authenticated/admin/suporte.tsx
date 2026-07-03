@@ -66,9 +66,10 @@ function SuportePage() {
   const [busca, setBusca] = useState("");
   const [aba, setAba] = useState<"abertos" | "encerrados">("abertos");
   const [metricas, setMetricas] = useState<SuporteMetricas | null>(null);
-  const [fluxo, setFluxo] = useState<{ saudacao: string; opcoes: { label: string; resposta: string }[] }>({
+  const [fluxo, setFluxo] = useState<{ saudacao: string; opcoes: { label: string; resposta: string; ouvidoria?: boolean }[]; mensagens?: string[] }>({
     saudacao: "",
     opcoes: [],
+    mensagens: [],
   });
   const fimRef = useRef<HTMLDivElement | null>(null);
 
@@ -90,6 +91,7 @@ function SuportePage() {
         setFluxo({
           saudacao: s.fluxo?.saudacao ?? "",
           opcoes: s.fluxo?.opcoes ?? [],
+          mensagens: s.fluxo?.mensagens ?? [],
         });
       })
       .catch(() => {});
@@ -198,8 +200,9 @@ function SuportePage() {
       const fluxoLimpo = {
         saudacao: fluxo.saudacao.trim(),
         opcoes: fluxo.opcoes
-          .map((o) => ({ label: o.label.trim(), resposta: o.resposta.trim() }))
+          .map((o) => ({ label: o.label.trim(), resposta: o.resposta.trim(), ouvidoria: Boolean(o.ouvidoria) }))
           .filter((o) => o.label),
+        mensagens: (fluxo.mensagens ?? []).map((m) => m.trim()).filter(Boolean),
       };
       await salvarConfig({ data: { chave: "SUPORTE_FLUXO", valor: JSON.stringify(fluxoLimpo), descricao: "Fluxo automático de atendimento" } });
     },
