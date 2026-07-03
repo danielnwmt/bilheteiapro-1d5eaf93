@@ -92,6 +92,28 @@ export function SuporteChat({
     const conteudo = texto.trim();
     if (!conteudo || !userId || enviando) return;
     setEnviando(true);
+
+    if (modoReclamacao) {
+      // Reclamação de ouvidoria: salva em local separado, NÃO vai para o atendente.
+      const { error } = await supabase
+        .from("reclamacoes")
+        .insert({ user_id: userId, conteudo });
+      setEnviando(false);
+      if (error) return;
+      setTexto("");
+      setModoReclamacao(false);
+      setFluxoLocal((prev) => [
+        ...prev,
+        { id: `cli-${Date.now()}`, autor: "cliente", conteudo },
+        {
+          id: `bot-${Date.now() + 1}`,
+          autor: "suporte",
+          conteudo: "Sua reclamação foi registrada na ouvidoria. Obrigado!",
+        },
+      ]);
+      return;
+    }
+
     const { error } = await supabase
       .from("suporte_mensagens")
       .insert({ user_id: userId, autor: "cliente", conteudo });
@@ -106,6 +128,21 @@ export function SuporteChat({
       ...prev,
       { id: `cli-${Date.now()}`, autor: "cliente", conteudo: op.label },
     ]);
+
+    if (op.ouvidoria) {
+      // Não envia ao atendente: entra em modo reclamação.
+      setModoReclamacao(true);
+      setFluxoLocal((prev) => [
+        ...prev,
+        {
+          id: `bot-${Date.now()}`,
+          autor: "suporte",
+          conteudo: op.resposta.trim() || "Descreva sua reclamação abaixo. Ela será registrada na ouvidoria.",
+        },
+      ]);
+      return;
+    }
+
     // Registra a escolha do cliente (persiste para o atendente ver).
     await supabase.from("suporte_mensagens").insert({ user_id: userId, autor: "cliente", conteudo: op.label });
     // Resposta automática do chatbot exibida localmente.
