@@ -42,9 +42,12 @@ export function SuporteChat({
   const [enviando, setEnviando] = useState(false);
   const [carregando, setCarregando] = useState(true);
   const [fluxoLocal, setFluxoLocal] = useState<Bolha[]>([]);
+  const [iniciado, setIniciado] = useState(false);
   const fimRef = useRef<HTMLDivElement | null>(null);
 
   const temFluxo = Boolean(fluxo && (fluxo.saudacao.trim() || fluxo.opcoes.length));
+  // Considera iniciado se o cliente já tem histórico de conversa.
+  const fluxoAtivo = iniciado || msgs.length > 0;
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setUserId(data.session?.user?.id ?? null));
