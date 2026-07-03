@@ -3,10 +3,14 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Hand, MessageSquareText, ListChecks, Plus, Trash2, GripVertical } from "lucide-react";
 
-export type Fluxo = { saudacao: string; opcoes: { label: string; resposta: string; ouvidoria?: boolean }[]; mensagens?: string[] };
+export type Fluxo = {
+  saudacao: string;
+  opcoes: { label: string; resposta: string; ouvidoria?: boolean; destino?: string }[];
+  mensagens?: string[];
+};
 
 type Point = { x: number; y: number };
-type Linha = { from: Point; to: Point };
+type Linha = { from: Point; to: Point; optIndex?: number };
 type Pos = { x: number; y: number };
 
 // Posições padrão dos nós no canvas.
@@ -48,13 +52,28 @@ function No({
   );
 }
 
-function Porta({ side, anchorRef }: { side: "left" | "right"; anchorRef: React.Ref<HTMLSpanElement> }) {
+// Porta de entrada (alvo de conexão). Recebe um id para saber onde a opção liga.
+function PortaEntrada({
+  portaId,
+  anchorRef,
+}: {
+  portaId: string;
+  anchorRef: React.Ref<HTMLSpanElement>;
+}) {
   return (
     <span
       ref={anchorRef}
-      className={`absolute top-1/2 h-3 w-3 -translate-y-1/2 rounded-full border-2 border-background bg-primary ${
-        side === "left" ? "-left-1.5" : "-right-1.5"
-      }`}
+      data-porta-entrada={portaId}
+      className="absolute top-1/2 -left-1.5 h-3 w-3 -translate-y-1/2 rounded-full border-2 border-background bg-primary"
+    />
+  );
+}
+
+function PortaSaida({ anchorRef }: { anchorRef: React.Ref<HTMLSpanElement> }) {
+  return (
+    <span
+      ref={anchorRef}
+      className="absolute top-1/2 -right-1.5 h-3 w-3 -translate-y-1/2 rounded-full border-2 border-background bg-primary"
     />
   );
 }
@@ -79,12 +98,11 @@ export function FluxoBuilder({
   const [linhas, setLinhas] = useState<Linha[]>([]);
   const [pos, setPos] = useState<Record<string, Pos>>(POS_PADRAO);
   const drag = useRef<{ id: string; startX: number; startY: number; origX: number; origY: number } | null>(null);
+  // Conexão sendo arrastada de uma opção até uma caixa.
+  const conn = useRef<{ optIndex: number } | null>(null);
+  const [connLinha, setConnLinha] = useState<Linha | null>(null);
 
-  // Garante posição padrão para nós dinâmicos (extras e respostas).
-  const posDe = useCallback(
-    (id: string, fallback: Pos): Pos => pos[id] ?? fallback,
-    [pos],
-  );
+  const posDe = useCallback((id: string, fallback: Pos): Pos => pos[id] ?? fallback, [pos]);
 
   const iniciarDrag = useCallback(
     (id: string, fallback: Pos) => (e: React.PointerEvent) => {
@@ -96,15 +114,69 @@ export function FluxoBuilder({
     [pos],
   );
 
+  // Converte uma coordenada de tela para dentro do canvas.
+  const paraCanvas = useCallback((clientX: number, clientY: number): Point | null => {
+    const wrap = wrapRef.current;
+    if (!wrap) return null;
+    const wr = wrap.getBoundingClientRect();
+    return { x: clientX - wr.left + wrap.scrollLeft, y: clientY - wr.top + wrap.scrollTop };
+  }, []);
+
+  const centro = useCallback((el: HTMLElement | null): Point | null => {
+    const wrap = wrapRef.current;
+    if (!el || !wrap) return null;
+    const wr = wrap.getBoundingClientRect();
+    const r = el.getBoundingClientRect();
+    return {
+      x: r.left + r.width / 2 - wr.left + wrap.scrollLeft,
+      y: r.top + r.height / 2 - wr.top + wrap.scrollTop,
+    };
+  }, []);
+
+  // Começa a arrastar uma conexão a partir da porta de uma opção.
+  const iniciarConexao = useCallback(
+    (optIndex: number) => (e: React.PointerEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      conn.current = { optIndex };
+      const from = centro(optOutRefs.current[optIndex]);
+      const to = paraCanvas(e.clientX, e.clientY);
+      if (from && to) setConnLinha({ from, to, optIndex });
+    },
+    [centro, paraCanvas],
+  );
+
   useEffect(() => {
     const mover = (e: PointerEvent) => {
+      if (conn.current) {
+        const from = centro(optOutRefs.current[conn.current.optIndex]);
+        const to = paraCanvas(e.clientX, e.clientY);
+        if (from && to) setConnLinha({ from, to, optIndex: conn.current.optIndex });
+        return;
+      }
       const d = drag.current;
       if (!d) return;
       const nx = Math.max(0, d.origX + (e.clientX - d.startX));
       const ny = Math.max(0, d.origY + (e.clientY - d.startY));
       setPos((p) => ({ ...p, [d.id]: { x: nx, y: ny } }));
     };
-    const soltar = () => {
+    const soltar = (e: PointerEvent) => {
+      if (conn.current) {
+        const oi = conn.current.optIndex;
+        conn.current = null;
+        setConnLinha(null);
+        const alvo = document
+          .elementFromPoint(e.clientX, e.clientY)
+          ?.closest("[data-porta-entrada]") as HTMLElement | null;
+        const destino = alvo?.getAttribute("data-porta-entrada") ?? undefined;
+        setFluxo((f) => ({
+          ...f,
+          opcoes: f.opcoes.map((o, j) =>
+            j === oi ? { ...o, destino: destino && destino !== `resp-${oi}` ? destino : undefined } : o,
+          ),
+        }));
+        return;
+      }
       drag.current = null;
     };
     window.addEventListener("pointermove", mover);
@@ -113,22 +185,14 @@ export function FluxoBuilder({
       window.removeEventListener("pointermove", mover);
       window.removeEventListener("pointerup", soltar);
     };
-  }, []);
+  }, [centro, paraCanvas, setFluxo]);
 
   const medir = useCallback(() => {
-    const wrap = wrapRef.current;
-    if (!wrap) return;
-    const wr = wrap.getBoundingClientRect();
-    const ponto = (el: HTMLElement | null): Point | null => {
-      if (!el) return null;
-      const r = el.getBoundingClientRect();
-      return { x: r.left + r.width / 2 - wr.left + wrap.scrollLeft, y: r.top + r.height / 2 - wr.top + wrap.scrollTop };
-    };
     const novas: Linha[] = [];
-    const push = (a: HTMLElement | null, b: HTMLElement | null) => {
-      const pa = ponto(a);
-      const pb = ponto(b);
-      if (pa && pb) novas.push({ from: pa, to: pb });
+    const push = (a: HTMLElement | null, b: HTMLElement | null, optIndex?: number) => {
+      const pa = centro(a);
+      const pb = centro(b);
+      if (pa && pb) novas.push({ from: pa, to: pb, optIndex });
     };
     const extras = fluxo.mensagens ?? [];
     push(startRef.current, msgInRef.current);
@@ -139,9 +203,18 @@ export function FluxoBuilder({
       for (let i = 0; i < extras.length - 1; i++) push(extraOutRefs.current[i], extraInRefs.current[i + 1]);
       push(extraOutRefs.current[extras.length - 1], escInRef.current);
     }
-    fluxo.opcoes.forEach((_, i) => push(optOutRefs.current[i], respInRefs.current[i]));
+    // Cada opção liga à caixa de destino escolhida, ou à sua resposta padrão.
+    fluxo.opcoes.forEach((op, i) => {
+      let alvo: HTMLElement | null = respInRefs.current[i] ?? null;
+      if (op.destino === "msg") alvo = msgInRef.current;
+      else if (op.destino) {
+        const m = op.destino.match(/^extra-(\d+)$/);
+        if (m) alvo = extraInRefs.current[Number(m[1])] ?? alvo;
+      }
+      push(optOutRefs.current[i], alvo, i);
+    });
     setLinhas(novas);
-  }, [fluxo.opcoes, fluxo.mensagens]);
+  }, [centro, fluxo.opcoes, fluxo.mensagens]);
 
   useLayoutEffect(() => {
     medir();
@@ -161,28 +234,63 @@ export function FluxoBuilder({
 
   const extras = fluxo.mensagens ?? [];
 
+  const pathDe = (l: { from: Point; to: Point }) =>
+    `M ${l.from.x} ${l.from.y} C ${l.from.x + 50} ${l.from.y}, ${l.to.x - 50} ${l.to.y}, ${l.to.x} ${l.to.y}`;
+
   return (
     <div
       ref={wrapRef}
       className="relative h-[560px] w-full overflow-auto rounded-xl border border-border/60 bg-muted/20"
       style={{
-        backgroundImage:
-          "radial-gradient(circle, var(--border) 1px, transparent 1px)",
+        backgroundImage: "radial-gradient(circle, var(--border) 1px, transparent 1px)",
         backgroundSize: "22px 22px",
       }}
     >
       <div className="relative h-[1200px] w-[1600px]">
-        <svg className="pointer-events-none absolute left-0 top-0 h-full w-full">
-          {linhas.map((l, i) => (
+        <svg className="absolute left-0 top-0 h-full w-full">
+          {linhas.map((l, i) =>
+            l.optIndex !== undefined ? (
+              <path
+                key={i}
+                d={pathDe(l)}
+                fill="none"
+                stroke="var(--primary)"
+                strokeWidth={2.5}
+                opacity={0.7}
+                className="cursor-pointer"
+                style={{ pointerEvents: "stroke" }}
+                onClick={() =>
+                  setFluxo((f) => ({
+                    ...f,
+                    opcoes: f.opcoes.map((o, j) => (j === l.optIndex ? { ...o, destino: undefined } : o)),
+                  }))
+                }
+              >
+                <title>Clique para remover a ligação</title>
+              </path>
+            ) : (
+              <path
+                key={i}
+                d={pathDe(l)}
+                fill="none"
+                stroke="var(--primary)"
+                strokeWidth={2}
+                opacity={0.6}
+                style={{ pointerEvents: "none" }}
+              />
+            ),
+          )}
+          {connLinha && (
             <path
-              key={i}
-              d={`M ${l.from.x} ${l.from.y} C ${l.from.x + 50} ${l.from.y}, ${l.to.x - 50} ${l.to.y}, ${l.to.x} ${l.to.y}`}
+              d={pathDe(connLinha)}
               fill="none"
               stroke="var(--primary)"
-              strokeWidth={2}
-              opacity={0.6}
+              strokeWidth={2.5}
+              strokeDasharray="5 4"
+              opacity={0.9}
+              style={{ pointerEvents: "none" }}
             />
-          ))}
+          )}
         </svg>
 
         {/* Início */}
@@ -193,7 +301,7 @@ export function FluxoBuilder({
           onDrag={iniciarDrag("start", POS_PADRAO.start)}
         >
           <p className="text-xs text-muted-foreground">Cliente abre o chat</p>
-          <Porta side="right" anchorRef={startRef} />
+          <PortaSaida anchorRef={startRef} />
         </No>
 
         {/* Enviar mensagem (saudação) */}
@@ -209,8 +317,8 @@ export function FluxoBuilder({
             placeholder="Olá! Selecione uma opção:"
             className="text-xs"
           />
-          <Porta side="left" anchorRef={msgInRef} />
-          <Porta side="right" anchorRef={msgOutRef} />
+          <PortaEntrada portaId="msg" anchorRef={msgInRef} />
+          <PortaSaida anchorRef={msgOutRef} />
         </No>
 
         {/* Caixas extras de mensagem */}
@@ -246,8 +354,8 @@ export function FluxoBuilder({
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
               </div>
-              <Porta side="left" anchorRef={(el) => { extraInRefs.current[i] = el; }} />
-              <Porta side="right" anchorRef={(el) => { extraOutRefs.current[i] = el; }} />
+              <PortaEntrada portaId={`extra-${i}`} anchorRef={(el) => { extraInRefs.current[i] = el; }} />
+              <PortaSaida anchorRef={(el) => { extraOutRefs.current[i] = el; }} />
             </No>
           );
         })}
@@ -285,7 +393,9 @@ export function FluxoBuilder({
                     ref={(el) => {
                       optOutRefs.current[i] = el;
                     }}
-                    className="absolute -right-[26px] top-4 h-3 w-3 rounded-full border-2 border-background bg-primary"
+                    onPointerDown={iniciarConexao(i)}
+                    title="Arraste até uma caixa para definir a resposta"
+                    className="absolute -right-[26px] top-4 h-3.5 w-3.5 cursor-crosshair rounded-full border-2 border-background bg-primary hover:scale-125"
                   />
                 </div>
                 <label className="flex cursor-pointer items-center gap-1.5 pl-0.5 text-[11px] text-muted-foreground">
@@ -314,12 +424,13 @@ export function FluxoBuilder({
               <Plus className="mr-1 h-3.5 w-3.5" /> Opção
             </Button>
           </div>
-          <Porta side="left" anchorRef={escInRef} />
+          <PortaEntrada portaId="esc" anchorRef={escInRef} />
         </No>
 
-        {/* Respostas automáticas */}
+        {/* Respostas automáticas (destino padrão de cada opção sem ligação) */}
         {fluxo.opcoes.map((op, i) => {
           const fb = { x: 920, y: 60 + i * 170 };
+          const ligada = Boolean(op.destino);
           return (
             <No
               key={i}
@@ -338,8 +449,12 @@ export function FluxoBuilder({
                 }
                 placeholder="Um atendente vai te chamar…"
                 className="text-xs"
+                disabled={ligada}
               />
-              <Porta side="left" anchorRef={(el) => { respInRefs.current[i] = el; }} />
+              {ligada && (
+                <p className="mt-1 text-[10px] text-muted-foreground">Usando a caixa ligada</p>
+              )}
+              <PortaEntrada portaId={`resp-${i}`} anchorRef={(el) => { respInRefs.current[i] = el; }} />
             </No>
           );
         })}
