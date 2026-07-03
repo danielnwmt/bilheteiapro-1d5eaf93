@@ -164,8 +164,11 @@ export const pagarComCartao = createServerFn({ method: "POST" })
       const precoCentavos = precoCicloCentavos(cfg, data.ciclo);
       if (precoCentavos <= 0) throw new Error("Preço do plano inválido");
 
-      const cpf = (profile?.cpf ?? "").replace(/\D/g, "");
-      if (cpf.length !== 11) throw new Error("CPF do cadastro inválido. Atualize seu perfil.");
+      const cpf = data.cpf || (profile?.cpf ?? "").replace(/\D/g, "");
+      if (cpf.length !== 11) throw new Error("Informe um CPF válido para o pagamento.");
+      if (cpf && cpf !== (profile?.cpf ?? "").replace(/\D/g, "")) {
+        await supabase.from("profiles").update({ cpf }).eq("id", userId);
+      }
 
       const externalReference = `${userId}|${data.plano}|${data.ciclo}`;
       const { paid, status } = await cobrarCartao({
