@@ -63,9 +63,55 @@ export function useSessionGuard() {
       }
     };
 
-    const init = async () => {
+  useEffect(() => {
+    let stopped = false;
+    let started = false;
+    let heartbeat: ReturnType<typeof setInterval> | null = null;
+    let idleCheck: ReturnType<typeof setInterval> | null = null;
+    const sessionId = getSessionId();
+
+    const clearTimers = () => {
+      if (heartbeat) clearInterval(heartbeat);
+      if (idleCheck) clearInterval(idleCheck);
+      heartbeat = null;
+      idleCheck = null;
+    };
+
+    const forceLogout = async (mensagem: string) => {
+      if (stopped) return;
+      stopped = true;
+      toast.error(mensagem);
+      try {
+        await supabase.auth.signOut();
+      } catch {
+        /* silencioso */
+      }
+      router.navigate({ to: "/auth", replace: true });
+    };
+
+    const markActivity = () => {
+      lastActivity.current = Date.now();
+    };
+
+    const ping = async () => {
       const { data } = await supabase.auth.getSession();
       if (!data.session || stopped) return;
+      try {
+        const res = await registrarPresenca();
+        if (res?.activeSession && res.activeSession !== sessionId) {
+          await forceLogout("Sua conta foi conectada em outro dispositivo.");
+        }
+      } catch {
+        /* silencioso */
+      }
+    };
+
+    // Inicia os timers/heartbeat quando existe uma sessão ativa. Idempotente.
+    const start = async () => {
+      if (started || stopped) return;
+      const { data } = await supabase.auth.getSession();
+      if (!data.session || stopped) return;
+      started = true;
       // Este dispositivo assume a sessão ativa.
       try {
         await claimSession({ data: { sessionId } });
@@ -98,12 +144,23 @@ export function useSessionGuard() {
     };
     document.addEventListener("visibilitychange", onVisible);
 
-    init();
+    // Reage ao login feito na mesma visita (sem reload da página).
+    const { data: authSub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN" || event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED") {
+        start();
+      } else if (event === "SIGNED_OUT") {
+        started = false;
+        clearTimers();
+      }
+    });
+
+    // Caso já exista sessão no carregamento.
+    start();
 
     return () => {
       stopped = true;
-      if (heartbeat) clearInterval(heartbeat);
-      if (idleCheck) clearInterval(idleCheck);
+      clearTimers();
+      authSub.subscription.unsubscribe();
       events.forEach((e) => document.removeEventListener(e, markActivity));
       document.removeEventListener("visibilitychange", onVisible);
     };
