@@ -21,6 +21,7 @@ import { useAccess } from "@/hooks/useAccess";
 import { ligaLiberada } from "@/lib/planos";
 import { usePlanos } from "@/hooks/usePlanos";
 import { AccentPicker } from "@/components/AccentPicker";
+import { SuporteChat } from "@/components/SuporteChat";
 import { FloatingBrowser } from "@/components/FloatingBrowser";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
