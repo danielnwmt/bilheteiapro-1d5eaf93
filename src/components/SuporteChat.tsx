@@ -97,9 +97,14 @@ export function SuporteChat({
 
   async function escolherOpcao(op: FluxoOpcao) {
     if (!userId) return;
+    // Eco da escolha do cliente (local, para o fluxo do chatbot).
+    setFluxoLocal((prev) => [
+      ...prev,
+      { id: `cli-${Date.now()}`, autor: "cliente", conteudo: op.label },
+    ]);
     // Registra a escolha do cliente (persiste para o atendente ver).
     await supabase.from("suporte_mensagens").insert({ user_id: userId, autor: "cliente", conteudo: op.label });
-    // Resposta automática exibida localmente.
+    // Resposta automática do chatbot exibida localmente.
     if (op.resposta.trim()) {
       setFluxoLocal((prev) => [
         ...prev,
@@ -108,7 +113,8 @@ export function SuporteChat({
     }
   }
 
-  const mostraMenu = temFluxo && msgs.length === 0 && fluxoLocal.length === 0;
+  // O menu do chatbot fica sempre disponível enquanto houver fluxo configurado.
+  const mostraMenu = temFluxo && fluxo!.opcoes.length > 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
