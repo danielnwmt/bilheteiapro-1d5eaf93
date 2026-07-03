@@ -220,11 +220,16 @@ function AtendimentoPage() {
     setEnviando(false);
   }
 
+  function broadcastStatus(status: StatusConversa) {
+    canalRef.current?.send({ type: "broadcast", event: "status", payload: { status } });
+  }
+
   async function onAssumir() {
     if (!sel) return;
     try {
       const r = await assumir({ data: { conversaId: sel.id } });
       setSel({ ...sel, atendenteId: meuId, atendenteNome: r.atendenteNome, status: "em_atendimento" });
+      broadcastStatus("em_atendimento");
       toast.success("Atendimento assumido");
       recarregarLista();
     } catch (e: any) {
@@ -236,6 +241,7 @@ function AtendimentoPage() {
     if (!sel) return;
     await mudarStatus({ data: { conversaId: sel.id, status } });
     setSel({ ...sel, status });
+    broadcastStatus(status);
     recarregarLista();
   }
 
@@ -243,6 +249,7 @@ function AtendimentoPage() {
     if (!sel) return;
     await finalizar({ data: { conversaId: sel.id } });
     setSel({ ...sel, status: "finalizado" });
+    broadcastStatus("finalizado");
     toast.success("Atendimento finalizado");
     recarregarLista();
   }
