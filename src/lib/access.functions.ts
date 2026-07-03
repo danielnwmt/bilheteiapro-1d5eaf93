@@ -1496,6 +1496,10 @@ export const getSuporte = createServerFn({ method: "GET" })
                 .map((o: any) => ({ label: String(o?.label ?? ""), resposta: String(o?.resposta ?? "") }))
                 .filter((o: any) => o.label.trim())
             : [],
+          mensagens: Array.isArray(parsed?.mensagens)
+            ? parsed.mensagens.map((m: any) => String(m ?? "")).filter((m: string) => m.trim())
+            : [],
+
         };
       }
     } catch {
