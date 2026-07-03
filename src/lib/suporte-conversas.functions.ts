@@ -106,7 +106,15 @@ export const listConversasStaff = createServerFn({ method: "GET" })
     }
 
     const { data: convs } = await q;
-    const rows = (convs ?? []) as any[];
+    const todas = (convs ?? []) as any[];
+    // Um contato não pode duplicar: mantém só a conversa mais recente por usuário
+    // (rows já vêm ordenadas por atualizado_em desc).
+    const vistos = new Set<string>();
+    const rows = todas.filter((c) => {
+      if (vistos.has(c.user_id)) return false;
+      vistos.add(c.user_id);
+      return true;
+    });
     if (rows.length === 0) return [] as ConversaStaff[];
 
     const ids = rows.map((c) => c.id);
