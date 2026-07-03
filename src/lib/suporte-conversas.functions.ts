@@ -218,10 +218,16 @@ export const assumirConversa = createServerFn({ method: "POST" })
       .maybeSingle();
     const nome = (prof as any)?.nome || (prof as any)?.email || "Atendente";
 
-    await supabaseAdmin
+    const { error: updErr } = await supabaseAdmin
       .from("suporte_conversas")
-      .update({ atendente_id: ctx.userId, atendente_nome: nome, status: "em_atendimento" })
+      .update({
+        atendente_id: ctx.userId,
+        atendente_nome: nome,
+        status: "em_atendimento",
+        atualizado_em: new Date().toISOString(),
+      })
       .eq("id", data.conversaId);
+    if (updErr) throw new Error(updErr.message);
 
     await supabaseAdmin.from("chatbot_logs").insert({
       user_id: ctx.userId,
@@ -242,7 +248,9 @@ export const setStatusConversa = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const patch: any = { status: data.status };
     if (data.status === "finalizado") patch.finalizado_em = new Date().toISOString();
-    await supabaseAdmin.from("suporte_conversas").update(patch).eq("id", data.conversaId);
+    patch.atualizado_em = new Date().toISOString();
+    const { error: updErr } = await supabaseAdmin.from("suporte_conversas").update(patch).eq("id", data.conversaId);
+    if (updErr) throw new Error(updErr.message);
     await supabaseAdmin.from("chatbot_logs").insert({
       user_id: ctx.userId,
       conversa_id: data.conversaId,
@@ -302,11 +310,17 @@ export const enviarMensagemStaff = createServerFn({ method: "POST" })
     });
     if (error) throw new Error(error.message);
 
-    await supabaseAdmin
+    const { error: updErr } = await supabaseAdmin
       .from("suporte_conversas")
-      .update({ status: "em_atendimento", atualizado_em: new Date().toISOString() })
+      .update({
+        atendente_id: ctx.userId,
+        atendente_nome: nome,
+        status: "em_atendimento",
+        atualizado_em: new Date().toISOString(),
+      })
       .eq("id", data.conversaId);
-    return { ok: true };
+    if (updErr) throw new Error(updErr.message);
+    return { ok: true, atendenteNome: nome };
   });
 
 // ============ Finalizar ============

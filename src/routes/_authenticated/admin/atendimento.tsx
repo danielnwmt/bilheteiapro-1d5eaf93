@@ -212,8 +212,16 @@ function AtendimentoPage() {
     if (!conteudo || !sel || enviando) return;
     setEnviando(true);
     try {
-      await enviarMsg({ data: { conversaId: sel.id, userId: sel.userId, conteudo } });
+      const r = await enviarMsg({ data: { conversaId: sel.id, userId: sel.userId, conteudo } });
+      setSel({
+        ...sel,
+        atendenteId: sel.atendenteId ?? meuId,
+        atendenteNome: sel.atendenteNome ?? r.atendenteNome,
+        status: "em_atendimento",
+      });
+      broadcastStatus("em_atendimento");
       setTexto("");
+      recarregarLista();
     } catch (e: any) {
       toast.error(e?.message ?? "Erro ao enviar");
     }
