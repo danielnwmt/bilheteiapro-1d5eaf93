@@ -24,7 +24,8 @@ async function assertBancaLiberada(supabase: any, userId: string) {
     .maybeSingle();
 
   const ativo =
-    sub?.status === "ativo" && (!sub?.periodo_fim || new Date(sub.periodo_fim) > new Date());
+    (sub?.status === "ativo" || sub?.status === "cortesia") &&
+    (!sub?.periodo_fim || new Date(sub.periodo_fim) > new Date());
   if (!ativo || !sub?.plano) throw new Error("Recurso disponível apenas em planos ativos.");
 
   const { data: cfg } = await supabase
