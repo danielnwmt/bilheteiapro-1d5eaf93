@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getSystemConfig, setSystemConfig, testApiKey, getApiUsage, chamarApiManual } from "@/lib/access.functions";
+import { limparAnalises } from "@/lib/limpar-analise.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
