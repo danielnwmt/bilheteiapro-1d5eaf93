@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { gerarBilhete, listarBilhetes, deletarBilhete, chanceRealDeAcerto, nivelDeRisco, rotuloRisco } from "@/lib/ticket.functions";
 import { getMelhoresEntradas, type MelhorEntrada } from "@/lib/entradas.functions";
-import { iniciarOperacao } from "@/lib/access.functions";
+import { iniciarOperacao, getSuporte } from "@/lib/access.functions";
 import { reanalisarJogo } from "@/lib/reanalise.functions";
 import { getEstatisticasAoVivoPartida, type EstatAoVivo } from "@/lib/aovivo.functions";
 import { supabase } from "@/integrations/supabase/client";
