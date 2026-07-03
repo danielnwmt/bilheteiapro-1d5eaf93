@@ -524,19 +524,8 @@ export function SuporteChat({
                 </div>
               )}
 
-              {/* Voltar ao menu */}
-              {(modoReclamacao || (falandoAtendente && temFluxo)) && status !== "finalizado" && (
-                <div className="pt-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-xs text-primary"
-                    onClick={voltarAoMenu}
-                  >
-                    <ArrowLeft className="mr-1 h-3.5 w-3.5" /> Voltar ao menu
-                  </Button>
-                </div>
-              )}
+
+
 
               {/* Avaliação ao finalizar */}
               {avaliando && !avaliada && (
