@@ -22,6 +22,7 @@ import { Route as ApiPublicIngestRouteImport } from './routes/api/public/ingest'
 import { Route as AuthenticatedAdminUsuariosRouteImport } from './routes/_authenticated/admin/usuarios'
 import { Route as AuthenticatedAdminSuporteRouteImport } from './routes/_authenticated/admin/suporte'
 import { Route as AuthenticatedAdminSslRouteImport } from './routes/_authenticated/admin/ssl'
+import { Route as AuthenticatedAdminReclamacoesRouteImport } from './routes/_authenticated/admin/reclamacoes'
 import { Route as AuthenticatedAdminConfiguracoesRouteImport } from './routes/_authenticated/admin/configuracoes'
 import { Route as AuthenticatedAdminBackupRouteImport } from './routes/_authenticated/admin/backup'
 import { Route as AuthenticatedAdminApisRouteImport } from './routes/_authenticated/admin/apis'
@@ -99,6 +100,12 @@ const AuthenticatedAdminSslRoute = AuthenticatedAdminSslRouteImport.update({
   path: '/ssl',
   getParentRoute: () => AuthenticatedAdminRouteRoute,
 } as any)
+const AuthenticatedAdminReclamacoesRoute =
+  AuthenticatedAdminReclamacoesRouteImport.update({
+    id: '/reclamacoes',
+    path: '/reclamacoes',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const AuthenticatedAdminConfiguracoesRoute =
   AuthenticatedAdminConfiguracoesRouteImport.update({
     id: '/configuracoes',
@@ -169,6 +176,7 @@ export interface FileRoutesByFullPath {
   '/admin/apis': typeof AuthenticatedAdminApisRoute
   '/admin/backup': typeof AuthenticatedAdminBackupRoute
   '/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
+  '/admin/reclamacoes': typeof AuthenticatedAdminReclamacoesRoute
   '/admin/ssl': typeof AuthenticatedAdminSslRoute
   '/admin/suporte': typeof AuthenticatedAdminSuporteRoute
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
@@ -192,6 +200,7 @@ export interface FileRoutesByTo {
   '/admin/apis': typeof AuthenticatedAdminApisRoute
   '/admin/backup': typeof AuthenticatedAdminBackupRoute
   '/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
+  '/admin/reclamacoes': typeof AuthenticatedAdminReclamacoesRoute
   '/admin/ssl': typeof AuthenticatedAdminSslRoute
   '/admin/suporte': typeof AuthenticatedAdminSuporteRoute
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
@@ -218,6 +227,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/apis': typeof AuthenticatedAdminApisRoute
   '/_authenticated/admin/backup': typeof AuthenticatedAdminBackupRoute
   '/_authenticated/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
+  '/_authenticated/admin/reclamacoes': typeof AuthenticatedAdminReclamacoesRoute
   '/_authenticated/admin/ssl': typeof AuthenticatedAdminSslRoute
   '/_authenticated/admin/suporte': typeof AuthenticatedAdminSuporteRoute
   '/_authenticated/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
@@ -244,6 +254,7 @@ export interface FileRouteTypes {
     | '/admin/apis'
     | '/admin/backup'
     | '/admin/configuracoes'
+    | '/admin/reclamacoes'
     | '/admin/ssl'
     | '/admin/suporte'
     | '/admin/usuarios'
@@ -267,6 +278,7 @@ export interface FileRouteTypes {
     | '/admin/apis'
     | '/admin/backup'
     | '/admin/configuracoes'
+    | '/admin/reclamacoes'
     | '/admin/ssl'
     | '/admin/suporte'
     | '/admin/usuarios'
@@ -292,6 +304,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/apis'
     | '/_authenticated/admin/backup'
     | '/_authenticated/admin/configuracoes'
+    | '/_authenticated/admin/reclamacoes'
     | '/_authenticated/admin/ssl'
     | '/_authenticated/admin/suporte'
     | '/_authenticated/admin/usuarios'
@@ -413,6 +426,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminSslRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/admin/reclamacoes': {
+      id: '/_authenticated/admin/reclamacoes'
+      path: '/reclamacoes'
+      fullPath: '/admin/reclamacoes'
+      preLoaderRoute: typeof AuthenticatedAdminReclamacoesRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/admin/configuracoes': {
       id: '/_authenticated/admin/configuracoes'
       path: '/configuracoes'
@@ -490,6 +510,7 @@ interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminApisRoute: typeof AuthenticatedAdminApisRoute
   AuthenticatedAdminBackupRoute: typeof AuthenticatedAdminBackupRoute
   AuthenticatedAdminConfiguracoesRoute: typeof AuthenticatedAdminConfiguracoesRoute
+  AuthenticatedAdminReclamacoesRoute: typeof AuthenticatedAdminReclamacoesRoute
   AuthenticatedAdminSslRoute: typeof AuthenticatedAdminSslRoute
   AuthenticatedAdminSuporteRoute: typeof AuthenticatedAdminSuporteRoute
   AuthenticatedAdminUsuariosRoute: typeof AuthenticatedAdminUsuariosRoute
@@ -501,6 +522,7 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
     AuthenticatedAdminApisRoute: AuthenticatedAdminApisRoute,
     AuthenticatedAdminBackupRoute: AuthenticatedAdminBackupRoute,
     AuthenticatedAdminConfiguracoesRoute: AuthenticatedAdminConfiguracoesRoute,
+    AuthenticatedAdminReclamacoesRoute: AuthenticatedAdminReclamacoesRoute,
     AuthenticatedAdminSslRoute: AuthenticatedAdminSslRoute,
     AuthenticatedAdminSuporteRoute: AuthenticatedAdminSuporteRoute,
     AuthenticatedAdminUsuariosRoute: AuthenticatedAdminUsuariosRoute,
