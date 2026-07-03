@@ -290,7 +290,11 @@ function mapBetValue(betName: string, rawValue: unknown, jogoCasa: string, jogoF
   }
   // Handicap Asiático
   if (bn.includes("asian handicap") || bn === "handicap") {
-    return { mercado: "Handicap Asiático", selecao: value };
+    // Traduz "Home"/"Away" para o nome real do time (evita rótulo em inglês).
+    const selecao = value
+      .replace(/\bhome\b/gi, jogoCasa)
+      .replace(/\baway\b/gi, jogoFora);
+    return { mercado: "Handicap Asiático", selecao };
   }
   // Placar Exato (Exact/Correct Score)
   if (bn === "exact score" || bn === "correct score") {
