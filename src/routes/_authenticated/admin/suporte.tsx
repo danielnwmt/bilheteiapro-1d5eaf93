@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Loader2, Save, ShieldAlert, LifeBuoy, Send, MessageSquare, Search } from "lucide-react";
+import { ArrowLeft, Loader2, Save, ShieldAlert, LifeBuoy, Send, MessageSquare, Search, MessageCircle } from "lucide-react";
 import { useAccess } from "@/hooks/useAccess";
 import { supabase } from "@/integrations/supabase/client";
 import { getSuporte, setSystemConfig } from "@/lib/access.functions";
@@ -168,9 +168,14 @@ function SuportePage() {
         </div>
 
         <div className="mb-6 flex items-center gap-2">
-          <LifeBuoy className="h-6 w-6 text-primary" />
-          <h1 className="text-2xl font-bold">Suporte</h1>
+          {modoConfig ? (
+            <LifeBuoy className="h-6 w-6 text-primary" />
+          ) : (
+            <MessageCircle className="h-6 w-6 text-primary" />
+          )}
+          <h1 className="text-2xl font-bold">{modoConfig ? "Suporte" : "Chat"}</h1>
         </div>
+
 
         {!isAdmin ? (
           <Card className="flex items-center gap-3 border-border/60 bg-card p-6 text-sm text-muted-foreground">
