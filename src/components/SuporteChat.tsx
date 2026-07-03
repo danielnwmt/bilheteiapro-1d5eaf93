@@ -424,7 +424,7 @@ export function SuporteChat({
               <LifeBuoy className="h-5 w-5 text-primary" /> Suporte
             </span>
             {falandoAtendente && (
-              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-normal text-primary">
+              <span className="mr-7 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-normal text-primary">
                 {STATUS_LABEL[status] ?? status}
               </span>
             )}
