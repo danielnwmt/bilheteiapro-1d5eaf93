@@ -860,6 +860,15 @@ function Index() {
           </div>
         </header>
 
+        <SuporteChat
+          open={chatAberto}
+          onOpenChange={setChatAberto}
+          whatsapp={modoSuporte === "ambos" ? suporte?.whatsapp : undefined}
+          mensagemPadrao={suporte?.mensagem}
+        />
+
+
+
         {!temAcesso && (
           <Card className="mb-8 border-primary/40 bg-primary/5 p-6 text-center">
             <Lock className="mx-auto mb-3 h-8 w-8 text-primary" />
