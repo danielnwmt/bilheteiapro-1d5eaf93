@@ -28,40 +28,6 @@ export function useSessionGuard() {
   const router = useRouter();
   const lastActivity = useRef(Date.now());
 
-  useEffect(() => {
-    let stopped = false;
-    let heartbeat: ReturnType<typeof setInterval> | null = null;
-    let idleCheck: ReturnType<typeof setInterval> | null = null;
-    const sessionId = getSessionId();
-
-    const forceLogout = async (mensagem: string) => {
-      if (stopped) return;
-      stopped = true;
-      toast.error(mensagem);
-      try {
-        await supabase.auth.signOut();
-      } catch {
-        /* silencioso */
-      }
-      router.navigate({ to: "/auth", replace: true });
-    };
-
-    const markActivity = () => {
-      lastActivity.current = Date.now();
-    };
-
-    const ping = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!data.session || stopped) return;
-      try {
-        const res = await registrarPresenca();
-        if (res?.activeSession && res.activeSession !== sessionId) {
-          await forceLogout("Sua conta foi conectada em outro dispositivo.");
-        }
-      } catch {
-        /* silencioso */
-      }
-    };
 
   useEffect(() => {
     let stopped = false;
