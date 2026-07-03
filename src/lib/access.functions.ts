@@ -1474,7 +1474,7 @@ export const getSuporte = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async () => {
     const base = tryRestBase();
-    const vazio = { whatsapp: "", email: "", mensagem: "", modo: "whatsapp", fluxo: { saudacao: "", opcoes: [] as { label: string; resposta: string }[], mensagens: [] as string[] } };
+    const vazio = { whatsapp: "", email: "", mensagem: "", modo: "whatsapp", fluxo: { saudacao: "", opcoes: [] as { label: string; resposta: string; ouvidoria?: boolean }[], mensagens: [] as string[] } };
     if (!base) return vazio;
     const rows = await restSelect<{ chave: string; valor: string }>(
       base,
