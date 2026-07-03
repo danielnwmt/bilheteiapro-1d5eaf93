@@ -194,6 +194,13 @@ function SuportePage() {
       await salvarConfig({ data: { chave: "SUPORTE_WHATSAPP", valor: suporte.whatsapp.trim(), descricao: "WhatsApp de suporte" } });
       await salvarConfig({ data: { chave: "SUPORTE_EMAIL", valor: suporte.email.trim(), descricao: "E-mail de suporte" } });
       await salvarConfig({ data: { chave: "SUPORTE_MENSAGEM", valor: suporte.mensagem.trim(), descricao: "Mensagem padrão de suporte" } });
+      const fluxoLimpo = {
+        saudacao: fluxo.saudacao.trim(),
+        opcoes: fluxo.opcoes
+          .map((o) => ({ label: o.label.trim(), resposta: o.resposta.trim() }))
+          .filter((o) => o.label),
+      };
+      await salvarConfig({ data: { chave: "SUPORTE_FLUXO", valor: JSON.stringify(fluxoLimpo), descricao: "Fluxo automático de atendimento" } });
     },
     onSuccess: () => toast.success("Configuração salva"),
     onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
