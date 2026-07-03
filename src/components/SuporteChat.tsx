@@ -18,7 +18,7 @@ type Mensagem = {
 };
 
 type FluxoOpcao = { label: string; resposta: string };
-type Fluxo = { saudacao: string; opcoes: FluxoOpcao[] };
+type Fluxo = { saudacao: string; opcoes: FluxoOpcao[]; mensagens?: string[] };
 
 // Bolhas locais do fluxo automático (não persistidas no banco).
 type Bolha = { id: string; autor: "cliente" | "suporte"; conteudo: string };
