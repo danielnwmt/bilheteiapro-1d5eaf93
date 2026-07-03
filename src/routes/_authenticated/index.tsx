@@ -300,7 +300,7 @@ function Index() {
   const reanalisar = useServerFn(reanalisarJogo);
   const fetchAoVivo = useServerFn(getEstatisticasAoVivoPartida);
   const fetchSuporte = useServerFn(getSuporte);
-  const [suporte, setSuporte] = useState<{ whatsapp: string; email: string; mensagem: string; modo: string } | null>(null);
+  const [suporte, setSuporte] = useState<{ whatsapp: string; email: string; mensagem: string; modo: string; fluxo?: { saudacao: string; opcoes: { label: string; resposta: string }[] } } | null>(null);
   const [chatAberto, setChatAberto] = useState(false);
 
   useEffect(() => {
@@ -865,6 +865,7 @@ function Index() {
           onOpenChange={setChatAberto}
           whatsapp={modoSuporte === "ambos" ? suporte?.whatsapp : undefined}
           mensagemPadrao={suporte?.mensagem}
+          fluxo={suporte?.fluxo}
         />
 
 

@@ -17,23 +17,34 @@ type Mensagem = {
   created_at: string;
 };
 
+type FluxoOpcao = { label: string; resposta: string };
+type Fluxo = { saudacao: string; opcoes: FluxoOpcao[] };
+
+// Bolhas locais do fluxo automático (não persistidas no banco).
+type Bolha = { id: string; autor: "cliente" | "suporte"; conteudo: string };
+
 export function SuporteChat({
   open,
   onOpenChange,
   whatsapp,
   mensagemPadrao,
+  fluxo,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   whatsapp?: string;
   mensagemPadrao?: string;
+  fluxo?: Fluxo;
 }) {
   const [userId, setUserId] = useState<string | null>(null);
   const [msgs, setMsgs] = useState<Mensagem[]>([]);
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [carregando, setCarregando] = useState(true);
+  const [fluxoLocal, setFluxoLocal] = useState<Bolha[]>([]);
   const fimRef = useRef<HTMLDivElement | null>(null);
+
+  const temFluxo = Boolean(fluxo && (fluxo.saudacao.trim() || fluxo.opcoes.length));
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setUserId(data.session?.user?.id ?? null));
@@ -71,7 +82,7 @@ export function SuporteChat({
 
   useEffect(() => {
     fimRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [msgs, open]);
+  }, [msgs, fluxoLocal, open]);
 
   async function enviar() {
     const conteudo = texto.trim();
@@ -83,6 +94,21 @@ export function SuporteChat({
     setEnviando(false);
     if (!error) setTexto("");
   }
+
+  async function escolherOpcao(op: FluxoOpcao) {
+    if (!userId) return;
+    // Registra a escolha do cliente (persiste para o atendente ver).
+    await supabase.from("suporte_mensagens").insert({ user_id: userId, autor: "cliente", conteudo: op.label });
+    // Resposta automática exibida localmente.
+    if (op.resposta.trim()) {
+      setFluxoLocal((prev) => [
+        ...prev,
+        { id: `bot-${Date.now()}`, autor: "suporte", conteudo: op.resposta },
+      ]);
+    }
+  }
+
+  const mostraMenu = temFluxo && msgs.length === 0 && fluxoLocal.length === 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -98,27 +124,62 @@ export function SuporteChat({
             <div className="flex justify-center py-8">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
-          ) : msgs.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              {mensagemPadrao || "Envie sua mensagem, responderemos em breve."}
-            </p>
           ) : (
-            msgs.map((m) => (
-              <div
-                key={m.id}
-                className={`flex ${m.autor === "cliente" ? "justify-end" : "justify-start"}`}
-              >
-                <div
-                  className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
-                    m.autor === "cliente"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-foreground"
-                  }`}
-                >
-                  {m.conteudo}
+            <>
+              {(temFluxo || msgs.length > 0 || fluxoLocal.length > 0) && fluxo?.saudacao.trim() && (
+                <div className="flex justify-start">
+                  <div className="max-w-[80%] rounded-lg bg-muted px-3 py-2 text-sm text-foreground">
+                    {fluxo.saudacao}
+                  </div>
                 </div>
-              </div>
-            ))
+              )}
+
+              {!temFluxo && msgs.length === 0 && fluxoLocal.length === 0 && (
+                <p className="py-8 text-center text-sm text-muted-foreground">
+                  {mensagemPadrao || "Envie sua mensagem, responderemos em breve."}
+                </p>
+              )}
+
+              {msgs.map((m) => (
+                <div key={m.id} className={`flex ${m.autor === "cliente" ? "justify-end" : "justify-start"}`}>
+                  <div
+                    className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
+                      m.autor === "cliente" ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
+                    }`}
+                  >
+                    {m.conteudo}
+                  </div>
+                </div>
+              ))}
+
+              {fluxoLocal.map((m) => (
+                <div key={m.id} className={`flex ${m.autor === "cliente" ? "justify-end" : "justify-start"}`}>
+                  <div
+                    className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
+                      m.autor === "cliente" ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
+                    }`}
+                  >
+                    {m.conteudo}
+                  </div>
+                </div>
+              ))}
+
+              {mostraMenu && fluxo && fluxo.opcoes.length > 0 && (
+                <div className="flex flex-col items-start gap-2 pt-1">
+                  {fluxo.opcoes.map((op, i) => (
+                    <Button
+                      key={i}
+                      variant="outline"
+                      size="sm"
+                      className="rounded-full"
+                      onClick={() => escolherOpcao(op)}
+                    >
+                      {op.label}
+                    </Button>
+                  ))}
+                </div>
+              )}
+            </>
           )}
           <div ref={fimRef} />
         </div>

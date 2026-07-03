@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Loader2, Save, ShieldAlert, LifeBuoy, Send, MessageSquare, Search, MessageCircle, CheckCircle2, Clock, Timer } from "lucide-react";
+import { ArrowLeft, Loader2, Save, ShieldAlert, LifeBuoy, Send, MessageSquare, Search, MessageCircle, CheckCircle2, Clock, Timer, GitBranch, Trash2, Plus } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { useAccess } from "@/hooks/useAccess";
@@ -65,6 +65,10 @@ function SuportePage() {
   const [busca, setBusca] = useState("");
   const [aba, setAba] = useState<"abertos" | "encerrados">("abertos");
   const [metricas, setMetricas] = useState<SuporteMetricas | null>(null);
+  const [fluxo, setFluxo] = useState<{ saudacao: string; opcoes: { label: string; resposta: string }[] }>({
+    saudacao: "",
+    opcoes: [],
+  });
   const fimRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -75,14 +79,18 @@ function SuportePage() {
 
   useEffect(() => {
     carregarSuporte()
-      .then((s) =>
+      .then((s) => {
         setSuporte({
           whatsapp: s.whatsapp ?? "",
           email: s.email ?? "",
           mensagem: s.mensagem ?? "",
           modo: s.modo ?? "whatsapp",
-        }),
-      )
+        });
+        setFluxo({
+          saudacao: s.fluxo?.saudacao ?? "",
+          opcoes: s.fluxo?.opcoes ?? [],
+        });
+      })
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -186,6 +194,13 @@ function SuportePage() {
       await salvarConfig({ data: { chave: "SUPORTE_WHATSAPP", valor: suporte.whatsapp.trim(), descricao: "WhatsApp de suporte" } });
       await salvarConfig({ data: { chave: "SUPORTE_EMAIL", valor: suporte.email.trim(), descricao: "E-mail de suporte" } });
       await salvarConfig({ data: { chave: "SUPORTE_MENSAGEM", valor: suporte.mensagem.trim(), descricao: "Mensagem padrão de suporte" } });
+      const fluxoLimpo = {
+        saudacao: fluxo.saudacao.trim(),
+        opcoes: fluxo.opcoes
+          .map((o) => ({ label: o.label.trim(), resposta: o.resposta.trim() }))
+          .filter((o) => o.label),
+      };
+      await salvarConfig({ data: { chave: "SUPORTE_FLUXO", valor: JSON.stringify(fluxoLimpo), descricao: "Fluxo automático de atendimento" } });
     },
     onSuccess: () => toast.success("Configuração salva"),
     onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
@@ -287,6 +302,73 @@ function SuportePage() {
                     placeholder="Olá! Como podemos ajudar?"
                   />
                 </div>
+              </div>
+
+              <div className="mt-6 border-t border-border/60 pt-5">
+                <div className="mb-1 flex items-center gap-2">
+                  <GitBranch className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-semibold">Fluxo automático (menu do cliente)</h3>
+                </div>
+                <p className="mb-4 text-xs text-muted-foreground">
+                  Exibido para o cliente ao abrir o chat. Cada opção mostra uma resposta automática.
+                </p>
+
+                <div className="mb-4">
+                  <Label className="mb-1 block text-sm">Mensagem de boas-vindas</Label>
+                  <Input
+                    value={fluxo.saudacao}
+                    onChange={(e) => setFluxo((f) => ({ ...f, saudacao: e.target.value }))}
+                    placeholder="Olá! Selecione uma opção de atendimento:"
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  {fluxo.opcoes.map((op, i) => (
+                    <div key={i} className="rounded-lg border border-border/60 bg-muted/20 p-3">
+                      <div className="mb-2 flex items-center gap-2">
+                        <Input
+                          value={op.label}
+                          onChange={(e) =>
+                            setFluxo((f) => ({
+                              ...f,
+                              opcoes: f.opcoes.map((o, j) => (j === i ? { ...o, label: e.target.value } : o)),
+                            }))
+                          }
+                          placeholder={`Opção ${i + 1} (ex: Financeiro)`}
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="shrink-0 text-muted-foreground hover:text-destructive"
+                          onClick={() =>
+                            setFluxo((f) => ({ ...f, opcoes: f.opcoes.filter((_, j) => j !== i) }))
+                          }
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <Input
+                        value={op.resposta}
+                        onChange={(e) =>
+                          setFluxo((f) => ({
+                            ...f,
+                            opcoes: f.opcoes.map((o, j) => (j === i ? { ...o, resposta: e.target.value } : o)),
+                          }))
+                        }
+                        placeholder="Resposta automática (ex: Um atendente vai te chamar em instantes)"
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-3"
+                  onClick={() => setFluxo((f) => ({ ...f, opcoes: [...f.opcoes, { label: "", resposta: "" }] }))}
+                >
+                  <Plus className="mr-2 h-4 w-4" /> Adicionar opção
+                </Button>
               </div>
             </Card>
             )}
