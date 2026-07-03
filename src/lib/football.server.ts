@@ -249,7 +249,7 @@ function mapBetValue(betName: string, rawValue: unknown, jogoCasa: string, jogoF
   if (bn === "goals over/under" || bn === "over/under") {
     const num = value.replace(/[^0-9.]/g, "");
     const lado = v.startsWith("over") ? "Mais de" : v.startsWith("under") ? "Menos de" : value;
-    return { mercado: "Total de Gols", selecao: num ? `${lado} ${num}` : lado };
+    return { mercado: "Total de Gols", selecao: num ? `${lado} ${num} gols` : lado };
   }
   // Both Teams to Score
   if (bn === "both teams to score" || bn === "btts") {
@@ -290,7 +290,11 @@ function mapBetValue(betName: string, rawValue: unknown, jogoCasa: string, jogoF
   }
   // Handicap Asiático
   if (bn.includes("asian handicap") || bn === "handicap") {
-    return { mercado: "Handicap Asiático", selecao: value };
+    // Traduz "Home"/"Away" para o nome real do time (evita rótulo em inglês).
+    const selecao = value
+      .replace(/\bhome\b/gi, jogoCasa)
+      .replace(/\baway\b/gi, jogoFora);
+    return { mercado: "Handicap Asiático", selecao };
   }
   // Placar Exato (Exact/Correct Score)
   if (bn === "exact score" || bn === "correct score") {
@@ -943,7 +947,7 @@ function mapOddsApiOutcome(
   }
   if (k === "totals") {
     const lado = name.startsWith("over") ? "Mais de" : name.startsWith("under") ? "Menos de" : o.name;
-    const pt = o.point != null ? ` ${o.point}` : "";
+    const pt = o.point != null ? ` ${o.point} gols` : "";
     return { mercado: "Total de Gols", selecao: `${lado}${pt}` };
   }
   if (k === "btts") {
