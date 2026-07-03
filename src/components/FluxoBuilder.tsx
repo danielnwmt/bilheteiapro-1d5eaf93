@@ -261,31 +261,47 @@ export function FluxoBuilder({
         >
           <div className="space-y-2">
             {fluxo.opcoes.map((op, i) => (
-              <div key={i} className="relative flex items-center gap-1">
-                <Input
-                  value={op.label}
-                  onChange={(e) =>
-                    setFluxo((f) => ({
-                      ...f,
-                      opcoes: f.opcoes.map((o, j) => (j === i ? { ...o, label: e.target.value } : o)),
-                    }))
-                  }
-                  placeholder={`Opção ${i + 1}`}
-                  className="h-8 text-xs"
-                />
-                <button
-                  type="button"
-                  onClick={() => setFluxo((f) => ({ ...f, opcoes: f.opcoes.filter((_, j) => j !== i) }))}
-                  className="shrink-0 text-muted-foreground hover:text-destructive"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-                <span
-                  ref={(el) => {
-                    optOutRefs.current[i] = el;
-                  }}
-                  className="absolute -right-[26px] top-1/2 h-3 w-3 -translate-y-1/2 rounded-full border-2 border-background bg-primary"
-                />
+              <div key={i} className="relative space-y-1">
+                <div className="flex items-center gap-1">
+                  <Input
+                    value={op.label}
+                    onChange={(e) =>
+                      setFluxo((f) => ({
+                        ...f,
+                        opcoes: f.opcoes.map((o, j) => (j === i ? { ...o, label: e.target.value } : o)),
+                      }))
+                    }
+                    placeholder={`Opção ${i + 1}`}
+                    className="h-8 text-xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setFluxo((f) => ({ ...f, opcoes: f.opcoes.filter((_, j) => j !== i) }))}
+                    className="shrink-0 text-muted-foreground hover:text-destructive"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                  <span
+                    ref={(el) => {
+                      optOutRefs.current[i] = el;
+                    }}
+                    className="absolute -right-[26px] top-4 h-3 w-3 rounded-full border-2 border-background bg-primary"
+                  />
+                </div>
+                <label className="flex cursor-pointer items-center gap-1.5 pl-0.5 text-[11px] text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(op.ouvidoria)}
+                    onChange={(e) =>
+                      setFluxo((f) => ({
+                        ...f,
+                        opcoes: f.opcoes.map((o, j) => (j === i ? { ...o, ouvidoria: e.target.checked } : o)),
+                      }))
+                    }
+                    className="h-3 w-3 accent-[var(--primary)]"
+                  />
+                  Ouvidoria (salva reclamação, não vai p/ atendente)
+                </label>
               </div>
             ))}
             <Button
