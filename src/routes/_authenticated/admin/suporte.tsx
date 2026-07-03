@@ -133,7 +133,8 @@ function SuportePage() {
       return;
     }
     toast.success("Chamado reaberto");
-    setSelecionado((s) => (s ? { ...s, encerrada: false } : s));
+    setSelecionado(null);
+    setAba("abertos");
     recarregarConversas();
   }
 
