@@ -231,59 +231,97 @@ function SuportePage() {
             </Card>
 
             {mostraChat && (
-              <Card className="border-border/60 bg-card p-6">
-                <div className="mb-4 flex items-center gap-2">
-                  <MessageSquare className="h-5 w-5 text-primary" />
-                  <h2 className="text-lg font-bold">Conversas</h2>
-                </div>
-                <div className="grid gap-4 md:grid-cols-[240px_1fr]">
-                  <div className="space-y-1 md:max-h-[420px] md:overflow-y-auto">
-                    {conversas.length === 0 ? (
-                      <p className="py-4 text-sm text-muted-foreground">Nenhuma conversa ainda.</p>
-                    ) : (
-                      conversas.map((c) => (
-                        <button
-                          key={c.userId}
-                          onClick={() => setSelecionado(c)}
-                          className={`flex w-full flex-col rounded-md border border-border/60 px-3 py-2 text-left text-sm transition-colors hover:bg-muted ${
-                            selecionado?.userId === c.userId ? "bg-muted" : ""
-                          }`}
-                        >
-                          <span className="flex items-center justify-between gap-2 font-medium">
-                            <span className="truncate">{c.nome || c.email || "Cliente"}</span>
-                            {c.naoLidas > 0 && (
-                              <span className="rounded-full bg-primary px-1.5 text-xs text-primary-foreground">
-                                {c.naoLidas}
-                              </span>
-                            )}
-                          </span>
-                          <span className="truncate text-xs text-muted-foreground">{c.ultimaMensagem}</span>
-                        </button>
-                      ))
-                    )}
+              <Card className="overflow-hidden border-border/60 bg-card p-0">
+                <div className="grid md:grid-cols-[280px_1fr]">
+                  {/* Lista de conversas */}
+                  <div className="flex h-[560px] flex-col border-b border-border/60 bg-muted/30 md:border-b-0 md:border-r">
+                    <div className="border-b border-border/60 px-4 py-4">
+                      <h2 className="text-lg font-bold">Chat</h2>
+                      <div className="relative mt-3">
+                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          value={busca}
+                          onChange={(e) => setBusca(e.target.value)}
+                          placeholder="Pesquisar"
+                          className="rounded-full border-transparent bg-background/60 pl-9"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex-1 space-y-1 overflow-y-auto p-2">
+                      {conversas.filter((c) =>
+                        (c.nome || c.email || "")
+                          .toLowerCase()
+                          .includes(busca.trim().toLowerCase()),
+                      ).length === 0 ? (
+                        <p className="py-6 text-center text-sm text-muted-foreground">
+                          Nenhuma conversa.
+                        </p>
+                      ) : (
+                        conversas
+                          .filter((c) =>
+                            (c.nome || c.email || "")
+                              .toLowerCase()
+                              .includes(busca.trim().toLowerCase()),
+                          )
+                          .map((c) => (
+                            <button
+                              key={c.userId}
+                              onClick={() => setSelecionado(c)}
+                              className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-muted ${
+                                selecionado?.userId === c.userId ? "bg-muted" : ""
+                              }`}
+                            >
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">
+                                {(c.nome || c.email || "C").trim().charAt(0).toUpperCase()}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <span className="flex items-center justify-between gap-2">
+                                  <span className="truncate text-sm font-medium">
+                                    {c.nome || c.email || "Cliente"}
+                                  </span>
+                                  {c.naoLidas > 0 && (
+                                    <span className="rounded-full bg-primary px-1.5 text-xs text-primary-foreground">
+                                      {c.naoLidas}
+                                    </span>
+                                  )}
+                                </span>
+                                <span className="block truncate text-xs text-muted-foreground">
+                                  {c.ultimaMensagem}
+                                </span>
+                              </div>
+                            </button>
+                          ))
+                      )}
+                    </div>
                   </div>
 
-                  <div className="flex h-[420px] flex-col rounded-md border border-border/60">
+                  {/* Painel da conversa */}
+                  <div className="flex h-[560px] flex-col">
                     {!selecionado ? (
                       <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
                         Selecione uma conversa.
                       </div>
                     ) : (
                       <>
-                        <div className="border-b border-border/60 px-3 py-2 text-sm font-medium">
-                          {selecionado.nome || selecionado.email || "Cliente"}
+                        <div className="flex items-center gap-3 border-b border-border/60 px-4 py-3">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">
+                            {(selecionado.nome || selecionado.email || "C").trim().charAt(0).toUpperCase()}
+                          </div>
+                          <span className="text-sm font-semibold">
+                            {selecionado.nome || selecionado.email || "Cliente"}
+                          </span>
                         </div>
-                        <div className="flex-1 space-y-2 overflow-y-auto px-3 py-2">
+                        <div className="flex-1 space-y-3 overflow-y-auto bg-muted/20 px-4 py-4">
                           {msgs.map((m) => (
                             <div
                               key={m.id}
                               className={`flex ${m.autor === "suporte" ? "justify-end" : "justify-start"}`}
                             >
                               <div
-                                className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
+                                className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm ${
                                   m.autor === "suporte"
-                                    ? "bg-primary text-primary-foreground"
-                                    : "bg-muted text-foreground"
+                                    ? "rounded-br-md bg-primary text-primary-foreground"
+                                    : "rounded-bl-md bg-card text-foreground shadow-sm"
                                 }`}
                               >
                                 {m.conteudo}
@@ -292,7 +330,7 @@ function SuportePage() {
                           ))}
                           <div ref={fimRef} />
                         </div>
-                        <div className="flex items-center gap-2 border-t border-border/60 p-2">
+                        <div className="flex items-center gap-2 border-t border-border/60 p-3">
                           <Input
                             value={resposta}
                             onChange={(e) => setResposta(e.target.value)}
@@ -302,10 +340,20 @@ function SuportePage() {
                                 responder();
                               }
                             }}
-                            placeholder="Responder..."
+                            placeholder="Escrever uma mensagem..."
+                            className="rounded-full border-transparent bg-muted/50"
                           />
-                          <Button size="icon" onClick={responder} disabled={enviando || !resposta.trim()}>
-                            {enviando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                          <Button
+                            size="icon"
+                            className="h-11 w-11 shrink-0 rounded-full"
+                            onClick={responder}
+                            disabled={enviando || !resposta.trim()}
+                          >
+                            {enviando ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Send className="h-4 w-4" />
+                            )}
                           </Button>
                         </div>
                       </>
