@@ -326,10 +326,13 @@ function AtendimentoPage() {
       if (!alvo.includes(q)) return false;
     }
     if (!dentroDoPeriodo(c.atualizadoEm, fTempo)) return false;
-    if (fStatus === "em_atendimento" && c.status !== "em_atendimento") return false;
-    if (fStatus === "finalizados" && c.status !== "finalizado") return false;
-    if (fStatus === "aguardando" && !(c.status === "aberto" || c.status === "aguardando_atendente"))
-      return false;
+    const cat: FiltroStatus =
+      c.status === "em_atendimento"
+        ? "em_atendimento"
+        : c.status === "finalizado"
+          ? "finalizados"
+          : "aguardando";
+    if (!fStatus.includes(cat)) return false;
     return true;
   });
 
