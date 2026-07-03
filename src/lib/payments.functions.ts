@@ -148,7 +148,7 @@ export const pagarComCartao = createServerFn({ method: "POST" })
     }
     const max = MAX_PARCELAS[ciclo];
     const parcelas = Math.min(Math.max(1, Math.round(Number(data.parcelas) || 1)), max);
-    return { plano: data.plano, ciclo, parcelas, cartao: c };
+    return { plano: data.plano, ciclo, parcelas, cartao: c, cpf: (data.cpf ?? "").replace(/\D/g, "") };
   })
   .handler(async ({ data, context }): Promise<CartaoResult> => {
     try {
