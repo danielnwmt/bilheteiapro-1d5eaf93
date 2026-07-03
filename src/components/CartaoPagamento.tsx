@@ -85,6 +85,7 @@ export function CartaoPagamento({
           plano,
           ciclo,
           parcelas,
+          cpf,
           cartao: {
             holderName: nome.trim(),
             number: numero.replace(/\s/g, ""),
