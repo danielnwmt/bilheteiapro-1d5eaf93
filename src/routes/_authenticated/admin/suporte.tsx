@@ -63,6 +63,7 @@ function SuportePage() {
   const [resposta, setResposta] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [busca, setBusca] = useState("");
+  const [aba, setAba] = useState<"abertos" | "encerrados">("abertos");
   const [metricas, setMetricas] = useState<SuporteMetricas | null>(null);
   const fimRef = useRef<HTMLDivElement | null>(null);
 
