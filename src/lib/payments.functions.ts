@@ -165,7 +165,9 @@ export const pagarComCartao = createServerFn({ method: "POST" })
       if (precoCentavos <= 0) throw new Error("Preço do plano inválido");
 
       const cpf = data.cpf || (profile?.cpf ?? "").replace(/\D/g, "");
-      if (cpf.length !== 11) throw new Error("Informe um CPF válido para o pagamento.");
+      if (cpf.length !== 11 && cpf.length !== 14) {
+        throw new Error("Informe um CPF ou CNPJ válido para o pagamento.");
+      }
       if (cpf && cpf !== (profile?.cpf ?? "").replace(/\D/g, "")) {
         await supabase.from("profiles").update({ cpf }).eq("id", userId);
       }
