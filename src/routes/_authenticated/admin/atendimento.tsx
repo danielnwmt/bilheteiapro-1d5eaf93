@@ -80,7 +80,13 @@ const TAGS = [
 ];
 
 type FiltroTempo = "todos" | "hoje" | "ontem" | "7d" | "30d";
-type FiltroStatus = "todos" | "em_atendimento" | "aguardando" | "finalizados";
+type FiltroStatus = "em_atendimento" | "aguardando" | "finalizados";
+
+const STATUS_OPCOES: { v: FiltroStatus; l: string }[] = [
+  { v: "aguardando", l: "Aguardando" },
+  { v: "em_atendimento", l: "Em atendimento" },
+  { v: "finalizados", l: "Finalizados" },
+];
 
 function dentroDoPeriodo(iso: string, filtro: FiltroTempo): boolean {
   if (filtro === "todos") return true;
