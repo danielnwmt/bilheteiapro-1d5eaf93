@@ -134,6 +134,16 @@ export function SuporteChat({
                 </div>
               )}
 
+              {(temFluxo || msgs.length > 0 || fluxoLocal.length > 0) &&
+                (fluxo?.mensagens ?? []).map((m, i) => (
+                  <div key={`extra-${i}`} className="flex justify-start">
+                    <div className="max-w-[80%] rounded-lg bg-muted px-3 py-2 text-sm text-foreground">
+                      {m}
+                    </div>
+                  </div>
+                ))}
+
+
               {!temFluxo && msgs.length === 0 && fluxoLocal.length === 0 && (
                 <p className="py-8 text-center text-sm text-muted-foreground">
                   {mensagemPadrao || "Envie sua mensagem, responderemos em breve."}
