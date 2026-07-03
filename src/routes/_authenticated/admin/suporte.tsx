@@ -90,6 +90,9 @@ function SuportePage() {
     carregarConversas()
       .then((c) => setConversas(c))
       .catch(() => {});
+    carregarMetricas()
+      .then((m) => setMetricas(m))
+      .catch(() => {});
   }
 
   useEffect(() => {
@@ -97,6 +100,41 @@ function SuportePage() {
     recarregarConversas();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin]);
+
+  async function encerrarChamado() {
+    if (!selecionado) return;
+    const { error } = await supabase
+      .from("suporte_status")
+      .upsert(
+        { user_id: selecionado.userId, encerrada: true, encerrada_em: new Date().toISOString() },
+        { onConflict: "user_id" },
+      );
+    if (error) {
+      toast.error("Erro ao encerrar");
+      return;
+    }
+    toast.success("Chamado encerrado");
+    setSelecionado((s) => (s ? { ...s, encerrada: true } : s));
+    recarregarConversas();
+  }
+
+  async function reabrirChamado() {
+    if (!selecionado) return;
+    const { error } = await supabase
+      .from("suporte_status")
+      .upsert(
+        { user_id: selecionado.userId, encerrada: false, encerrada_em: null },
+        { onConflict: "user_id" },
+      );
+    if (error) {
+      toast.error("Erro ao reabrir");
+      return;
+    }
+    toast.success("Chamado reaberto");
+    setSelecionado((s) => (s ? { ...s, encerrada: false } : s));
+    recarregarConversas();
+  }
+
 
   // Mensagens da conversa selecionada + realtime.
   useEffect(() => {
