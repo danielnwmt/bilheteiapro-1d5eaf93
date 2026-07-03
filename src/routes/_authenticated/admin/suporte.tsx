@@ -26,6 +26,7 @@ import {
   type SuporteMetricas,
 } from "@/lib/suporte.functions";
 import { toast } from "sonner";
+import { FluxoBuilder } from "@/components/FluxoBuilder";
 
 const ADMIN_EMAIL = "contato@protenexus.com";
 
@@ -310,65 +311,9 @@ function SuportePage() {
                   <h3 className="text-sm font-semibold">Fluxo automático (menu do cliente)</h3>
                 </div>
                 <p className="mb-4 text-xs text-muted-foreground">
-                  Exibido para o cliente ao abrir o chat. Cada opção mostra uma resposta automática.
+                  Monte o fluxo abaixo. Ele é exibido para o cliente ao abrir o chat.
                 </p>
-
-                <div className="mb-4">
-                  <Label className="mb-1 block text-sm">Mensagem de boas-vindas</Label>
-                  <Input
-                    value={fluxo.saudacao}
-                    onChange={(e) => setFluxo((f) => ({ ...f, saudacao: e.target.value }))}
-                    placeholder="Olá! Selecione uma opção de atendimento:"
-                  />
-                </div>
-
-                <div className="space-y-3">
-                  {fluxo.opcoes.map((op, i) => (
-                    <div key={i} className="rounded-lg border border-border/60 bg-muted/20 p-3">
-                      <div className="mb-2 flex items-center gap-2">
-                        <Input
-                          value={op.label}
-                          onChange={(e) =>
-                            setFluxo((f) => ({
-                              ...f,
-                              opcoes: f.opcoes.map((o, j) => (j === i ? { ...o, label: e.target.value } : o)),
-                            }))
-                          }
-                          placeholder={`Opção ${i + 1} (ex: Financeiro)`}
-                        />
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="shrink-0 text-muted-foreground hover:text-destructive"
-                          onClick={() =>
-                            setFluxo((f) => ({ ...f, opcoes: f.opcoes.filter((_, j) => j !== i) }))
-                          }
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      <Input
-                        value={op.resposta}
-                        onChange={(e) =>
-                          setFluxo((f) => ({
-                            ...f,
-                            opcoes: f.opcoes.map((o, j) => (j === i ? { ...o, resposta: e.target.value } : o)),
-                          }))
-                        }
-                        placeholder="Resposta automática (ex: Um atendente vai te chamar em instantes)"
-                      />
-                    </div>
-                  ))}
-                </div>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-3"
-                  onClick={() => setFluxo((f) => ({ ...f, opcoes: [...f.opcoes, { label: "", resposta: "" }] }))}
-                >
-                  <Plus className="mr-2 h-4 w-4" /> Adicionar opção
-                </Button>
+                <FluxoBuilder fluxo={fluxo} setFluxo={setFluxo} />
               </div>
             </Card>
             )}
