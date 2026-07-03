@@ -82,6 +82,43 @@ function ConfiguracoesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [listKey]);
 
+  // ----- Dados de suporte -----
+  const carregarSuporte = useServerFn(getSuporte);
+  const salvarConfig = useServerFn(setSystemConfig);
+  const [suporte, setSuporte] = useState({ whatsapp: "", email: "", mensagem: "" });
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    carregarSuporte()
+      .then((s) =>
+        setSuporte({
+          whatsapp: s.whatsapp ?? "",
+          email: s.email ?? "",
+          mensagem: s.mensagem ?? "",
+        }),
+      )
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin]);
+
+  const suporteMut = useMutation({
+    mutationFn: async () => {
+      await salvarConfig({
+        data: { chave: "SUPORTE_WHATSAPP", valor: suporte.whatsapp.trim(), descricao: "WhatsApp de suporte" },
+      });
+      await salvarConfig({
+        data: { chave: "SUPORTE_EMAIL", valor: suporte.email.trim(), descricao: "E-mail de suporte" },
+      });
+      await salvarConfig({
+        data: { chave: "SUPORTE_MENSAGEM", valor: suporte.mensagem.trim(), descricao: "Mensagem padrão de suporte" },
+      });
+    },
+    onSuccess: () => toast.success("Dados de suporte salvos"),
+    onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar suporte"),
+  });
+
+
+
 
   const mut = useMutation({
     mutationFn: (cfg: PlanoConfig) =>
