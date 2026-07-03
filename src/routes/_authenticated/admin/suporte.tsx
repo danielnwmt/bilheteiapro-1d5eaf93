@@ -50,6 +50,7 @@ function SuportePage() {
   const [msgs, setMsgs] = useState<Mensagem[]>([]);
   const [resposta, setResposta] = useState("");
   const [enviando, setEnviando] = useState(false);
+  const [busca, setBusca] = useState("");
   const fimRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
