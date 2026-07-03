@@ -1,31 +1,45 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Hand, MessageSquareText, ListChecks, Plus, Trash2 } from "lucide-react";
+import { Hand, MessageSquareText, ListChecks, Plus, Trash2, GripVertical } from "lucide-react";
 
 export type Fluxo = { saudacao: string; opcoes: { label: string; resposta: string }[]; mensagens?: string[] };
 
 type Point = { x: number; y: number };
 type Linha = { from: Point; to: Point };
+type Pos = { x: number; y: number };
 
-// Pequeno "nó" do canvas, no estilo de um construtor de fluxo.
+// Posições padrão dos nós no canvas.
+const POS_PADRAO: Record<string, Pos> = {
+  start: { x: 40, y: 60 },
+  msg: { x: 320, y: 60 },
+  esc: { x: 620, y: 60 },
+};
+
+// Nó arrastável do canvas.
 function No({
   titulo,
   icon,
   children,
-  nodeRef,
+  pos,
+  onDrag,
 }: {
   titulo: string;
   icon: React.ReactNode;
   children?: React.ReactNode;
-  nodeRef?: React.Ref<HTMLDivElement>;
+  pos: Pos;
+  onDrag: (e: React.PointerEvent) => void;
 }) {
   return (
     <div
-      ref={nodeRef}
-      className="w-[230px] shrink-0 rounded-xl border border-border/70 bg-card shadow-sm"
+      className="absolute w-[230px] rounded-xl border border-border/70 bg-card shadow-sm"
+      style={{ left: pos.x, top: pos.y }}
     >
-      <div className="flex items-center gap-2 border-b border-border/60 px-3 py-2 text-xs font-semibold">
+      <div
+        onPointerDown={onDrag}
+        className="flex cursor-grab items-center gap-2 border-b border-border/60 px-3 py-2 text-xs font-semibold active:cursor-grabbing"
+      >
+        <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
         {icon}
         {titulo}
       </div>
@@ -34,7 +48,6 @@ function No({
   );
 }
 
-// Ponto de conexão (bolinha) na borda do nó.
 function Porta({ side, anchorRef }: { side: "left" | "right"; anchorRef: React.Ref<HTMLSpanElement> }) {
   return (
     <span
@@ -63,9 +76,44 @@ export function FluxoBuilder({
   const extraInRefs = useRef<(HTMLSpanElement | null)[]>([]);
   const extraOutRefs = useRef<(HTMLSpanElement | null)[]>([]);
 
-
   const [linhas, setLinhas] = useState<Linha[]>([]);
-  const [size, setSize] = useState({ w: 0, h: 0 });
+  const [pos, setPos] = useState<Record<string, Pos>>(POS_PADRAO);
+  const drag = useRef<{ id: string; startX: number; startY: number; origX: number; origY: number } | null>(null);
+
+  // Garante posição padrão para nós dinâmicos (extras e respostas).
+  const posDe = useCallback(
+    (id: string, fallback: Pos): Pos => pos[id] ?? fallback,
+    [pos],
+  );
+
+  const iniciarDrag = useCallback(
+    (id: string, fallback: Pos) => (e: React.PointerEvent) => {
+      e.preventDefault();
+      (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+      const atual = pos[id] ?? fallback;
+      drag.current = { id, startX: e.clientX, startY: e.clientY, origX: atual.x, origY: atual.y };
+    },
+    [pos],
+  );
+
+  useEffect(() => {
+    const mover = (e: PointerEvent) => {
+      const d = drag.current;
+      if (!d) return;
+      const nx = Math.max(0, d.origX + (e.clientX - d.startX));
+      const ny = Math.max(0, d.origY + (e.clientY - d.startY));
+      setPos((p) => ({ ...p, [d.id]: { x: nx, y: ny } }));
+    };
+    const soltar = () => {
+      drag.current = null;
+    };
+    window.addEventListener("pointermove", mover);
+    window.addEventListener("pointerup", soltar);
+    return () => {
+      window.removeEventListener("pointermove", mover);
+      window.removeEventListener("pointerup", soltar);
+    };
+  }, []);
 
   const medir = useCallback(() => {
     const wrap = wrapRef.current;
@@ -74,7 +122,7 @@ export function FluxoBuilder({
     const ponto = (el: HTMLElement | null): Point | null => {
       if (!el) return null;
       const r = el.getBoundingClientRect();
-      return { x: r.left + r.width / 2 - wr.left, y: r.top + r.height / 2 - wr.top };
+      return { x: r.left + r.width / 2 - wr.left + wrap.scrollLeft, y: r.top + r.height / 2 - wr.top + wrap.scrollTop };
     };
     const novas: Linha[] = [];
     const push = (a: HTMLElement | null, b: HTMLElement | null) => {
@@ -93,13 +141,11 @@ export function FluxoBuilder({
     }
     fluxo.opcoes.forEach((_, i) => push(optOutRefs.current[i], respInRefs.current[i]));
     setLinhas(novas);
-    setSize({ w: wrap.scrollWidth, h: wrap.scrollHeight });
   }, [fluxo.opcoes, fluxo.mensagens]);
-
 
   useLayoutEffect(() => {
     medir();
-  }, [medir, fluxo]);
+  }, [medir, fluxo, pos]);
 
   useEffect(() => {
     const wrap = wrapRef.current;
@@ -113,15 +159,20 @@ export function FluxoBuilder({
     };
   }, [medir]);
 
-  return (
-    <div className="overflow-x-auto rounded-xl border border-border/60 bg-muted/20">
-      <div ref={wrapRef} className="relative flex min-h-[520px] min-w-max items-start gap-16 p-10">
+  const extras = fluxo.mensagens ?? [];
 
-        <svg
-          className="pointer-events-none absolute left-0 top-0"
-          width={size.w}
-          height={size.h}
-        >
+  return (
+    <div
+      ref={wrapRef}
+      className="relative h-[560px] w-full overflow-auto rounded-xl border border-border/60 bg-muted/20"
+      style={{
+        backgroundImage:
+          "radial-gradient(circle, hsl(var(--border)) 1px, transparent 1px)",
+        backgroundSize: "22px 22px",
+      }}
+    >
+      <div className="relative h-[1200px] w-[1600px]">
+        <svg className="pointer-events-none absolute left-0 top-0 h-full w-full">
           {linhas.map((l, i) => (
             <path
               key={i}
@@ -135,31 +186,44 @@ export function FluxoBuilder({
         </svg>
 
         {/* Início */}
-        <div className="relative">
-          <No titulo="Iniciar" icon={<Hand className="h-3.5 w-3.5 text-primary" />}>
-            <p className="text-xs text-muted-foreground">Cliente abre o chat</p>
-            <Porta side="right" anchorRef={startRef} />
-          </No>
-        </div>
+        <No
+          titulo="Iniciar"
+          icon={<Hand className="h-3.5 w-3.5 text-primary" />}
+          pos={posDe("start", POS_PADRAO.start)}
+          onDrag={iniciarDrag("start", POS_PADRAO.start)}
+        >
+          <p className="text-xs text-muted-foreground">Cliente abre o chat</p>
+          <Porta side="right" anchorRef={startRef} />
+        </No>
 
         {/* Enviar mensagem (saudação) */}
-        <div className="relative">
-          <No titulo="Enviar mensagem" icon={<MessageSquareText className="h-3.5 w-3.5 text-primary" />}>
-            <Input
-              value={fluxo.saudacao}
-              onChange={(e) => setFluxo((f) => ({ ...f, saudacao: e.target.value }))}
-              placeholder="Olá! Selecione uma opção:"
-              className="text-xs"
-            />
-            <Porta side="left" anchorRef={msgInRef} />
-            <Porta side="right" anchorRef={msgOutRef} />
-          </No>
-        </div>
+        <No
+          titulo="Enviar mensagem"
+          icon={<MessageSquareText className="h-3.5 w-3.5 text-primary" />}
+          pos={posDe("msg", POS_PADRAO.msg)}
+          onDrag={iniciarDrag("msg", POS_PADRAO.msg)}
+        >
+          <Input
+            value={fluxo.saudacao}
+            onChange={(e) => setFluxo((f) => ({ ...f, saudacao: e.target.value }))}
+            placeholder="Olá! Selecione uma opção:"
+            className="text-xs"
+          />
+          <Porta side="left" anchorRef={msgInRef} />
+          <Porta side="right" anchorRef={msgOutRef} />
+        </No>
 
         {/* Caixas extras de mensagem */}
-        {(fluxo.mensagens ?? []).map((m, i) => (
-          <div key={i} className="relative">
-            <No titulo="Enviar mensagem" icon={<MessageSquareText className="h-3.5 w-3.5 text-primary" />}>
+        {extras.map((m, i) => {
+          const fb = { x: 320, y: 260 + i * 200 };
+          return (
+            <No
+              key={i}
+              titulo="Enviar mensagem"
+              icon={<MessageSquareText className="h-3.5 w-3.5 text-primary" />}
+              pos={posDe(`extra-${i}`, fb)}
+              onDrag={iniciarDrag(`extra-${i}`, fb)}
+            >
               <div className="flex items-center gap-1">
                 <Input
                   value={m}
@@ -185,101 +249,96 @@ export function FluxoBuilder({
               <Porta side="left" anchorRef={(el) => { extraInRefs.current[i] = el; }} />
               <Porta side="right" anchorRef={(el) => { extraOutRefs.current[i] = el; }} />
             </No>
-          </div>
-        ))}
-
-        {/* Botão adicionar caixa */}
-        <div className="relative flex items-center">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-9 text-xs"
-            onClick={() => setFluxo((f) => ({ ...f, mensagens: [...(f.mensagens ?? []), ""] }))}
-          >
-            <Plus className="mr-1 h-3.5 w-3.5" /> Adicionar caixa
-          </Button>
-        </div>
-
-
+          );
+        })}
 
         {/* Pedir para escolher */}
-        <div className="relative">
-          <No titulo="Pedir para escolher" icon={<ListChecks className="h-3.5 w-3.5 text-primary" />}>
-            <div className="space-y-2">
-              {fluxo.opcoes.map((op, i) => (
-                <div key={i} className="relative flex items-center gap-1">
-                  <Input
-                    value={op.label}
-                    onChange={(e) =>
-                      setFluxo((f) => ({
-                        ...f,
-                        opcoes: f.opcoes.map((o, j) => (j === i ? { ...o, label: e.target.value } : o)),
-                      }))
-                    }
-                    placeholder={`Opção ${i + 1}`}
-                    className="h-8 text-xs"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setFluxo((f) => ({ ...f, opcoes: f.opcoes.filter((_, j) => j !== i) }))}
-                    className="shrink-0 text-muted-foreground hover:text-destructive"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                  <span
-                    ref={(el) => {
-                      optOutRefs.current[i] = el;
-                    }}
-                    className="absolute -right-[26px] top-1/2 h-3 w-3 -translate-y-1/2 rounded-full border-2 border-background bg-primary"
-                  />
-                </div>
-              ))}
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-7 px-2 text-xs text-primary"
-                onClick={() => setFluxo((f) => ({ ...f, opcoes: [...f.opcoes, { label: "", resposta: "" }] }))}
-              >
-                <Plus className="mr-1 h-3.5 w-3.5" /> Opção
-              </Button>
-            </div>
-            <Porta side="left" anchorRef={escInRef} />
-          </No>
-        </div>
+        <No
+          titulo="Pedir para escolher"
+          icon={<ListChecks className="h-3.5 w-3.5 text-primary" />}
+          pos={posDe("esc", POS_PADRAO.esc)}
+          onDrag={iniciarDrag("esc", POS_PADRAO.esc)}
+        >
+          <div className="space-y-2">
+            {fluxo.opcoes.map((op, i) => (
+              <div key={i} className="relative flex items-center gap-1">
+                <Input
+                  value={op.label}
+                  onChange={(e) =>
+                    setFluxo((f) => ({
+                      ...f,
+                      opcoes: f.opcoes.map((o, j) => (j === i ? { ...o, label: e.target.value } : o)),
+                    }))
+                  }
+                  placeholder={`Opção ${i + 1}`}
+                  className="h-8 text-xs"
+                />
+                <button
+                  type="button"
+                  onClick={() => setFluxo((f) => ({ ...f, opcoes: f.opcoes.filter((_, j) => j !== i) }))}
+                  className="shrink-0 text-muted-foreground hover:text-destructive"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+                <span
+                  ref={(el) => {
+                    optOutRefs.current[i] = el;
+                  }}
+                  className="absolute -right-[26px] top-1/2 h-3 w-3 -translate-y-1/2 rounded-full border-2 border-background bg-primary"
+                />
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs text-primary"
+              onClick={() => setFluxo((f) => ({ ...f, opcoes: [...f.opcoes, { label: "", resposta: "" }] }))}
+            >
+              <Plus className="mr-1 h-3.5 w-3.5" /> Opção
+            </Button>
+          </div>
+          <Porta side="left" anchorRef={escInRef} />
+        </No>
 
         {/* Respostas automáticas */}
-        <div className="flex flex-col gap-4">
-          {fluxo.opcoes.length === 0 ? (
-            <p className="self-center text-xs text-muted-foreground">Adicione opções</p>
-          ) : (
-            fluxo.opcoes.map((op, i) => (
-              <div key={i} className="relative">
-                <No titulo="Enviar mensagem" icon={<MessageSquareText className="h-3.5 w-3.5 text-primary" />}>
-                  <Input
-                    value={op.resposta}
-                    onChange={(e) =>
-                      setFluxo((f) => ({
-                        ...f,
-                        opcoes: f.opcoes.map((o, j) => (j === i ? { ...o, resposta: e.target.value } : o)),
-                      }))
-                    }
-                    placeholder="Um atendente vai te chamar…"
-                    className="text-xs"
-                  />
-                  <span
-                    ref={(el) => {
-                      respInRefs.current[i] = el;
-                    }}
-                    className="absolute -left-1.5 top-1/2 h-3 w-3 -translate-y-1/2 rounded-full border-2 border-background bg-primary"
-                  />
-                </No>
-              </div>
-            ))
-          )}
-        </div>
+        {fluxo.opcoes.map((op, i) => {
+          const fb = { x: 920, y: 60 + i * 170 };
+          return (
+            <No
+              key={i}
+              titulo="Enviar mensagem"
+              icon={<MessageSquareText className="h-3.5 w-3.5 text-primary" />}
+              pos={posDe(`resp-${i}`, fb)}
+              onDrag={iniciarDrag(`resp-${i}`, fb)}
+            >
+              <Input
+                value={op.resposta}
+                onChange={(e) =>
+                  setFluxo((f) => ({
+                    ...f,
+                    opcoes: f.opcoes.map((o, j) => (j === i ? { ...o, resposta: e.target.value } : o)),
+                  }))
+                }
+                placeholder="Um atendente vai te chamar…"
+                className="text-xs"
+              />
+              <Porta side="left" anchorRef={(el) => { respInRefs.current[i] = el; }} />
+            </No>
+          );
+        })}
       </div>
+
+      {/* Botão adicionar caixa (fixo no canto) */}
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="sticky bottom-3 left-3 z-10 h-9 text-xs shadow-sm"
+        onClick={() => setFluxo((f) => ({ ...f, mensagens: [...(f.mensagens ?? []), ""] }))}
+      >
+        <Plus className="mr-1 h-3.5 w-3.5" /> Adicionar caixa
+      </Button>
     </div>
   );
 }
