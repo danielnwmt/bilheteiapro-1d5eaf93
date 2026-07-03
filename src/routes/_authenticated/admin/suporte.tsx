@@ -24,6 +24,9 @@ const ADMIN_EMAIL = "contato@protenexus.com";
 
 export const Route = createFileRoute("/_authenticated/admin/suporte")({
   head: () => ({ meta: [{ title: "Suporte — Admin BilheteIA" }] }),
+  validateSearch: (search: Record<string, unknown>) => ({
+    config: search.config === true || search.config === "true" || search.config === 1,
+  }),
   component: SuportePage,
 });
 
