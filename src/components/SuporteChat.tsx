@@ -42,9 +42,12 @@ export function SuporteChat({
   const [enviando, setEnviando] = useState(false);
   const [carregando, setCarregando] = useState(true);
   const [fluxoLocal, setFluxoLocal] = useState<Bolha[]>([]);
+  const [iniciado, setIniciado] = useState(false);
   const fimRef = useRef<HTMLDivElement | null>(null);
 
   const temFluxo = Boolean(fluxo && (fluxo.saudacao.trim() || fluxo.opcoes.length));
+  // Considera iniciado se o cliente já tem histórico de conversa.
+  const fluxoAtivo = iniciado || msgs.length > 0;
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setUserId(data.session?.user?.id ?? null));
@@ -132,7 +135,17 @@ export function SuporteChat({
             </div>
           ) : (
             <>
-              {(temFluxo || msgs.length > 0 || fluxoLocal.length > 0) && fluxo?.saudacao.trim() && (
+              {/* Tela inicial: botão Iniciar antes de começar o fluxo */}
+              {temFluxo && !fluxoAtivo && (
+                <div className="flex flex-col items-center justify-center gap-4 py-10 text-center">
+                  <div className="max-w-[85%] rounded-lg bg-muted px-3 py-2 text-sm text-foreground">
+                    {mensagemPadrao || "Olá! Toque em iniciar para começar o atendimento."}
+                  </div>
+                  <Button onClick={() => setIniciado(true)}>Iniciar atendimento</Button>
+                </div>
+              )}
+
+              {(fluxoAtivo || fluxoLocal.length > 0) && fluxo?.saudacao.trim() && (
                 <div className="flex justify-start">
                   <div className="max-w-[80%] rounded-lg bg-muted px-3 py-2 text-sm text-foreground">
                     {fluxo.saudacao}
@@ -140,7 +153,7 @@ export function SuporteChat({
                 </div>
               )}
 
-              {(temFluxo || msgs.length > 0 || fluxoLocal.length > 0) &&
+              {(fluxoAtivo || fluxoLocal.length > 0) &&
                 (fluxo?.mensagens ?? []).map((m, i) => (
                   <div key={`extra-${i}`} className="flex justify-start">
                     <div className="max-w-[80%] rounded-lg bg-muted px-3 py-2 text-sm text-foreground">
@@ -180,8 +193,9 @@ export function SuporteChat({
                 </div>
               ))}
 
-              {mostraMenu && fluxo && fluxo.opcoes.length > 0 && (
+              {fluxoAtivo && mostraMenu && fluxo && fluxo.opcoes.length > 0 && (
                 <div className="flex flex-col items-start gap-2 pt-1">
+                  <p className="text-xs text-muted-foreground">Selecione uma opção:</p>
                   {fluxo.opcoes.map((op, i) => (
                     <Button
                       key={i}
@@ -196,6 +210,7 @@ export function SuporteChat({
                 </div>
               )}
             </>
+
           )}
           <div ref={fimRef} />
         </div>
