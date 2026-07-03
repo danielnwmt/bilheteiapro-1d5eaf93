@@ -167,7 +167,7 @@ export function FluxoBuilder({
       className="relative h-[560px] w-full overflow-auto rounded-xl border border-border/60 bg-muted/20"
       style={{
         backgroundImage:
-          "radial-gradient(circle, hsl(var(--border)) 1px, transparent 1px)",
+          "radial-gradient(circle, var(--border) 1px, transparent 1px)",
         backgroundSize: "22px 22px",
       }}
     >
@@ -178,7 +178,7 @@ export function FluxoBuilder({
               key={i}
               d={`M ${l.from.x} ${l.from.y} C ${l.from.x + 50} ${l.from.y}, ${l.to.x - 50} ${l.to.y}, ${l.to.x} ${l.to.y}`}
               fill="none"
-              stroke="hsl(var(--primary))"
+              stroke="var(--primary)"
               strokeWidth={2}
               opacity={0.6}
             />
