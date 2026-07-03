@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Hand, MessageSquareText, ListChecks, Plus, Trash2 } from "lucide-react";
 
-export type Fluxo = { saudacao: string; opcoes: { label: string; resposta: string }[] };
+export type Fluxo = { saudacao: string; opcoes: { label: string; resposta: string }[]; mensagens?: string[] };
 
 type Point = { x: number; y: number };
 type Linha = { from: Point; to: Point };
