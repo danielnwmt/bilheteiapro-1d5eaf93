@@ -1474,19 +1474,21 @@ export const getSuporte = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async () => {
     const base = tryRestBase();
-    const vazio = { whatsapp: "", email: "", mensagem: "" };
+    const vazio = { whatsapp: "", email: "", mensagem: "", modo: "whatsapp" };
     if (!base) return vazio;
     const rows = await restSelect<{ chave: string; valor: string }>(
       base,
       "system_config",
-      { select: "chave,valor", chave: "in.(SUPORTE_WHATSAPP,SUPORTE_EMAIL,SUPORTE_MENSAGEM)" },
+      { select: "chave,valor", chave: "in.(SUPORTE_WHATSAPP,SUPORTE_EMAIL,SUPORTE_MENSAGEM,SUPORTE_MODO)" },
       "suporte",
     );
     const map = new Map(rows.map((r) => [r.chave, r.valor ?? ""]));
+    const modo = (map.get("SUPORTE_MODO") ?? "whatsapp").trim();
     return {
       whatsapp: map.get("SUPORTE_WHATSAPP") ?? "",
       email: map.get("SUPORTE_EMAIL") ?? "",
       mensagem: map.get("SUPORTE_MENSAGEM") ?? "",
+      modo: ["whatsapp", "chat", "ambos"].includes(modo) ? modo : "whatsapp",
     };
   });
 

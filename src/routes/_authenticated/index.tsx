@@ -21,6 +21,7 @@ import { useAccess } from "@/hooks/useAccess";
 import { ligaLiberada } from "@/lib/planos";
 import { usePlanos } from "@/hooks/usePlanos";
 import { AccentPicker } from "@/components/AccentPicker";
+import { SuporteChat } from "@/components/SuporteChat";
 import { FloatingBrowser } from "@/components/FloatingBrowser";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -299,7 +300,8 @@ function Index() {
   const reanalisar = useServerFn(reanalisarJogo);
   const fetchAoVivo = useServerFn(getEstatisticasAoVivoPartida);
   const fetchSuporte = useServerFn(getSuporte);
-  const [suporte, setSuporte] = useState<{ whatsapp: string; email: string; mensagem: string } | null>(null);
+  const [suporte, setSuporte] = useState<{ whatsapp: string; email: string; mensagem: string; modo: string } | null>(null);
+  const [chatAberto, setChatAberto] = useState(false);
 
   useEffect(() => {
     fetchSuporte()
@@ -308,18 +310,29 @@ function Index() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function abrirSuporte() {
+  function abrirWhatsappOuEmail() {
     const s = suporte;
     if (!s) return;
     const msg = encodeURIComponent(s.mensagem || "Olá! Preciso de ajuda.");
     if (s.whatsapp) {
-      const num = s.whatsapp.replace(/\D/g, "");
-      window.open(`https://wa.me/${num}?text=${msg}`, "_blank");
+      window.open(`https://wa.me/${s.whatsapp.replace(/\D/g, "")}?text=${msg}`, "_blank");
     } else if (s.email) {
       window.location.href = `mailto:${s.email}?subject=${encodeURIComponent("Suporte")}&body=${msg}`;
     }
   }
-  const temSuporte = !!(suporte?.whatsapp || suporte?.email);
+
+  function abrirSuporte() {
+    const modo = suporte?.modo ?? "whatsapp";
+    if (modo === "chat" || modo === "ambos") setChatAberto(true);
+    else abrirWhatsappOuEmail();
+  }
+
+  const modoSuporte = suporte?.modo ?? "whatsapp";
+  const temSuporte =
+    modoSuporte === "chat" ||
+    modoSuporte === "ambos" ||
+    !!(suporte?.whatsapp || suporte?.email);
+
   const [reanalisandoId, setReanalisandoId] = useState<string | null>(null);
   const [iniciando, setIniciando] = useState(false);
   const { data: access, refetch: refetchAccess } = useAccess();
@@ -832,7 +845,7 @@ function Index() {
             </Button>
             {temSuporte && (
               <Button variant="outline" size="sm" onClick={abrirSuporte}>
-                <LifeBuoy className="mr-2 h-4 w-4" /> Suporte
+                <LifeBuoy className="mr-2 h-4 w-4" /> Chat Suporte
               </Button>
             )}
             <Button variant="outline" size="sm" onClick={handleSignOut}>
@@ -846,6 +859,15 @@ function Index() {
             </p>
           </div>
         </header>
+
+        <SuporteChat
+          open={chatAberto}
+          onOpenChange={setChatAberto}
+          whatsapp={modoSuporte === "ambos" ? suporte?.whatsapp : undefined}
+          mensagemPadrao={suporte?.mensagem}
+        />
+
+
 
         {!temAcesso && (
           <Card className="mb-8 border-primary/40 bg-primary/5 p-6 text-center">
