@@ -13,6 +13,7 @@ import {
   UserX,
   Crown,
   KeyRound,
+  LifeBuoy,
   Settings,
   LayoutDashboard,
   LogOut,
