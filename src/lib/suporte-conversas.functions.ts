@@ -304,7 +304,7 @@ export const enviarMensagemStaff = createServerFn({ method: "POST" })
 
     await supabaseAdmin
       .from("suporte_conversas")
-      .update({ status: "aguardando_cliente", atualizado_em: new Date().toISOString() })
+      .update({ status: "em_atendimento", atualizado_em: new Date().toISOString() })
       .eq("id", data.conversaId);
     return { ok: true };
   });
