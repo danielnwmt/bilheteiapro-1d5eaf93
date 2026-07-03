@@ -247,53 +247,8 @@ function ConfiguracoesPage() {
           )}
         </div>
 
-        {isAdmin && (
-          <Card className="mb-6 border-border/60 bg-card p-6">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <LifeBuoy className="h-5 w-5 text-primary" />
-                <h2 className="text-lg font-bold">Suporte</h2>
-              </div>
-              <Button size="sm" disabled={suporteMut.isPending} onClick={() => suporteMut.mutate()}>
-                {suporteMut.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="mr-2 h-4 w-4" />
-                )}
-                Salvar
-              </Button>
-            </div>
-            <p className="mb-4 text-sm text-muted-foreground">
-              Estes dados são usados no botão de suporte que aparece para os clientes.
-            </p>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <Label className="mb-1 block text-sm">WhatsApp (com DDD)</Label>
-                <Input
-                  value={suporte.whatsapp}
-                  onChange={(e) => setSuporte((s) => ({ ...s, whatsapp: e.target.value }))}
-                  placeholder="Ex: 5511999999999"
-                />
-              </div>
-              <div>
-                <Label className="mb-1 block text-sm">E-mail</Label>
-                <Input
-                  value={suporte.email}
-                  onChange={(e) => setSuporte((s) => ({ ...s, email: e.target.value }))}
-                  placeholder="suporte@seudominio.com"
-                />
-              </div>
-              <div className="md:col-span-2">
-                <Label className="mb-1 block text-sm">Mensagem padrão (opcional)</Label>
-                <Input
-                  value={suporte.mensagem}
-                  onChange={(e) => setSuporte((s) => ({ ...s, mensagem: e.target.value }))}
-                  placeholder="Olá! Preciso de ajuda com..."
-                />
-              </div>
-            </div>
-          </Card>
-        )}
+
+
 
 
 

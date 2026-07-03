@@ -20,6 +20,7 @@ import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as ApiPublicIngestRouteImport } from './routes/api/public/ingest'
 import { Route as AuthenticatedAdminUsuariosRouteImport } from './routes/_authenticated/admin/usuarios'
+import { Route as AuthenticatedAdminSuporteRouteImport } from './routes/_authenticated/admin/suporte'
 import { Route as AuthenticatedAdminSslRouteImport } from './routes/_authenticated/admin/ssl'
 import { Route as AuthenticatedAdminConfiguracoesRouteImport } from './routes/_authenticated/admin/configuracoes'
 import { Route as AuthenticatedAdminBackupRouteImport } from './routes/_authenticated/admin/backup'
@@ -85,6 +86,12 @@ const AuthenticatedAdminUsuariosRoute =
   AuthenticatedAdminUsuariosRouteImport.update({
     id: '/usuarios',
     path: '/usuarios',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
+const AuthenticatedAdminSuporteRoute =
+  AuthenticatedAdminSuporteRouteImport.update({
+    id: '/suporte',
+    path: '/suporte',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
 const AuthenticatedAdminSslRoute = AuthenticatedAdminSslRouteImport.update({
@@ -163,6 +170,7 @@ export interface FileRoutesByFullPath {
   '/admin/backup': typeof AuthenticatedAdminBackupRoute
   '/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
   '/admin/ssl': typeof AuthenticatedAdminSslRoute
+  '/admin/suporte': typeof AuthenticatedAdminSuporteRoute
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/api/public/ingest': typeof ApiPublicIngestRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
@@ -185,6 +193,7 @@ export interface FileRoutesByTo {
   '/admin/backup': typeof AuthenticatedAdminBackupRoute
   '/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
   '/admin/ssl': typeof AuthenticatedAdminSslRoute
+  '/admin/suporte': typeof AuthenticatedAdminSuporteRoute
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/api/public/ingest': typeof ApiPublicIngestRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
@@ -210,6 +219,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/backup': typeof AuthenticatedAdminBackupRoute
   '/_authenticated/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
   '/_authenticated/admin/ssl': typeof AuthenticatedAdminSslRoute
+  '/_authenticated/admin/suporte': typeof AuthenticatedAdminSuporteRoute
   '/_authenticated/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/api/public/ingest': typeof ApiPublicIngestRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
@@ -235,6 +245,7 @@ export interface FileRouteTypes {
     | '/admin/backup'
     | '/admin/configuracoes'
     | '/admin/ssl'
+    | '/admin/suporte'
     | '/admin/usuarios'
     | '/api/public/ingest'
     | '/admin/'
@@ -257,6 +268,7 @@ export interface FileRouteTypes {
     | '/admin/backup'
     | '/admin/configuracoes'
     | '/admin/ssl'
+    | '/admin/suporte'
     | '/admin/usuarios'
     | '/api/public/ingest'
     | '/admin'
@@ -281,6 +293,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/backup'
     | '/_authenticated/admin/configuracoes'
     | '/_authenticated/admin/ssl'
+    | '/_authenticated/admin/suporte'
     | '/_authenticated/admin/usuarios'
     | '/api/public/ingest'
     | '/_authenticated/admin/'
@@ -386,6 +399,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminUsuariosRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/admin/suporte': {
+      id: '/_authenticated/admin/suporte'
+      path: '/suporte'
+      fullPath: '/admin/suporte'
+      preLoaderRoute: typeof AuthenticatedAdminSuporteRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/admin/ssl': {
       id: '/_authenticated/admin/ssl'
       path: '/ssl'
@@ -471,6 +491,7 @@ interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminBackupRoute: typeof AuthenticatedAdminBackupRoute
   AuthenticatedAdminConfiguracoesRoute: typeof AuthenticatedAdminConfiguracoesRoute
   AuthenticatedAdminSslRoute: typeof AuthenticatedAdminSslRoute
+  AuthenticatedAdminSuporteRoute: typeof AuthenticatedAdminSuporteRoute
   AuthenticatedAdminUsuariosRoute: typeof AuthenticatedAdminUsuariosRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
 }
@@ -481,6 +502,7 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
     AuthenticatedAdminBackupRoute: AuthenticatedAdminBackupRoute,
     AuthenticatedAdminConfiguracoesRoute: AuthenticatedAdminConfiguracoesRoute,
     AuthenticatedAdminSslRoute: AuthenticatedAdminSslRoute,
+    AuthenticatedAdminSuporteRoute: AuthenticatedAdminSuporteRoute,
     AuthenticatedAdminUsuariosRoute: AuthenticatedAdminUsuariosRoute,
     AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   }
