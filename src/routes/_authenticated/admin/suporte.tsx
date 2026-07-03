@@ -367,10 +367,24 @@ function SuportePage() {
                           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">
                             {(selecionado.nome || selecionado.email || "C").trim().charAt(0).toUpperCase()}
                           </div>
-                          <span className="text-sm font-semibold">
+                          <span className="flex-1 truncate text-sm font-semibold">
                             {selecionado.nome || selecionado.email || "Cliente"}
                           </span>
+                          {selecionado.encerrada ? (
+                            <Button variant="outline" size="sm" onClick={reabrirChamado}>
+                              <Clock className="mr-2 h-4 w-4" /> Reabrir
+                            </Button>
+                          ) : (
+                            <Button variant="outline" size="sm" onClick={encerrarChamado}>
+                              <CheckCircle2 className="mr-2 h-4 w-4" /> Encerrar
+                            </Button>
+                          )}
                         </div>
+                        {selecionado.encerrada && (
+                          <div className="flex items-center gap-2 border-b border-border/60 bg-muted/40 px-4 py-2 text-xs text-muted-foreground">
+                            <CheckCircle2 className="h-4 w-4 text-primary" /> Chamado encerrado
+                          </div>
+                        )}
                         <div className="flex-1 space-y-3 overflow-y-auto bg-muted/20 px-4 py-4">
                           {msgs.map((m) => (
                             <div
