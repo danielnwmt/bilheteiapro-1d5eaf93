@@ -865,6 +865,7 @@ function Index() {
           onOpenChange={setChatAberto}
           whatsapp={modoSuporte === "ambos" ? suporte?.whatsapp : undefined}
           mensagemPadrao={suporte?.mensagem}
+          fluxo={suporte?.fluxo}
         />
 
 
