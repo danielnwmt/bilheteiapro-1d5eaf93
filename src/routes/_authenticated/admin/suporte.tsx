@@ -65,6 +65,10 @@ function SuportePage() {
   const [busca, setBusca] = useState("");
   const [aba, setAba] = useState<"abertos" | "encerrados">("abertos");
   const [metricas, setMetricas] = useState<SuporteMetricas | null>(null);
+  const [fluxo, setFluxo] = useState<{ saudacao: string; opcoes: { label: string; resposta: string }[] }>({
+    saudacao: "",
+    opcoes: [],
+  });
   const fimRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
