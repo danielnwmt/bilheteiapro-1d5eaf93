@@ -253,9 +253,23 @@ function ApisPage() {
         </Button>
 
         <h1 className="mb-2 text-2xl font-bold">APIs do sistema</h1>
-        <p className="mb-6 text-sm text-muted-foreground">
+        <p className="mb-4 text-sm text-muted-foreground">
           Edite as chaves de integração usadas pelo sistema.
         </p>
+
+        <div className="mb-6 flex items-center justify-between gap-3 rounded-lg border border-border bg-card p-4">
+          <div>
+            <p className="text-sm font-medium">Limpar análises</p>
+            <p className="text-xs text-muted-foreground">
+              Apaga todas as análises salvas. Use quando houver muitas odds desreguladas — o robô reanalisa os jogos do zero.
+            </p>
+          </div>
+          <Button variant="destructive" size="sm" onClick={limparAnalisesAgora} disabled={limpando}>
+            {limpando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            Limpar
+          </Button>
+        </div>
+
 
         {isLoading ? (
           <div className="flex justify-center py-16">
