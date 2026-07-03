@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getSystemConfig, setSystemConfig, testApiKey, getApiUsage, chamarApiManual } from "@/lib/access.functions";
+import { limparAnalises } from "@/lib/limpar-analise.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -129,6 +130,24 @@ function ApisPage() {
     }
   }
 
+  const limpar = useServerFn(limparAnalises);
+  const [limpando, setLimpando] = useState(false);
+  async function limparAnalisesAgora() {
+    if (!confirm("Limpar todas as análises? O robô vai reanalisar os jogos do zero.")) return;
+    setLimpando(true);
+    const tid = toast.loading("Limpando análises…");
+    try {
+      await limpar();
+      toast.success("Análises limpas. O robô vai reanalisar em breve.", { id: tid });
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao limpar análises", { id: tid });
+    } finally {
+      setLimpando(false);
+    }
+  }
+
+
+
 
   async function ativarETestar(chave: string) {
     const valor = vals[chave] ?? "";
@@ -234,9 +253,23 @@ function ApisPage() {
         </Button>
 
         <h1 className="mb-2 text-2xl font-bold">APIs do sistema</h1>
-        <p className="mb-6 text-sm text-muted-foreground">
+        <p className="mb-4 text-sm text-muted-foreground">
           Edite as chaves de integração usadas pelo sistema.
         </p>
+
+        <div className="mb-6 flex items-center justify-between gap-3 rounded-lg border border-border bg-card p-4">
+          <div>
+            <p className="text-sm font-medium">Limpar análises</p>
+            <p className="text-xs text-muted-foreground">
+              Apaga todas as análises salvas. Use quando houver muitas odds desreguladas — o robô reanalisa os jogos do zero.
+            </p>
+          </div>
+          <Button variant="destructive" size="sm" onClick={limparAnalisesAgora} disabled={limpando}>
+            {limpando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            Limpar
+          </Button>
+        </div>
+
 
         {isLoading ? (
           <div className="flex justify-center py-16">
