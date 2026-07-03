@@ -115,7 +115,8 @@ function SuportePage() {
       return;
     }
     toast.success("Chamado encerrado");
-    setSelecionado((s) => (s ? { ...s, encerrada: true } : s));
+    setSelecionado(null);
+    setAba("encerrados");
     recarregarConversas();
   }
 
