@@ -165,12 +165,12 @@ export async function syncFixtures(periodo: Periodo): Promise<number> {
 
 // Mapeia o nome da casa (app) -> bookmaker id da API-Football.
 const BOOKMAKER_NAME_TO_ID: Record<string, number> = {
-  betano: 22,
+  betano: 32,
   bet365: 8,
-  betfair: 2,
-  "1xbet": 26,
+  betfair: 3,
+  "1xbet": 11,
   pinnacle: 4,
-  marathonbet: 7,
+  marathonbet: 2,
 };
 
 // Carrega os templates de deep link por casa e devolve uma função que
