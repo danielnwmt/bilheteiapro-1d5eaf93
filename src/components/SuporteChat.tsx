@@ -301,9 +301,21 @@ export function SuporteChat({
     if (!error) setTexto("");
   }
 
+  // Resolve o texto que a opção deve responder: se ligada a uma caixa (destino),
+  // usa o conteúdo dela; senão, usa a resposta direta da opção.
+  function respostaDaOpcao(op: FluxoOpcao): string {
+    if (op.destino) {
+      if (op.destino === "msg") return (fluxo?.saudacao ?? "").trim();
+      const m = op.destino.match(/^extra-(\d+)$/);
+      if (m) return ((fluxo?.mensagens ?? [])[Number(m[1])] ?? "").trim();
+    }
+    return op.resposta.trim();
+  }
+
   async function escolherOpcao(op: FluxoOpcao) {
     if (!userId) return;
     setFluxoLocal((prev) => [...prev, { id: `cli-${Date.now()}`, autor: "cliente", conteudo: op.label }]);
+    const resp = respostaDaOpcao(op);
 
     if (op.ouvidoria) {
       setModoReclamacao(true);
@@ -312,7 +324,7 @@ export function SuporteChat({
         {
           id: `bot-${Date.now()}`,
           autor: "suporte",
-          conteudo: op.resposta.trim() || "Descreva sua reclamação abaixo. Ela será registrada na ouvidoria.",
+          conteudo: resp || "Descreva sua reclamação abaixo. Ela será registrada na ouvidoria.",
         },
       ]);
       return;
@@ -330,8 +342,8 @@ export function SuporteChat({
         detalhes: { opcao: op.label },
       });
     }
-    if (op.resposta.trim()) {
-      setFluxoLocal((prev) => [...prev, { id: `bot-${Date.now()}`, autor: "suporte", conteudo: op.resposta }]);
+    if (resp) {
+      setFluxoLocal((prev) => [...prev, { id: `bot-${Date.now()}`, autor: "suporte", conteudo: resp }]);
     }
   }
 
