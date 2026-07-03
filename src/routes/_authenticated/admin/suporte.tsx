@@ -226,8 +226,6 @@ function SuportePage() {
     setResposta("");
   }
 
-  const mostraChat = !modoConfig && (suporte.modo === "chat" || suporte.modo === "ambos");
-
   return (
     <main className="min-h-screen bg-background">
       <div className="mx-auto max-w-4xl px-4 py-10">
@@ -238,13 +236,10 @@ function SuportePage() {
         </div>
 
         <div className="mb-6 flex items-center gap-2">
-          {modoConfig ? (
-            <LifeBuoy className="h-6 w-6 text-primary" />
-          ) : (
-            <MessageCircle className="h-6 w-6 text-primary" />
-          )}
-          <h1 className="text-2xl font-bold">{modoConfig ? "Suporte" : "Chat"}</h1>
+          <LifeBuoy className="h-6 w-6 text-primary" />
+          <h1 className="text-2xl font-bold">Suporte</h1>
         </div>
+
 
 
         {!isAdmin ? (
