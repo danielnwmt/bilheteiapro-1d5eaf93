@@ -947,7 +947,7 @@ function mapOddsApiOutcome(
   }
   if (k === "totals") {
     const lado = name.startsWith("over") ? "Mais de" : name.startsWith("under") ? "Menos de" : o.name;
-    const pt = o.point != null ? ` ${o.point}` : "";
+    const pt = o.point != null ? ` ${o.point} gols` : "";
     return { mercado: "Total de Gols", selecao: `${lado}${pt}` };
   }
   if (k === "btts") {
