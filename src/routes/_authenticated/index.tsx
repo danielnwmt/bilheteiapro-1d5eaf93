@@ -845,7 +845,7 @@ function Index() {
             </Button>
             {temSuporte && (
               <Button variant="outline" size="sm" onClick={abrirSuporte}>
-                <LifeBuoy className="mr-2 h-4 w-4" /> Suporte
+                <LifeBuoy className="mr-2 h-4 w-4" /> Chat Suporte
               </Button>
             )}
             <Button variant="outline" size="sm" onClick={handleSignOut}>
