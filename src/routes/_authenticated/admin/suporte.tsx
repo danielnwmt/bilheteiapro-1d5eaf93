@@ -79,14 +79,18 @@ function SuportePage() {
 
   useEffect(() => {
     carregarSuporte()
-      .then((s) =>
+      .then((s) => {
         setSuporte({
           whatsapp: s.whatsapp ?? "",
           email: s.email ?? "",
           mensagem: s.mensagem ?? "",
           modo: s.modo ?? "whatsapp",
-        }),
-      )
+        });
+        setFluxo({
+          saudacao: s.fluxo?.saudacao ?? "",
+          opcoes: s.fluxo?.opcoes ?? [],
+        });
+      })
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
