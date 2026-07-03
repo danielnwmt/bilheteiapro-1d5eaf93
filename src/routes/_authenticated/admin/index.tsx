@@ -25,6 +25,7 @@ import {
   Wallet,
   Play,
   Wifi,
+  MessageSquare,
 
 
 
