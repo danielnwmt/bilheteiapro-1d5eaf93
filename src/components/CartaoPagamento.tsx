@@ -45,6 +45,7 @@ function maxParcelasDoCiclo(ciclo: Ciclo): number {
 export function CartaoPagamento({
   plano,
   ciclo,
+  cpf,
   precoCentavos,
   precoLabel,
   onSucesso,
@@ -52,6 +53,7 @@ export function CartaoPagamento({
 }: {
   plano: Plano;
   ciclo: Ciclo;
+  cpf?: string;
   precoCentavos: number;
   precoLabel: string;
   onSucesso: () => void;
