@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Loader2, Save, ShieldAlert, LifeBuoy, Send, MessageSquare, Search, MessageCircle, CheckCircle2, Clock, Timer } from "lucide-react";
+import { ArrowLeft, Loader2, Save, ShieldAlert, LifeBuoy, Send, MessageSquare, Search, MessageCircle, CheckCircle2, Clock, Timer, GitBranch, Trash2, Plus } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { useAccess } from "@/hooks/useAccess";
