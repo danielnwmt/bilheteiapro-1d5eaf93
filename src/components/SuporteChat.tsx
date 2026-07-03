@@ -231,7 +231,7 @@ export function SuporteChat({
                 </div>
               ))}
 
-              {fluxoAtivo && mostraMenu && fluxo && fluxo.opcoes.length > 0 && (
+              {fluxoAtivo && !modoReclamacao && mostraMenu && fluxo && fluxo.opcoes.length > 0 && (
                 <div className="flex flex-col items-start gap-2 pt-1">
                   <p className="text-xs text-muted-foreground">Selecione uma opção:</p>
                   {fluxo.opcoes.map((op, i) => (
