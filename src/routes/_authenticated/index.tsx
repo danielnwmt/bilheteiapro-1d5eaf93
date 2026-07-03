@@ -1601,7 +1601,7 @@ function Index() {
 
 
         <p className="mt-8 text-center text-xs text-muted-foreground">
-          Aposte com responsabilidade. Conteúdo apenas informativo.
+          Aposte com responsabilidade.
         </p>
       </div>
 
