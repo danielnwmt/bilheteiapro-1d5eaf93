@@ -196,6 +196,8 @@ function ApisPage() {
       // chaves internas/derivadas não devem aparecer como cards próprios
       !c.endsWith("_INTERVALO_VALOR") &&
       !c.endsWith("_INTERVALO_UNIDADE") &&
+      !c.startsWith("SUPORTE_") &&
+      c !== "ASAAS_ENV" &&
       c !== "ASAAS_WEBHOOK_TOKEN" &&
       c !== "API_FLUXO" &&
       c !== "PIX_PROVEDOR" &&
