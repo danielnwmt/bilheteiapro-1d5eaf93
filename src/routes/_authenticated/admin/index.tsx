@@ -26,6 +26,7 @@ import {
   Play,
   Wifi,
   MessageSquare,
+  Megaphone,
 
 
 
