@@ -13,11 +13,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Loader2, Save, ShieldAlert, LifeBuoy, Send, MessageSquare, Search, MessageCircle } from "lucide-react";
+import { ArrowLeft, Loader2, Save, ShieldAlert, LifeBuoy, Send, MessageSquare, Search, MessageCircle, CheckCircle2, Clock, Timer } from "lucide-react";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { useAccess } from "@/hooks/useAccess";
 import { supabase } from "@/integrations/supabase/client";
 import { getSuporte, setSystemConfig } from "@/lib/access.functions";
-import { listSuporteConversas, type SuporteConversa } from "@/lib/suporte.functions";
+import {
+  listSuporteConversas,
+  getSuporteMetricas,
+  type SuporteConversa,
+  type SuporteMetricas,
+} from "@/lib/suporte.functions";
 import { toast } from "sonner";
 
 const ADMIN_EMAIL = "contato@protenexus.com";
@@ -47,6 +54,7 @@ function SuportePage() {
   const carregarSuporte = useServerFn(getSuporte);
   const salvarConfig = useServerFn(setSystemConfig);
   const carregarConversas = useServerFn(listSuporteConversas);
+  const carregarMetricas = useServerFn(getSuporteMetricas);
 
   const [suporte, setSuporte] = useState({ whatsapp: "", email: "", mensagem: "", modo: "whatsapp" });
   const [conversas, setConversas] = useState<SuporteConversa[]>([]);
@@ -55,6 +63,7 @@ function SuportePage() {
   const [resposta, setResposta] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [busca, setBusca] = useState("");
+  const [metricas, setMetricas] = useState<SuporteMetricas | null>(null);
   const fimRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -81,6 +90,9 @@ function SuportePage() {
     carregarConversas()
       .then((c) => setConversas(c))
       .catch(() => {});
+    carregarMetricas()
+      .then((m) => setMetricas(m))
+      .catch(() => {});
   }
 
   useEffect(() => {
@@ -88,6 +100,41 @@ function SuportePage() {
     recarregarConversas();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin]);
+
+  async function encerrarChamado() {
+    if (!selecionado) return;
+    const { error } = await supabase
+      .from("suporte_status")
+      .upsert(
+        { user_id: selecionado.userId, encerrada: true, encerrada_em: new Date().toISOString() },
+        { onConflict: "user_id" },
+      );
+    if (error) {
+      toast.error("Erro ao encerrar");
+      return;
+    }
+    toast.success("Chamado encerrado");
+    setSelecionado((s) => (s ? { ...s, encerrada: true } : s));
+    recarregarConversas();
+  }
+
+  async function reabrirChamado() {
+    if (!selecionado) return;
+    const { error } = await supabase
+      .from("suporte_status")
+      .upsert(
+        { user_id: selecionado.userId, encerrada: false, encerrada_em: null },
+        { onConflict: "user_id" },
+      );
+    if (error) {
+      toast.error("Erro ao reabrir");
+      return;
+    }
+    toast.success("Chamado reaberto");
+    setSelecionado((s) => (s ? { ...s, encerrada: false } : s));
+    recarregarConversas();
+  }
+
 
   // Mensagens da conversa selecionada + realtime.
   useEffect(() => {
@@ -243,6 +290,51 @@ function SuportePage() {
 
 
 
+            {mostraChat && metricas && (
+              <div className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <Card className="border-border/60 bg-card p-4">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <CheckCircle2 className="h-4 w-4 text-primary" /> Finalizados
+                    </div>
+                    <p className="mt-1 text-2xl font-bold">{metricas.finalizados}</p>
+                  </Card>
+                  <Card className="border-border/60 bg-card p-4">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <MessageCircle className="h-4 w-4 text-primary" /> Em aberto
+                    </div>
+                    <p className="mt-1 text-2xl font-bold">{metricas.abertos}</p>
+                  </Card>
+                  <Card className="border-border/60 bg-card p-4">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Timer className="h-4 w-4 text-primary" /> Tempo médio resposta
+                    </div>
+                    <p className="mt-1 text-2xl font-bold">{metricas.tempoMedioMin} min</p>
+                  </Card>
+                </div>
+
+                <Card className="border-border/60 bg-card p-4">
+                  <h2 className="mb-3 text-sm font-semibold">Últimos 7 dias</h2>
+                  <ChartContainer
+                    config={{
+                      finalizados: { label: "Finalizados", color: "hsl(var(--primary))" },
+                      tempoEsperaMin: { label: "Espera (min)", color: "hsl(var(--muted-foreground))" },
+                    }}
+                    className="h-[220px] w-full"
+                  >
+                    <BarChart data={metricas.serie}>
+                      <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                      <XAxis dataKey="dia" tickLine={false} axisLine={false} fontSize={12} />
+                      <YAxis tickLine={false} axisLine={false} fontSize={12} width={28} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar dataKey="finalizados" fill="var(--color-finalizados)" radius={4} />
+                      <Bar dataKey="tempoEsperaMin" fill="var(--color-tempoEsperaMin)" radius={4} />
+                    </BarChart>
+                  </ChartContainer>
+                </Card>
+              </div>
+            )}
+
             {mostraChat && (
               <Card className="overflow-hidden border-border/60 bg-card p-0">
                 <div className="grid md:grid-cols-[280px_1fr]">
@@ -320,10 +412,24 @@ function SuportePage() {
                           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">
                             {(selecionado.nome || selecionado.email || "C").trim().charAt(0).toUpperCase()}
                           </div>
-                          <span className="text-sm font-semibold">
+                          <span className="flex-1 truncate text-sm font-semibold">
                             {selecionado.nome || selecionado.email || "Cliente"}
                           </span>
+                          {selecionado.encerrada ? (
+                            <Button variant="outline" size="sm" onClick={reabrirChamado}>
+                              <Clock className="mr-2 h-4 w-4" /> Reabrir
+                            </Button>
+                          ) : (
+                            <Button variant="outline" size="sm" onClick={encerrarChamado}>
+                              <CheckCircle2 className="mr-2 h-4 w-4" /> Encerrar
+                            </Button>
+                          )}
                         </div>
+                        {selecionado.encerrada && (
+                          <div className="flex items-center gap-2 border-b border-border/60 bg-muted/40 px-4 py-2 text-xs text-muted-foreground">
+                            <CheckCircle2 className="h-4 w-4 text-primary" /> Chamado encerrado
+                          </div>
+                        )}
                         <div className="flex-1 space-y-3 overflow-y-auto bg-muted/20 px-4 py-4">
                           {msgs.map((m) => (
                             <div
