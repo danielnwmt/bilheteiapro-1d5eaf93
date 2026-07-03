@@ -134,7 +134,11 @@ function AtendimentoPage() {
   const [enviando, setEnviando] = useState(false);
   const [busca, setBusca] = useState("");
   const [fTempo, setFTempo] = useState<FiltroTempo>("todos");
-  const [fStatus, setFStatus] = useState<FiltroStatus>("todos");
+  const [fStatus, setFStatus] = useState<FiltroStatus[]>([
+    "aguardando",
+    "em_atendimento",
+    "finalizados",
+  ]);
   const [dash, setDash] = useState<DashboardSuporte | null>(null);
   const [respostas, setRespostas] = useState<RespostaRapida[]>([]);
   const [clienteDigitando, setClienteDigitando] = useState(false);
