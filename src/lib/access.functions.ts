@@ -1493,7 +1493,7 @@ export const getSuporte = createServerFn({ method: "GET" })
           saudacao: typeof parsed?.saudacao === "string" ? parsed.saudacao : "",
           opcoes: Array.isArray(parsed?.opcoes)
             ? parsed.opcoes
-                .map((o: any) => ({ label: String(o?.label ?? ""), resposta: String(o?.resposta ?? ""), ouvidoria: Boolean(o?.ouvidoria) }))
+                .map((o: any) => ({ label: String(o?.label ?? ""), resposta: String(o?.resposta ?? ""), ouvidoria: Boolean(o?.ouvidoria), destino: o?.destino ? String(o.destino) : undefined }))
                 .filter((o: any) => o.label.trim())
             : [],
           mensagens: Array.isArray(parsed?.mensagens)
