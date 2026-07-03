@@ -82,12 +82,20 @@ export function FluxoBuilder({
       const pb = ponto(b);
       if (pa && pb) novas.push({ from: pa, to: pb });
     };
+    const extras = fluxo.mensagens ?? [];
     push(startRef.current, msgInRef.current);
-    push(msgOutRef.current, escInRef.current);
+    if (extras.length === 0) {
+      push(msgOutRef.current, escInRef.current);
+    } else {
+      push(msgOutRef.current, extraInRefs.current[0]);
+      for (let i = 0; i < extras.length - 1; i++) push(extraOutRefs.current[i], extraInRefs.current[i + 1]);
+      push(extraOutRefs.current[extras.length - 1], escInRef.current);
+    }
     fluxo.opcoes.forEach((_, i) => push(optOutRefs.current[i], respInRefs.current[i]));
     setLinhas(novas);
     setSize({ w: wrap.scrollWidth, h: wrap.scrollHeight });
-  }, [fluxo.opcoes]);
+  }, [fluxo.opcoes, fluxo.mensagens]);
+
 
   useLayoutEffect(() => {
     medir();
