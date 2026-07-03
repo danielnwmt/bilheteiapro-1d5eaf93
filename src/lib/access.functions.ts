@@ -1393,6 +1393,7 @@ export const getClientStats = createServerFn({ method: "GET" })
     let recebidos = 0;
     for (const s of subs) {
       if (!clienteIds.has(s.user_id)) continue;
+      if (s.status === "cortesia") continue; // cortesia não gera faturamento
       const preco = precoMap[s.plano] ?? 0;
       if (s.status === "ativo") recebidos += preco;
       const criada = s.created_at ? new Date(s.created_at) : null;
