@@ -26,6 +26,7 @@ import {
   type SuporteMetricas,
 } from "@/lib/suporte.functions";
 import { toast } from "sonner";
+import { FluxoBuilder } from "@/components/FluxoBuilder";
 
 const ADMIN_EMAIL = "contato@protenexus.com";
 
