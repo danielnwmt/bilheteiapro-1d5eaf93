@@ -23,7 +23,7 @@ import {
   deletePlanoConfig,
   updatePlanoConfig,
 } from "@/lib/planoConfig.functions";
-import { getSuporte, setSystemConfig } from "@/lib/access.functions";
+
 import { useAccess } from "@/hooks/useAccess";
 import { supabase } from "@/integrations/supabase/client";
 import {
