@@ -239,7 +239,7 @@ function PlanosPage() {
 
               <Button
                 className="w-full font-semibold"
-                disabled={carregando}
+                disabled={carregando || !cpfValido}
                 onClick={() => pagar("pix")}
               >
                 {carregando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -248,7 +248,7 @@ function PlanosPage() {
               <Button
                 variant="outline"
                 className="w-full font-semibold"
-                disabled={carregando}
+                disabled={carregando || !cpfValido}
                 onClick={() => setTelaCartao(true)}
               >
                 Crédito / Débito
