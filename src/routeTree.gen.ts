@@ -25,6 +25,7 @@ import { Route as AuthenticatedAdminSslRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedAdminReclamacoesRouteImport } from './routes/_authenticated/admin/reclamacoes'
 import { Route as AuthenticatedAdminConfiguracoesRouteImport } from './routes/_authenticated/admin/configuracoes'
 import { Route as AuthenticatedAdminBackupRouteImport } from './routes/_authenticated/admin/backup'
+import { Route as AuthenticatedAdminAtendimentoRouteImport } from './routes/_authenticated/admin/atendimento'
 import { Route as AuthenticatedAdminApisRouteImport } from './routes/_authenticated/admin/apis'
 import { Route as ApiPublicWebhooksAsaasRouteImport } from './routes/api/public/webhooks/asaas'
 import { Route as ApiPublicPaymentsInfinitepayRouteImport } from './routes/api/public/payments/infinitepay'
@@ -118,6 +119,12 @@ const AuthenticatedAdminBackupRoute =
     path: '/backup',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const AuthenticatedAdminAtendimentoRoute =
+  AuthenticatedAdminAtendimentoRouteImport.update({
+    id: '/atendimento',
+    path: '/atendimento',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const AuthenticatedAdminApisRoute = AuthenticatedAdminApisRouteImport.update({
   id: '/apis',
   path: '/apis',
@@ -174,6 +181,7 @@ export interface FileRoutesByFullPath {
   '/perfil': typeof AuthenticatedPerfilRoute
   '/planos': typeof AuthenticatedPlanosRoute
   '/admin/apis': typeof AuthenticatedAdminApisRoute
+  '/admin/atendimento': typeof AuthenticatedAdminAtendimentoRoute
   '/admin/backup': typeof AuthenticatedAdminBackupRoute
   '/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
   '/admin/reclamacoes': typeof AuthenticatedAdminReclamacoesRoute
@@ -198,6 +206,7 @@ export interface FileRoutesByTo {
   '/planos': typeof AuthenticatedPlanosRoute
   '/': typeof AuthenticatedIndexRoute
   '/admin/apis': typeof AuthenticatedAdminApisRoute
+  '/admin/atendimento': typeof AuthenticatedAdminAtendimentoRoute
   '/admin/backup': typeof AuthenticatedAdminBackupRoute
   '/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
   '/admin/reclamacoes': typeof AuthenticatedAdminReclamacoesRoute
@@ -225,6 +234,7 @@ export interface FileRoutesById {
   '/_authenticated/planos': typeof AuthenticatedPlanosRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/admin/apis': typeof AuthenticatedAdminApisRoute
+  '/_authenticated/admin/atendimento': typeof AuthenticatedAdminAtendimentoRoute
   '/_authenticated/admin/backup': typeof AuthenticatedAdminBackupRoute
   '/_authenticated/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
   '/_authenticated/admin/reclamacoes': typeof AuthenticatedAdminReclamacoesRoute
@@ -252,6 +262,7 @@ export interface FileRouteTypes {
     | '/perfil'
     | '/planos'
     | '/admin/apis'
+    | '/admin/atendimento'
     | '/admin/backup'
     | '/admin/configuracoes'
     | '/admin/reclamacoes'
@@ -276,6 +287,7 @@ export interface FileRouteTypes {
     | '/planos'
     | '/'
     | '/admin/apis'
+    | '/admin/atendimento'
     | '/admin/backup'
     | '/admin/configuracoes'
     | '/admin/reclamacoes'
@@ -302,6 +314,7 @@ export interface FileRouteTypes {
     | '/_authenticated/planos'
     | '/_authenticated/'
     | '/_authenticated/admin/apis'
+    | '/_authenticated/admin/atendimento'
     | '/_authenticated/admin/backup'
     | '/_authenticated/admin/configuracoes'
     | '/_authenticated/admin/reclamacoes'
@@ -447,6 +460,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminBackupRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/admin/atendimento': {
+      id: '/_authenticated/admin/atendimento'
+      path: '/atendimento'
+      fullPath: '/admin/atendimento'
+      preLoaderRoute: typeof AuthenticatedAdminAtendimentoRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/admin/apis': {
       id: '/_authenticated/admin/apis'
       path: '/apis'
@@ -508,6 +528,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminApisRoute: typeof AuthenticatedAdminApisRoute
+  AuthenticatedAdminAtendimentoRoute: typeof AuthenticatedAdminAtendimentoRoute
   AuthenticatedAdminBackupRoute: typeof AuthenticatedAdminBackupRoute
   AuthenticatedAdminConfiguracoesRoute: typeof AuthenticatedAdminConfiguracoesRoute
   AuthenticatedAdminReclamacoesRoute: typeof AuthenticatedAdminReclamacoesRoute
@@ -520,6 +541,7 @@ interface AuthenticatedAdminRouteRouteChildren {
 const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren =
   {
     AuthenticatedAdminApisRoute: AuthenticatedAdminApisRoute,
+    AuthenticatedAdminAtendimentoRoute: AuthenticatedAdminAtendimentoRoute,
     AuthenticatedAdminBackupRoute: AuthenticatedAdminBackupRoute,
     AuthenticatedAdminConfiguracoesRoute: AuthenticatedAdminConfiguracoesRoute,
     AuthenticatedAdminReclamacoesRoute: AuthenticatedAdminReclamacoesRoute,
@@ -569,13 +591,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

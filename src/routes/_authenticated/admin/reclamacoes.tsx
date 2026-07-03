@@ -71,7 +71,10 @@ function ReclamacoesPage() {
 
   async function resolver(r: Reclamacao) {
     const novo = r.status === "resolvida" ? "aberta" : "resolvida";
-    const { error } = await supabase.from("reclamacoes").update({ status: novo }).eq("id", r.id);
+    const { error } = await supabase
+      .from("reclamacoes")
+      .update({ status: novo, resolvido_em: novo === "resolvida" ? new Date().toISOString() : null })
+      .eq("id", r.id);
     if (error) {
       toast.error("Erro ao atualizar");
       return;

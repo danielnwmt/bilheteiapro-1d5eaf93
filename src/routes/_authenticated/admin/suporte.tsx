@@ -27,6 +27,7 @@ import {
 } from "@/lib/suporte.functions";
 import { toast } from "sonner";
 import { FluxoBuilder } from "@/components/FluxoBuilder";
+import { SuporteAdminConfig } from "@/components/SuporteAdminConfig";
 
 const ADMIN_EMAIL = "contato@protenexus.com";
 
@@ -318,6 +319,7 @@ function SuportePage() {
                 </p>
                 <FluxoBuilder fluxo={fluxo} setFluxo={setFluxo} />
               </div>
+              <SuporteAdminConfig />
             </Card>
             )}
 
