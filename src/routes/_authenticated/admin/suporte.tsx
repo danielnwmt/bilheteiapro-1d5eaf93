@@ -234,6 +234,9 @@ function SuportePage() {
                 </div>
               </div>
             </Card>
+            )}
+
+
 
             {mostraChat && (
               <Card className="overflow-hidden border-border/60 bg-card p-0">
