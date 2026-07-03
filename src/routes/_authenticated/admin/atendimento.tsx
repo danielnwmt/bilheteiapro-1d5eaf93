@@ -97,7 +97,7 @@ function AtendimentoPage() {
   const { data: access } = useAccess();
   const [currentEmail, setCurrentEmail] = useState("");
   const [meuId, setMeuId] = useState<string | null>(null);
-  const roles = access?.roles ?? [];
+  const roles = (access?.roles ?? []) as string[];
   const isStaff =
     roles.includes("admin") ||
     roles.includes("supervisor") ||
