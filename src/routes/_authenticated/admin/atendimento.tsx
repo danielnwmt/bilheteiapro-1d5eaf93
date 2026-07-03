@@ -12,6 +12,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ChevronDown } from "lucide-react";
+import {
   ArrowLeft,
   Loader2,
   Send,
@@ -73,7 +80,13 @@ const TAGS = [
 ];
 
 type FiltroTempo = "todos" | "hoje" | "ontem" | "7d" | "30d";
-type FiltroStatus = "todos" | "em_atendimento" | "aguardando" | "finalizados";
+type FiltroStatus = "em_atendimento" | "aguardando" | "finalizados";
+
+const STATUS_OPCOES: { v: FiltroStatus; l: string }[] = [
+  { v: "aguardando", l: "Aguardando" },
+  { v: "em_atendimento", l: "Em atendimento" },
+  { v: "finalizados", l: "Finalizados" },
+];
 
 function dentroDoPeriodo(iso: string, filtro: FiltroTempo): boolean {
   if (filtro === "todos") return true;
@@ -121,7 +134,11 @@ function AtendimentoPage() {
   const [enviando, setEnviando] = useState(false);
   const [busca, setBusca] = useState("");
   const [fTempo, setFTempo] = useState<FiltroTempo>("todos");
-  const [fStatus, setFStatus] = useState<FiltroStatus>("todos");
+  const [fStatus, setFStatus] = useState<FiltroStatus[]>([
+    "aguardando",
+    "em_atendimento",
+    "finalizados",
+  ]);
   const [dash, setDash] = useState<DashboardSuporte | null>(null);
   const [respostas, setRespostas] = useState<RespostaRapida[]>([]);
   const [clienteDigitando, setClienteDigitando] = useState(false);
@@ -309,10 +326,13 @@ function AtendimentoPage() {
       if (!alvo.includes(q)) return false;
     }
     if (!dentroDoPeriodo(c.atualizadoEm, fTempo)) return false;
-    if (fStatus === "em_atendimento" && c.status !== "em_atendimento") return false;
-    if (fStatus === "finalizados" && c.status !== "finalizado") return false;
-    if (fStatus === "aguardando" && !(c.status === "aberto" || c.status === "aguardando_atendente"))
-      return false;
+    const cat: FiltroStatus =
+      c.status === "em_atendimento"
+        ? "em_atendimento"
+        : c.status === "finalizado"
+          ? "finalizados"
+          : "aguardando";
+    if (!fStatus.includes(cat)) return false;
     return true;
   });
 
@@ -370,17 +390,38 @@ function AtendimentoPage() {
                       />
                     </div>
                     <div className="flex gap-2">
-                      <Select value={fStatus} onValueChange={(v) => setFStatus(v as FiltroStatus)}>
-                        <SelectTrigger className="h-8 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="todos">Todos</SelectItem>
-                          <SelectItem value="aguardando">Aguardando</SelectItem>
-                          <SelectItem value="em_atendimento">Em atendimento</SelectItem>
-                          <SelectItem value="finalizados">Finalizados</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 flex-1 justify-between text-xs font-normal"
+                          >
+                            {fStatus.length === STATUS_OPCOES.length
+                              ? "Todos"
+                              : fStatus.length === 0
+                                ? "Nenhum"
+                                : `${fStatus.length} selecionados`}
+                            <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                          {STATUS_OPCOES.map((opt) => (
+                            <DropdownMenuCheckboxItem
+                              key={opt.v}
+                              checked={fStatus.includes(opt.v)}
+                              onCheckedChange={(ck) =>
+                                setFStatus((prev) =>
+                                  ck ? [...prev, opt.v] : prev.filter((s) => s !== opt.v),
+                                )
+                              }
+                              onSelect={(e) => e.preventDefault()}
+                            >
+                              {opt.l}
+                            </DropdownMenuCheckboxItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                       <Select value={fTempo} onValueChange={(v) => setFTempo(v as FiltroTempo)}>
                         <SelectTrigger className="h-8 text-xs">
                           <SelectValue />
