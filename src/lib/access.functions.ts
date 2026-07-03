@@ -1474,7 +1474,7 @@ export const getSuporte = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async () => {
     const base = tryRestBase();
-    const vazio = { whatsapp: "", email: "", mensagem: "", modo: "whatsapp", fluxo: { saudacao: "", opcoes: [] as { label: string; resposta: string }[] } };
+    const vazio = { whatsapp: "", email: "", mensagem: "", modo: "whatsapp", fluxo: { saudacao: "", opcoes: [] as { label: string; resposta: string }[], mensagens: [] as string[] } };
     if (!base) return vazio;
     const rows = await restSelect<{ chave: string; valor: string }>(
       base,
@@ -1496,6 +1496,10 @@ export const getSuporte = createServerFn({ method: "GET" })
                 .map((o: any) => ({ label: String(o?.label ?? ""), resposta: String(o?.resposta ?? "") }))
                 .filter((o: any) => o.label.trim())
             : [],
+          mensagens: Array.isArray(parsed?.mensagens)
+            ? parsed.mensagens.map((m: any) => String(m ?? "")).filter((m: string) => m.trim())
+            : [],
+
         };
       }
     } catch {

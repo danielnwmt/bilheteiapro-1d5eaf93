@@ -18,7 +18,7 @@ type Mensagem = {
 };
 
 type FluxoOpcao = { label: string; resposta: string };
-type Fluxo = { saudacao: string; opcoes: FluxoOpcao[] };
+type Fluxo = { saudacao: string; opcoes: FluxoOpcao[]; mensagens?: string[] };
 
 // Bolhas locais do fluxo automático (não persistidas no banco).
 type Bolha = { id: string; autor: "cliente" | "suporte"; conteudo: string };
@@ -133,6 +133,16 @@ export function SuporteChat({
                   </div>
                 </div>
               )}
+
+              {(temFluxo || msgs.length > 0 || fluxoLocal.length > 0) &&
+                (fluxo?.mensagens ?? []).map((m, i) => (
+                  <div key={`extra-${i}`} className="flex justify-start">
+                    <div className="max-w-[80%] rounded-lg bg-muted px-3 py-2 text-sm text-foreground">
+                      {m}
+                    </div>
+                  </div>
+                ))}
+
 
               {!temFluxo && msgs.length === 0 && fluxoLocal.length === 0 && (
                 <p className="py-8 text-center text-sm text-muted-foreground">

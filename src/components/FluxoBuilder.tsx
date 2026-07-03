@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Hand, MessageSquareText, ListChecks, Plus, Trash2 } from "lucide-react";
 
-export type Fluxo = { saudacao: string; opcoes: { label: string; resposta: string }[] };
+export type Fluxo = { saudacao: string; opcoes: { label: string; resposta: string }[]; mensagens?: string[] };
 
 type Point = { x: number; y: number };
 type Linha = { from: Point; to: Point };
@@ -60,6 +60,9 @@ export function FluxoBuilder({
   const escInRef = useRef<HTMLSpanElement | null>(null);
   const optOutRefs = useRef<(HTMLSpanElement | null)[]>([]);
   const respInRefs = useRef<(HTMLSpanElement | null)[]>([]);
+  const extraInRefs = useRef<(HTMLSpanElement | null)[]>([]);
+  const extraOutRefs = useRef<(HTMLSpanElement | null)[]>([]);
+
 
   const [linhas, setLinhas] = useState<Linha[]>([]);
   const [size, setSize] = useState({ w: 0, h: 0 });
@@ -79,12 +82,20 @@ export function FluxoBuilder({
       const pb = ponto(b);
       if (pa && pb) novas.push({ from: pa, to: pb });
     };
+    const extras = fluxo.mensagens ?? [];
     push(startRef.current, msgInRef.current);
-    push(msgOutRef.current, escInRef.current);
+    if (extras.length === 0) {
+      push(msgOutRef.current, escInRef.current);
+    } else {
+      push(msgOutRef.current, extraInRefs.current[0]);
+      for (let i = 0; i < extras.length - 1; i++) push(extraOutRefs.current[i], extraInRefs.current[i + 1]);
+      push(extraOutRefs.current[extras.length - 1], escInRef.current);
+    }
     fluxo.opcoes.forEach((_, i) => push(optOutRefs.current[i], respInRefs.current[i]));
     setLinhas(novas);
     setSize({ w: wrap.scrollWidth, h: wrap.scrollHeight });
-  }, [fluxo.opcoes]);
+  }, [fluxo.opcoes, fluxo.mensagens]);
+
 
   useLayoutEffect(() => {
     medir();
@@ -144,6 +155,53 @@ export function FluxoBuilder({
             <Porta side="right" anchorRef={msgOutRef} />
           </No>
         </div>
+
+        {/* Caixas extras de mensagem */}
+        {(fluxo.mensagens ?? []).map((m, i) => (
+          <div key={i} className="relative">
+            <No titulo="Enviar mensagem" icon={<MessageSquareText className="h-3.5 w-3.5 text-primary" />}>
+              <div className="flex items-center gap-1">
+                <Input
+                  value={m}
+                  onChange={(e) =>
+                    setFluxo((f) => ({
+                      ...f,
+                      mensagens: (f.mensagens ?? []).map((x, j) => (j === i ? e.target.value : x)),
+                    }))
+                  }
+                  placeholder="Digite a mensagem…"
+                  className="text-xs"
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFluxo((f) => ({ ...f, mensagens: (f.mensagens ?? []).filter((_, j) => j !== i) }))
+                  }
+                  className="shrink-0 text-muted-foreground hover:text-destructive"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <Porta side="left" anchorRef={(el) => { extraInRefs.current[i] = el; }} />
+              <Porta side="right" anchorRef={(el) => { extraOutRefs.current[i] = el; }} />
+            </No>
+          </div>
+        ))}
+
+        {/* Botão adicionar caixa */}
+        <div className="relative flex items-center">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-9 text-xs"
+            onClick={() => setFluxo((f) => ({ ...f, mensagens: [...(f.mensagens ?? []), ""] }))}
+          >
+            <Plus className="mr-1 h-3.5 w-3.5" /> Adicionar caixa
+          </Button>
+        </div>
+
+
 
         {/* Pedir para escolher */}
         <div className="relative">
