@@ -220,10 +220,23 @@ function PlanosPage() {
                 )}
               </p>
             )}
-            <p className="mt-4 mb-3 text-sm text-muted-foreground">
+            <div className="mt-4 mb-3 space-y-1.5">
+              <Label htmlFor="cpf-checkout" className="text-sm text-muted-foreground">
+                CPF ou CNPJ do titular
+              </Label>
+              <Input
+                id="cpf-checkout"
+                inputMode="numeric"
+                placeholder="000.000.000-00"
+                value={cpf}
+                onChange={(e) => setCpf(e.target.value)}
+              />
+            </div>
+            <p className="mb-3 text-sm text-muted-foreground">
               Escolha a forma de pagamento.
             </p>
             <div className="space-y-3">
+
               <Button
                 className="w-full font-semibold"
                 disabled={carregando}
