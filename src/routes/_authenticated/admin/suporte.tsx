@@ -201,7 +201,7 @@ function SuportePage() {
       const fluxoLimpo = {
         saudacao: fluxo.saudacao.trim(),
         opcoes: fluxo.opcoes
-          .map((o) => ({ label: o.label.trim(), resposta: o.resposta.trim(), ouvidoria: Boolean(o.ouvidoria) }))
+          .map((o) => ({ label: o.label.trim(), resposta: o.resposta.trim(), ouvidoria: Boolean(o.ouvidoria), destino: o.destino || undefined }))
           .filter((o) => o.label),
         mensagens: (fluxo.mensagens ?? []).map((m) => m.trim()).filter(Boolean),
       };
