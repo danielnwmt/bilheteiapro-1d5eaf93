@@ -1,75 +1,37 @@
-# Suporte Profissional — BilheteiaPro
+## Objetivo
+No builder de fluxo (admin/suporte), deixar as **linhas de conexão editáveis**: o admin arrasta da "porta" de uma opção até uma caixa de mensagem para definir qual caixa aquela opção dispara. Hoje cada opção tem uma caixa de resposta fixa (1:1, não editável). O cliente passa a seguir a ligação desenhada.
 
-Objetivo: evoluir o suporte atual (chat cliente + fluxo/chatbot + ouvidoria) para um sistema completo estilo Intercom/Zendesk, **em tempo real**, mantendo layout, tema e todas as funcionalidades atuais.
+## O que muda para o usuário
+- Cada opção ("Financeiro", "Ouvidoria"…) tem uma bolinha (porta) à direita.
+- Arrastar dessa porta até a porta esquerda de uma caixa "Enviar mensagem" cria/atualiza a linha.
+- A caixa ligada vira a resposta que o cliente recebe ao escolher a opção.
+- Sem ligação = comportamento padrão (chama atendente).
+- Marcador "Ouvidoria" continua funcionando.
 
-Como é muito grande, entrego em **fases**. Cada fase é utilizável sozinha e não quebra as anteriores. Você aprova, eu construo a fase, valido, seguimos.
-
-## Ponto de partida (o que já existe)
-- `suporte_mensagens`, `suporte_status`, `reclamacoes` (ouvidoria) com RLS.
-- `SuporteChat.tsx` (cliente) com botão Iniciar, fluxo/menu e modo reclamação.
-- `FluxoBuilder.tsx` (construtor visual de blocos) + painel admin de suporte e ouvidoria.
-- Server fns em `suporte.functions.ts` (lista de conversas + métricas).
-
-Isso tudo é preservado e migrado para a nova estrutura.
-
-## Banco de dados (novo modelo, feito por migrations)
 ```text
-suporte_conversas   id, user_id, atendente_id, status, tags[], criado_em, atualizado_em
-suporte_mensagens   +conversa_id, tipo(text/arquivo), arquivo_url, lida  (mantém colunas atuais)
-chatbot_fluxo       id, nome, json, ativo
-chatbot_logs        id, user_id, conversa_id, evento, detalhes, created_at
-avaliacoes          id, conversa_id, nota, comentario, created_at
-respostas_rapidas   id, atalho, texto
-suporte_config      horários de atendimento, mensagem offline
-reclamacoes         (mantida, + arquivada)
+Iniciar → Saudação → Pedir para escolher
+                          ├── Financeiro ─┐
+                          └── Ouvidoria ──┼─→ (arraste p/ qualquer caixa)
+                                          └─→ Caixa "Aguarde, atendente…"
 ```
-- RLS: cliente vê só as próprias conversas/mensagens; atendente vê as suas; supervisor/admin veem tudo.
-- Novo papel `supervisor` no enum `app_role` + policies via `has_role()`.
-- Storage: bucket privado `suporte-anexos` com policies por dono/atendente.
-- Realtime habilitado em conversas, mensagens, status, avaliações.
 
-## Fase 1 — Fundação de dados e conversas
-- Migrations do modelo acima + migração dos dados atuais (mensagens soltas → conversa por usuário).
-- Papel `supervisor`. Bucket de anexos.
-- Server fns/CRUD de conversas e mensagens ligadas a `conversa_id`.
+## Modelo de dados
+`Fluxo.opcoes[i]` ganha `destino?: string` (id da caixa alvo). Caixas endereçáveis: `msg` (saudação) e `extra-<n>` (caixas adicionais). O texto mostrado ao cliente passa a vir da caixa apontada por `destino`; se não houver `destino`, usa `op.resposta` (compatibilidade).
 
-## Fase 2 — Chatbot configurável (fluxo salvo no banco)
-- `FluxoBuilder` passa a salvar/carregar de `chatbot_fluxo` (adicionar, remover, mover, editar, conectar, salvar, ativar).
-- Retorno ao menu e "⬅ Voltar ao Menu" no cliente.
+Salvo em `SUPORTE_FLUXO` (mesma chave). `getSuporte` já sanitiza o fluxo — incluir `destino` na leitura.
 
-## Fase 3 — Fluxo do cliente + Falar com atendente + Ouvidoria
-- Tela inicial "Como podemos ajudar?" + Iniciar; menu com os 8 itens.
-- "Falar com atendente" cria conversa e injeta o **histórico do chatbot** (opções escolhidas, respostas automáticas, horários) para o atendente ver.
-- Ouvidoria continua separada (não abre conversa), registro em `reclamacoes`.
-- Logs de eventos (entrou, escolheu opção, iniciou atendimento, etc.).
+## Builder (FluxoBuilder.tsx)
+- Tornar o SVG interativo (pointer events na porta da opção).
+- Estado de "ligação em andamento": ao `pointerdown` numa porta de opção, desenhar linha até o cursor; ao soltar sobre a porta de uma caixa, gravar `destino` naquela opção.
+- Clicar numa linha existente permite remover/religar.
+- Linhas passam a ser derivadas de `destino` (não mais 1:1 automático). Manter auto-layout das posições.
 
-## Fase 4 — Console do atendente (tempo real)
-- Lista/fila de conversas com status colorido (Aberto, Aguardando Atendente, Em Atendimento, Aguardando Cliente, Finalizado).
-- Assumir atendimento (trava para outros atendentes, mostra nome).
-- Indicador de digitação (Realtime presence/broadcast).
-- Confirmação de leitura ✓ / ✓✓ / ✓✓ lida.
-- Upload de arquivos (imagem, PDF, vídeo curto) com preview no Storage.
-- Respostas rápidas com `/atalho`. Tags. Finalizar + avaliação por estrelas.
+## Cliente (SuporteChat.tsx)
+- Em `escolherOpcao`, se a opção tem `destino`, mostrar o texto da caixa alvo em vez de `op.resposta`.
+- Restante do fluxo (ouvidoria, chamar atendente) inalterado.
 
-## Fase 5 — Filtros, busca, histórico, fila
-- Busca por nome/ID/email/telefone/data/status/tag.
-- Filtros: hoje, ontem, 7d, 30d, finalizados, em atendimento, aguardando.
-- Histórico de atendimentos (cliente e atendente).
-- Fila com posição e tempo estimado. Horário de atendimento + mensagem offline.
-
-## Fase 6 — Dashboard, permissões, notificações
-- Dashboard: atendimentos hoje/ativos, tempo médio de resposta e atendimento, aguardando, finalizados, reclamações abertas/resolvidas, avaliação média.
-- Permissões: Administrador (total), Supervisor (vê tudo), Atendente (só as suas).
-- Notificações em tempo real: badge vermelho + som opcional.
-
-## Detalhes técnicos
-- Stack: TanStack Start + `createServerFn` (lógica interna), Supabase Realtime, Storage, RLS, TanStack Query.
-- Reuso de componentes shadcn já no projeto; nada de mudança no design global.
-- Presence/broadcast do Supabase para digitação e notificações.
-- Código modular: hooks (`useConversas`, `useMensagens`, `useTyping`), componentes reutilizáveis, sem duplicação.
-- Ao fim de cada fase: typecheck + verificação de que o fluxo antigo continua funcionando.
-
-## Confirmações que preciso de você
-1. Começo pela **Fase 1** (banco + migração de dados) agora?
-2. Som de notificação: pode ser um beep simples embutido? (sem upload de áudio externo)
-3. Vídeo no upload: limito a ~20MB por causa do limite de arquivos?
+## Arquivos
+- `src/components/FluxoBuilder.tsx` — conexões arrastáveis, tipo `Fluxo` com `destino`.
+- `src/components/SuporteChat.tsx` — seguir `destino`.
+- `src/lib/access.functions.ts` — incluir `destino` na leitura do fluxo.
+- `src/routes/_authenticated/admin/suporte.tsx` — incluir `destino` ao salvar.
