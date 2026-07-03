@@ -156,7 +156,7 @@ function SuportePage() {
     setResposta("");
   }
 
-  const mostraChat = suporte.modo === "chat" || suporte.modo === "ambos";
+  const mostraChat = !modoConfig && (suporte.modo === "chat" || suporte.modo === "ambos");
 
   return (
     <main className="min-h-screen bg-background">
