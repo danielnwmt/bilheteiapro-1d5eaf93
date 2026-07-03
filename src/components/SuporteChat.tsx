@@ -187,6 +187,17 @@ export function SuporteChat({
           setStatus(st);
         },
       )
+      .on("broadcast", { event: "status" }, (p) => {
+        const st = (p.payload as any)?.status as string;
+        if (!st) return;
+        if (st === "finalizado") {
+          toast.info("Atendimento encerrado. Voltando ao menu.");
+          novoAtendimento();
+          return;
+        }
+        setStatus(st);
+        setFalandoAtendente(true);
+      })
       .on("broadcast", { event: "typing" }, (p) => {
         if ((p.payload as any)?.autor === "suporte") {
           setAtendenteDigitando(true);
