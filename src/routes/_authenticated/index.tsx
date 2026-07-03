@@ -300,6 +300,26 @@ function Index() {
   const fetchAoVivo = useServerFn(getEstatisticasAoVivoPartida);
   const fetchSuporte = useServerFn(getSuporte);
   const [suporte, setSuporte] = useState<{ whatsapp: string; email: string; mensagem: string } | null>(null);
+
+  useEffect(() => {
+    fetchSuporte()
+      .then((s) => setSuporte(s))
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function abrirSuporte() {
+    const s = suporte;
+    if (!s) return;
+    const msg = encodeURIComponent(s.mensagem || "Olá! Preciso de ajuda.");
+    if (s.whatsapp) {
+      const num = s.whatsapp.replace(/\D/g, "");
+      window.open(`https://wa.me/${num}?text=${msg}`, "_blank");
+    } else if (s.email) {
+      window.location.href = `mailto:${s.email}?subject=${encodeURIComponent("Suporte")}&body=${msg}`;
+    }
+  }
+  const temSuporte = !!(suporte?.whatsapp || suporte?.email);
   const [reanalisandoId, setReanalisandoId] = useState<string | null>(null);
   const [iniciando, setIniciando] = useState(false);
   const { data: access, refetch: refetchAccess } = useAccess();
