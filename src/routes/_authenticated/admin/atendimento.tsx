@@ -390,17 +390,38 @@ function AtendimentoPage() {
                       />
                     </div>
                     <div className="flex gap-2">
-                      <Select value={fStatus} onValueChange={(v) => setFStatus(v as FiltroStatus)}>
-                        <SelectTrigger className="h-8 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="todos">Todos</SelectItem>
-                          <SelectItem value="aguardando">Aguardando</SelectItem>
-                          <SelectItem value="em_atendimento">Em atendimento</SelectItem>
-                          <SelectItem value="finalizados">Finalizados</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 flex-1 justify-between text-xs font-normal"
+                          >
+                            {fStatus.length === STATUS_OPCOES.length
+                              ? "Todos"
+                              : fStatus.length === 0
+                                ? "Nenhum"
+                                : `${fStatus.length} selecionados`}
+                            <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start">
+                          {STATUS_OPCOES.map((opt) => (
+                            <DropdownMenuCheckboxItem
+                              key={opt.v}
+                              checked={fStatus.includes(opt.v)}
+                              onCheckedChange={(ck) =>
+                                setFStatus((prev) =>
+                                  ck ? [...prev, opt.v] : prev.filter((s) => s !== opt.v),
+                                )
+                              }
+                              onSelect={(e) => e.preventDefault()}
+                            >
+                              {opt.l}
+                            </DropdownMenuCheckboxItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                       <Select value={fTempo} onValueChange={(v) => setFTempo(v as FiltroTempo)}>
                         <SelectTrigger className="h-8 text-xs">
                           <SelectValue />
