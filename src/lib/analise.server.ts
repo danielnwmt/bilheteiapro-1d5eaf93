@@ -28,6 +28,8 @@ export type PartidaRow = {
 };
 
 
+export type ValorLabel = "Excelente Valor" | "Bom Valor" | "Valor Moderado" | "Sem Valor";
+
 export type PickAnalise = {
   mercado: string;
   selecao: string;
@@ -35,6 +37,14 @@ export type PickAnalise = {
   confianca: number;
   justificativa: string;
   external_odd_id: string | null;
+  // --- Campos opcionais do motor inteligente (retrocompatíveis) ---
+  // Nenhum consumidor antigo depende deles; leitores novos podem usá-los.
+  estrelas?: number; // 1 a 5 (classificação da pick)
+  probModelo?: number; // 0-100 probabilidade do modelo (Poisson + fatores)
+  oddJusta?: number; // 1 / probModelo
+  evPct?: number; // valor esperado em % (prob*odd - 1) * 100
+  valorLabel?: ValorLabel; // classificação do valor esperado
+  motivos?: string[]; // justificativas geradas automaticamente
 };
 
 export type AnaliseJogoStats = {
