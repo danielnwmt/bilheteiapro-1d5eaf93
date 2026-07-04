@@ -178,7 +178,7 @@ export const getMelhoresPicks = createServerFn({ method: "POST" })
     for (const r of rows) {
       for (const c of new Set(r.odds.map((o) => o.casa))) cobertura.set(c, (cobertura.get(c) ?? 0) + 1);
     }
-    const casa = [...cobertura.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "Betano";
+    const casa = [...cobertura.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "Bet365";
 
     const dia = diaSaoPaulo(now);
     const aAnalisar = rows.slice(0, 50);

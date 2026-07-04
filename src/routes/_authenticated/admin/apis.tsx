@@ -40,12 +40,6 @@ const CHAVES_PAGAMENTO = [
   },
 ];
 
-// Provedores (bancos) disponíveis para processar cada forma de pagamento.
-const PROVEDORES_PAGAMENTO = [
-  { value: "asaas", label: "Asaas" },
-];
-
-
 type ConfigRow = { chave: string; valor: string | null; descricao: string | null };
 const ADMIN_EMAIL = "contato@protenexus.com";
 
@@ -463,70 +457,11 @@ function ApisPage() {
               <p className="mb-4 text-sm text-muted-foreground">
                 Credenciais de recebimento. Mantidas separadas das demais integrações.
               </p>
-              {/* Seletor de banco por forma de pagamento */}
               <Card className="mb-4 border-primary/30 bg-card p-4">
-                <Label className="text-sm font-semibold">Banco por forma de pagamento</Label>
-                <p className="mb-3 text-xs text-muted-foreground">
-                  Escolha qual banco processa o Pix e qual processa o Crédito/Débito.
+                <Label className="text-sm font-semibold">Banco de pagamento</Label>
+                <p className="text-xs text-muted-foreground">
+                  O sistema está configurado para usar somente <b>Asaas</b> em Pix, boleto e cartão.
                 </p>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <Label className="mb-1 block text-xs text-muted-foreground">Pix</Label>
-                    <Select
-                      value={
-                        configRows.find((c) => c.chave === "PIX_PROVEDOR")?.valor ??
-                        PROVEDORES_PAGAMENTO[0].value
-                      }
-                      onValueChange={(v) =>
-                        mut.mutate({
-                          chave: "PIX_PROVEDOR",
-                          valor: v,
-                          descricao: "Banco que processa pagamentos via Pix.",
-                        })
-                      }
-                    >
-                      <SelectTrigger className="bg-input/40">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PROVEDORES_PAGAMENTO.map((p) => (
-                          <SelectItem key={p.value} value={p.value}>
-                            {p.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="mb-1 block text-xs text-muted-foreground">
-                      Crédito / Débito
-                    </Label>
-                    <Select
-                      value={
-                        configRows.find((c) => c.chave === "CARTAO_PROVEDOR")?.valor ??
-                        PROVEDORES_PAGAMENTO[0].value
-                      }
-                      onValueChange={(v) =>
-                        mut.mutate({
-                          chave: "CARTAO_PROVEDOR",
-                          valor: v,
-                          descricao: "Banco que processa pagamentos via Crédito/Débito.",
-                        })
-                      }
-                    >
-                      <SelectTrigger className="bg-input/40">
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {PROVEDORES_PAGAMENTO.map((p) => (
-                          <SelectItem key={p.value} value={p.value}>
-                            {p.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
               </Card>
 
               {/* Ambiente do Asaas: Sandbox (teste) ou Produção */}
@@ -569,7 +504,7 @@ function ApisPage() {
                       <div className="flex gap-2">
                         <Input
                           type="text"
-                          placeholder="sua-infinitetag"
+                          placeholder="sua-chave-asaas"
                           value={vals[chave] ?? ""}
                           onChange={(e) => setVals((v) => ({ ...v, [chave]: e.target.value }))}
                           className="bg-input/40"
@@ -605,7 +540,7 @@ function ApisPage() {
               <Card className="mt-4 border-primary/30 bg-card p-4">
                 <Label className="text-sm font-semibold">URL do Webhook</Label>
                 <p className="mb-2 text-xs text-muted-foreground">
-                  Configure esta URL no painel do provedor para receber confirmações de pagamento.
+                  Configure esta URL no painel do Asaas para receber confirmações de pagamento.
                 </p>
                 <div className="flex gap-2">
                   <Input

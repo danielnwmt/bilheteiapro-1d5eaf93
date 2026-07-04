@@ -5,7 +5,7 @@ import { verificarCronSecret } from "@/lib/cron-auth";
 
 // Janela (min) para considerar um jogo "acontecendo agora" mesmo sem status ao_vivo.
 const LIVE_WINDOW_MIN = 150; // ~2h30 de duração de jogo
-const CASA_PADRAO = "betano";
+const CASA_PADRAO = "Bet365";
 
 // Ritmo rápido (a cada 4 min): só o essencial — jogos ao vivo e odds de HOJE.
 const INTERVALO_RAPIDO_MIN = 4;

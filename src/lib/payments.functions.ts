@@ -1,6 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { criarLinkPagamento } from "@/lib/infinitepay.server";
 import { criarCobranca, cobrarCartao } from "@/lib/asaas.server";
 import {
   CICLO_LABEL,
@@ -35,40 +34,6 @@ async function getPlanoConfig(plano: Plano): Promise<PlanoConfig> {
     descontoAnual: Number((data as any).desconto_anual ?? 0),
   };
 }
-
-// ============ INFINITEPAY (link de pagamento — Pix/Cartão) ============
-export const createInfinitePayCheckout = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((data: { plano: Plano; ciclo?: Ciclo; returnUrl: string }) => {
-    if (!data.plano) throw new Error("Plano inválido");
-    const ciclo: Ciclo = CICLOS.includes(data.ciclo as Ciclo) ? (data.ciclo as Ciclo) : "mensal";
-    return { plano: data.plano, ciclo, returnUrl: data.returnUrl };
-  })
-  .handler(async ({ data, context }): Promise<CheckoutResult> => {
-    try {
-      const { userId, supabase } = context;
-      const { data: { user } } = await supabase.auth.getUser();
-      const cfg = await getPlanoConfig(data.plano);
-      const precoCentavos = precoCicloCentavos(cfg, data.ciclo);
-      if (precoCentavos <= 0) throw new Error("Preço do plano inválido");
-
-      // order_nsu carrega userId|plano|ciclo para liberar o acesso no webhook.
-      const orderNsu = `${userId}|${data.plano}|${data.ciclo}|${Date.now()}`;
-      const origin = new URL(data.returnUrl).origin;
-
-      const { url } = await criarLinkPagamento({
-        descricao: `BilheteIA PRO — ${cfg.nome} (${CICLO_LABEL[data.ciclo]})`,
-        precoCentavos,
-        orderNsu,
-        redirectUrl: data.returnUrl,
-        webhookUrl: `${origin}/api/public/payments/infinitepay`,
-        customer: { name: user?.user_metadata?.nome, email: user?.email ?? undefined },
-      });
-      return { url };
-    } catch (error) {
-      return { error: error instanceof Error ? error.message : "Falha no InfinitePay" };
-    }
-  });
 
 // ============ ASAAS (cobrança — Pix/Boleto/Cartão) ============
 export const createAsaasCheckout = createServerFn({ method: "POST" })

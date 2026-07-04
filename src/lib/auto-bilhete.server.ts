@@ -21,7 +21,7 @@ export interface BilheteConfig {
   mercados: string[] | null; // palavras-chave de mercados; null = qualquer
 }
 
-const CASA = "Betano";
+const CASA = "Bet365";
 // Ligas principais: Brasileirão Série A e Série B (nomes gravados na coluna "liga").
 const LIGAS_FOCO = ["Brasileirão Série A", "Brasileirão Série B"];
 
