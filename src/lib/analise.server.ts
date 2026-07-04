@@ -1,6 +1,9 @@
 // Análise por jogo com cache diário.
-// O motor local analisa cada jogo e salva o resultado em public.analise_cache.
-// O cliente nunca dispara análise externa: apenas lê o cache.
+// A IA analisa cada jogo no máximo 1x por dia (por casa). O resultado é salvo
+// em public.analise_cache e reaproveitado para jogos que ainda não começaram,
+// evitando chamadas repetidas à IA no mesmo dia.
+import { generateText } from "ai";
+import type { LanguageModel } from "ai";
 import type { EstatisticasResumo } from "./football.server";
 
 export type OddRow = {
@@ -71,13 +74,55 @@ function toNumber(value: unknown, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function extractJson(text: string) {
+  const cleaned = text.replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
+  if (start === -1 || end === -1 || end <= start) throw new Error("JSON não encontrado");
+  return cleaned.slice(start, end + 1);
+}
 
+function repairJson(input: string) {
+  let s = input.replace(/,\s*([}\]])/g, "$1");
+  const opens: string[] = [];
+  let inString = false;
+  let escaped = false;
+  for (const ch of s) {
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === "{" || ch === "[") opens.push(ch);
+    else if (ch === "}" || ch === "]") opens.pop();
+  }
+  if (inString) s += '"';
+  while (opens.length) {
+    const o = opens.pop();
+    s += o === "{" ? "}" : "]";
+  }
+  return s.replace(/,\s*([}\]])/g, "$1");
+}
 
+function parseAiJson(text: string): Record<string, unknown> {
+  const extracted = extractJson(text);
+  try {
+    return JSON.parse(extracted) as Record<string, unknown>;
+  } catch {
+    return JSON.parse(repairJson(extracted)) as Record<string, unknown>;
+  }
+}
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function isRateLimitError(error: unknown) {
+  const msg = error instanceof Error ? error.message : String(error ?? "");
+  return /too many requests|rate limit|resource_exhausted|429/i.test(msg);
+}
 
 function formatMatchDate(iso: string) {
   return new Intl.DateTimeFormat("pt-BR", {
@@ -120,6 +165,112 @@ function normalizarAnaliseCache(payload: AnalisePartida): AnalisePartida {
   };
 }
 
+// Chama a IA para analisar UM jogo a partir das odds reais da casa.
+async function analisarComIa(model: LanguageModel, partida: PartidaRow, casa: string): Promise<AnalisePartida> {
+  const oddsCasa = partida.odds.filter((o) => normKey(o.casa) === normKey(casa));
+  const oddsTxt = oddsCasa.map((o) => `${o.mercado} / ${o.selecao} @ ${o.valor}`).join("; ");
+  const jogo = `${partida.time_casa} x ${partida.time_fora}`;
+
+  const system = `Você é um analista esportivo de futebol especializado em apostas.
+Analise UM único jogo e recomende as melhores seleções para apostar, usando SOMENTE as odds reais listadas (casa "${casa}").
+Regras:
+- Use exatamente o mercado/seleção/odd da lista. Nunca invente seleções nem odds.
+- Baseie a confiança e as justificativas nas ESTATÍSTICAS REAIS fornecidas (forma recente dos últimos 10, médias de gols feitos/sofridos, probabilidades, tendência de gols e média de cartões do confronto). Se não houver estatísticas, use apenas as odds.
+- Para cada seleção recomendada informe a confiança real (0 a 100) e uma justificativa curta em português citando os números reais.
+- Recomende de 1 a 5 seleções, das mais seguras para as mais arriscadas.
+- Nunca recomende seleções contraditórias do mesmo mercado.
+- Nas estatísticas do jogo (escanteios, gols, chutes ao gol, cartões) prefira os números reais fornecidos; só estime o que não estiver disponível.`;
+
+  const est = partida.estatisticas;
+  const estTxt = est
+    ? `Estatísticas reais (API-Football):
+- Forma recente (últimos 10): ${partida.time_casa} ${est.formaCasa ?? "?"} / ${partida.time_fora} ${est.formaFora ?? "?"}
+- Gols feitos (média): ${partida.time_casa} ${est.golsFeitosCasa ?? "?"} / ${partida.time_fora} ${est.golsFeitosFora ?? "?"}
+- Gols sofridos (média): ${partida.time_casa} ${est.golsSofridosCasa ?? "?"} / ${partida.time_fora} ${est.golsSofridosFora ?? "?"}
+- Probabilidade (casa/empate/fora): ${est.percent.casa ?? "?"} / ${est.percent.empate ?? "?"} / ${est.percent.fora ?? "?"}
+- Gols previstos: ${partida.time_casa} ${est.golsPrev.casa ?? "?"} / ${partida.time_fora} ${est.golsPrev.fora ?? "?"}
+- Tendência de gols: ${est.underOver ?? "?"}
+- Média de cartões por time: ${partida.time_casa} ${est.cartoesCasa ?? "?"} / ${partida.time_fora} ${est.cartoesFora ?? "?"}
+- Média de cartões no confronto: ${est.cartoesConfronto ?? "?"}`
+    : "Estatísticas reais: não disponíveis para este jogo.";
+
+  const prompt = `Jogo: ${jogo}${partida.liga ? ` | ${partida.liga}` : ""}
+Início: ${formatMatchDate(partida.inicio)}
+${estTxt}
+Odds disponíveis (${casa}): ${oddsTxt}
+
+Responda SOMENTE com JSON válido neste formato:
+{
+  "picks": [{ "mercado": "mercado", "selecao": "seleção", "odd": 1.85, "confianca": 78, "justificativa": "motivo curto" }],
+  "analise": { "escanteios": "média ~9.5, linha +8.5", "gols": "média 2.7 gols", "chutesAoGol": "Casa 5.2 / Fora 4.1", "cartoesTimes": "Casa 2.1 / Fora 1.8", "cartoesArbitro": "árbitro média 4.3 cartões/jogo" }
+}`;
+
+
+  const { text } = await generateText({
+    model,
+    system,
+    prompt,
+    temperature: 0.2,
+    maxOutputTokens: 1200,
+  });
+
+  const raw = parseAiJson(text);
+  const rawPicks = Array.isArray(raw.picks) ? raw.picks : [];
+
+  const picks: PickAnalise[] = [];
+  const usados = new Set<string>();
+  for (const item of rawPicks) {
+    const p = item as Record<string, unknown>;
+    const mercado = toText(p.mercado ?? p.market, "");
+    const selecao = toText(p.selecao ?? p.palpite ?? p.selection, "");
+    if (!selecao) continue;
+    // Casa com a odd real do banco. Primeiro tenta correspondência exata; se
+    // não achar (ex.: a IA escreveu "Vitória do Brasil" e a odd é "Brazil"),
+    // tenta correspondência parcial pelo mercado + seleção.
+    const selKey = normKey(selecao);
+    const merKey = normKey(mercado);
+    let oddRow = oddsCasa.find((o) => normKey(o.selecao) === selKey);
+    if (!oddRow) {
+      oddRow = oddsCasa.find((o) => {
+        const os = normKey(o.selecao);
+        const om = normKey(o.mercado);
+        const selMatch = os.includes(selKey) || selKey.includes(os);
+        const merMatch = !merKey || om.includes(merKey) || merKey.includes(om);
+        return selMatch && merMatch;
+      });
+    }
+    if (!oddRow) continue;
+    const chave = normKey(`${oddRow.mercado} ${oddRow.selecao}`);
+    if (usados.has(chave)) continue;
+    usados.add(chave);
+    picks.push({
+      mercado: oddRow.mercado || mercado || "Resultado Final",
+      selecao: oddRow.selecao,
+      odd: oddRow.valor,
+      confianca: Math.max(0, Math.min(100, toNumber(p.confianca ?? p.confidence, 60))),
+      justificativa: toText(p.justificativa ?? p.analise, "Escolha baseada nas odds reais."),
+      external_odd_id: oddRow.external_odd_id,
+    });
+  }
+
+  const a = (raw.analise ?? {}) as Record<string, unknown>;
+  const real = analiseDeEstatisticas(partida);
+  const semDados = /^sem dados|^aguardando/i;
+  const pick = (v: unknown, r: string) => {
+    const t = toText(v, "");
+    return t && !semDados.test(t) ? t : r;
+  };
+  const analise: AnaliseJogoStats = {
+    escanteios: pick(a.escanteios ?? a.corners, real.escanteios),
+    gols: pick(a.gols ?? a.goals, real.gols),
+    chutesAoGol: pick(a.chutesAoGol ?? a.chutes ?? a.shotsOnTarget, real.chutesAoGol),
+    cartoesTimes: pick(a.cartoesTimes ?? a.cartoes, real.cartoesTimes),
+    cartoesArbitro: pick(a.cartoesArbitro ?? a.arbitro, real.cartoesArbitro),
+  };
+
+  return { picks, analise };
+}
+
 // Monta as estatísticas do jogo (escanteios, gols, chutes, cartões) a partir
 // dos números REAIS da API-Football (tabela estatisticas). É usado quando a IA
 // não está disponível (limite atingido) e para preencher o que a IA deixar vazio.
@@ -127,7 +278,7 @@ export function analiseDeEstatisticas(partida: PartidaRow): AnaliseJogoStats {
   const est = partida.estatisticas;
   const casa = partida.time_casa;
   const fora = partida.time_fora;
-  const pend = (o: string) => `Aguardando estatísticas reais para ${o}.`;
+  const pend = (o: string) => `Aguardando nova análise da IA para ${o}.`;
 
   if (!est) {
     return {
@@ -222,12 +373,12 @@ export function diaSaoPaulo(now = new Date()): string {
   }).format(now);
 }
 
-// Retorna a análise do jogo: do cache (se existir para o dia) ou gera localmente e salva.
-// Quando `somenteCache` é true (fluxo do cliente), NUNCA recalcula: só lê o
+// Retorna a análise do jogo: do cache (se existir para o dia) ou gera com a IA e salva.
+// Quando `somenteCache` é true (fluxo do cliente), NUNCA chama a IA: só lê o
 // cache já preenchido pelo robô a cada 5 min. Se não houver cache, retorna vazio.
 export async function obterAnalisePartida(
   supabaseAdmin: any,
-  model: unknown | null,
+  model: LanguageModel | null,
   partida: PartidaRow,
   casa: string,
   dia: string,
@@ -271,7 +422,7 @@ export async function obterAnalisePartida(
     }
   }
 
-  // Fluxo do cliente: não recalcula, apenas usa o que o robô já salvou.
+  // Fluxo do cliente: não gera com IA, apenas usa o que o robô já salvou.
   if (somenteCache) {
     return { picks: [], analise: montarAnaliseSemIa(partida, casa).analise };
   }
@@ -299,12 +450,12 @@ export async function obterAnalisePartida(
   return analise;
 }
 
-// Roda várias análises com concorrência limitada.
+// Roda várias análises com concorrência limitada (evita estourar a IA).
 // Retorna também os erros coletados para que a camada acima possa diferenciar
-// "nenhuma entrada" de "a análise falhou em todos os jogos".
+// "nenhuma entrada" de "a IA falhou em todos os jogos".
 export async function analisarPartidas(
   supabaseAdmin: any,
-  model: unknown | null,
+  model: LanguageModel | null,
   partidas: PartidaRow[],
   casa: string,
   dia: string,

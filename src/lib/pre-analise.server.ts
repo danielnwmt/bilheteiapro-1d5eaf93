@@ -1,9 +1,10 @@
 // Robô de pré-análise (chamado pelo cron a cada 5 min).
 // Varre os jogos que ainda não começaram (e os ao vivo) com odds salvas, e
-// roda o motor local uma vez por jogo/dia, salvando em analise_cache.
-// Quando o cliente pede um bilhete, ele só LÊ desse cache.
+// chama a IA UMA vez por jogo/casa/dia, salvando em analise_cache.
+// Quando o cliente pede um bilhete, ele só LÊ desse cache (sem chamar a IA).
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { getAiModel } from "./ai-gateway.server";
 import { obterAnalisePartida, diaSaoPaulo, type PartidaRow } from "./analise.server";
 import { hasApiFootballKey, syncEstatisticas, type EstatisticasResumo } from "./football.server";
 
@@ -11,8 +12,10 @@ import { hasApiFootballKey, syncEstatisticas, type EstatisticasResumo } from "./
 // odds reais daquela casa.
 const APP_CASAS = ["Bet365", "Betano", "Superbet", "KTO", "Sportingbet", "Betfair"];
 
-// Mantido por compatibilidade com o relatório do cron. A análise é local e gratuita.
-const BUDGET_POR_RUN = 120;
+// Limite de chamadas de IA por execução do cron (evita estourar o limite/429).
+// Como o cache é diário, cada par jogo+casa só é analisado uma vez por dia;
+// as execuções seguintes só completam o que faltou.
+const BUDGET_POR_RUN = 18;
 
 function normKey(v: string) {
   return v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
@@ -43,7 +46,7 @@ export interface PreAnaliseResult {
 
 export async function preAnalisarTodos(): Promise<PreAnaliseResult> {
   const supabase = admin();
-  // Análise 100% local: não precisa de modelo externo.
+  // Análise 100% local: não precisa de modelo de IA.
   const model = null;
   const avisos: string[] = [];
   const now = Date.now();
