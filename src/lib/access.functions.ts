@@ -1640,14 +1640,10 @@ export const chamarApiManual = createServerFn({ method: "POST" })
       }
 
       if (data.chave === "GEMINI_API_KEY") {
-        const { getAiModel } = await import("./ai-gateway.server");
-        const { generateText } = await import("ai");
-        await generateText({
-          model: await getAiModel(),
-          prompt: "Responda apenas: ok",
-          maxRetries: 0,
-        });
-        return { ok: true, info: "Gemini chamado com sucesso." };
+        return {
+          ok: true,
+          info: "IA/LLM desativada em produção. O sistema usa o motor estatístico local para análises.",
+        };
       }
       return { ok: false, error: "Chamada manual não disponível para esta chave." };
     } catch (e: any) {
@@ -1663,7 +1659,7 @@ function limparErro(raw: unknown, fallback: string): string {
   if (!msg) return fallback;
   // Limite de requisições (429): a chave funciona, mas atingiu o limite do plano.
   if (/429|too many requests|rate limit|quota|resource has been exhausted/i.test(msg)) {
-    return "A IA atingiu o limite de requisições no momento (chave válida). Aguarde alguns minutos e tente novamente.";
+    return "A API atingiu o limite de requisições no momento. Aguarde alguns minutos e tente novamente.";
   }
   if (/Missing API_FOOTBALL_KEY/i.test(msg)) {
     return "API-Football não configurada. Abra Configurações → APIs, salve a API_FOOTBALL_KEY e clique em Ativar e testar.";

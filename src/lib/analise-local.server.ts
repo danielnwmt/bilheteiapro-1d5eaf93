@@ -144,25 +144,6 @@ function pct(value: unknown): number | null {
   return clamp(n / 100, 0, 1);
 }
 
-function mediaFinita(values: number[], fallback: number): number {
-  const validos = values.filter((v) => Number.isFinite(v));
-  if (!validos.length) return fallback;
-  return validos.reduce((a, b) => a + b, 0) / validos.length;
-}
-
-function desvioRelativo(values: number[]): number {
-  const validos = values.filter((v) => Number.isFinite(v));
-  if (validos.length < 2) return 0;
-  const m = validos.reduce((a, b) => a + b, 0) / validos.length;
-  if (m <= 0) return 0;
-  const variancia = validos.reduce((a, b) => a + (b - m) ** 2, 0) / validos.length;
-  return Math.sqrt(variancia) / m;
-}
-
-function contemQualquer(texto: string, termos: string[]) {
-  return termos.some((t) => texto.includes(t));
-}
-
 // ---------- Contexto probabilístico do jogo ----------
 interface Contexto {
   lambdaCasa: number;
@@ -189,10 +170,6 @@ interface Contexto {
   atkFora: number;
   defCasa: number; // gols sofridos casa
   defFora: number;
-  forcaCasa: number;
-  forcaFora: number;
-  qualidadeDados: number; // 0-100: quanto maior, mais confiável o score
-  variacaoGols: number; // dispersão simples para penalizar jogos muito instáveis
 }
 
 function montarContexto(partida: PartidaRow): Contexto | null {
@@ -236,16 +213,6 @@ function montarContexto(partida: PartidaRow): Contexto | null {
   const penalDesfalque = (n: number) => clamp(1 - 0.035 * n, 0.72, 1);
   lambdaCasa *= penalDesfalque(nLesCasa);
   lambdaFora *= penalDesfalque(nLesFora);
-
-  const fp = formaPonderada(est.formaCasa);
-  const fpf = formaPonderada(est.formaFora);
-
-  // Força relativa simples: ataque próprio + fragilidade defensiva do rival,
-  // com leve ajuste de forma recente. Isso melhora o Poisson sem inventar dados.
-  const formaCasaAdj = fp ? (fp.taxa - 0.5) * 0.18 : 0;
-  const formaForaAdj = fpf ? (fpf.taxa - 0.5) * 0.18 : 0;
-  lambdaCasa = clamp(lambdaCasa * (1 + formaCasaAdj), 0.15, 4.5);
-  lambdaFora = clamp(lambdaFora * (1 + formaForaAdj), 0.15, 4.5);
 
   const lambdaTotal = lambdaCasa + lambdaFora;
 
@@ -297,15 +264,8 @@ function montarContexto(partida: PartidaRow): Contexto | null {
   const fatorArbitro = temArbitro ? 1.05 : 1; // árbitro escalado: leve alta
   const lambdaCartoes = clamp(baseCartoes * cal.intensidade * importancia.peso * fatorArbitro, 2, 9);
 
-  const dadosDisponiveis = [gfCasa, gsCasa, gfFora, gsFora].filter((v) => Number.isFinite(v)).length;
-  const qualidadeDados = clamp(
-    35 + dadosDisponiveis * 9 + (fp ? 8 : 0) + (fpf ? 8 : 0) + (est.percent?.casa ? 8 : 0) + (est.escalacaoConfirmada ? 6 : 0) - (nLesCasa + nLesFora > 8 ? 8 : 0),
-    25,
-    96,
-  );
-  const variacaoGols = desvioRelativo([gfCasa, gsCasa, gfFora, gsFora]);
-  const forcaCasa = clamp((lambdaCasa / Math.max(0.2, lambdaTotal)) * 2, 0.25, 1.75);
-  const forcaFora = clamp((lambdaFora / Math.max(0.2, lambdaTotal)) * 2, 0.25, 1.75);
+  const fp = formaPonderada(est.formaCasa);
+  const fpf = formaPonderada(est.formaFora);
 
   return {
     lambdaCasa,
@@ -331,10 +291,6 @@ function montarContexto(partida: PartidaRow): Contexto | null {
     atkFora: gfFora,
     defCasa: gsCasa,
     defFora: gsFora,
-    forcaCasa,
-    forcaFora,
-    qualidadeDados,
-    variacaoGols,
   };
 }
 
@@ -357,14 +313,13 @@ function probDaSelecao(
   const s = normKey(selecao);
   const kCasa = normKey(casa);
   const kFora = normKey(fora);
-  const tokens = s.split(" ").filter(Boolean);
-  const temCasa = Boolean((kCasa && s.includes(kCasa)) || contemQualquer(s, ["casa", "mandante", "home"]) || tokens.includes("1"));
-  const temFora = Boolean((kFora && s.includes(kFora)) || contemQualquer(s, ["fora", "visitante", "away"]) || tokens.includes("2"));
-  const temEmpate = s.includes("empate") || tokens.includes("x") || s.includes("draw");
-  const isOver = s.includes("mais de") || s.includes("over");
-  const isUnder = s.includes("menos de") || s.includes("under");
+  const temCasa = kCasa && s.includes(kCasa);
+  const temFora = kFora && s.includes(kFora);
+  const temEmpate = s.includes("empate");
+  const isOver = s.includes("mais de");
+  const isUnder = s.includes("menos de");
 
-  if (m.includes("resultado") || m.includes("vencedor") || m.includes("winner") || m.includes("1x2") || m.includes("match")) {
+  if (m.includes("resultado")) {
     if (temEmpate) return ctx.pEmpate;
     if (temCasa) return ctx.pCasa;
     if (temFora) return ctx.pFora;
@@ -425,77 +380,6 @@ function probDaSelecao(
   return null;
 }
 
-// ---------- Calibração contra o mercado ----------
-// O mercado de odds agrega muita informação externa. Para evitar excesso de
-// confiança do Poisson em jogos com poucos dados, fazemos uma mistura conservadora
-// entre probabilidade do modelo e probabilidade implícita das odds.
-function probImplicitaNormalizada(oddsMercado: Array<{ selecao: string; valor: number }>, selecao: string): number | null {
-  const validas = oddsMercado.filter((o) => Number.isFinite(o.valor) && o.valor > 1.01 && o.valor < 50);
-  if (validas.length < 2 || validas.length > 4) return null;
-  const soma = validas.reduce((acc, o) => acc + 1 / o.valor, 0);
-  if (soma < 0.95 || soma > 1.45) return null;
-  const key = normKey(selecao);
-  const row = validas.find((o) => normKey(o.selecao) === key);
-  if (!row) return null;
-  return clamp((1 / row.valor) / soma, 0.02, 0.96);
-}
-
-function calibrarComMercado(probModelo: number, probMercado: number | null, ctx: Contexto, mercado: string): number {
-  if (probMercado == null) return probModelo;
-  const m = normKey(mercado);
-  const mercadoEficiente = /resultado|vencedor|winner|1x2|dupla chance|dnb|empate anula|ambas/.test(m);
-  const pesoMercadoBase = mercadoEficiente ? 0.28 : 0.12;
-  const pesoDados = clamp(ctx.qualidadeDados / 100, 0.25, 0.96);
-  const pesoMercado = clamp(pesoMercadoBase * (1 - pesoDados * 0.45), 0.06, pesoMercadoBase);
-  return clamp(probModelo * (1 - pesoMercado) + probMercado * pesoMercado, 0.01, 0.97);
-}
-
-function riscoMercado(mercado: string, selecao: string, odd: number): number {
-  const m = normKey(mercado);
-  const s = normKey(selecao);
-  let risco = 0;
-  if (odd >= 3) risco += 4;
-  else if (odd >= 2.35) risco += 2;
-  if (/cart/.test(m)) risco += 2;
-  if (/escanteio/.test(m)) risco += 1.5;
-  if (/resultado|vencedor|winner|1x2/.test(m) && !/dupla|dnb|empate anula/.test(m)) risco += 1;
-  if (s.includes("menos de") || s.includes("under")) risco += 0.5;
-  return risco;
-}
-
-function scoreConfianca(args: {
-  prob: number; ev: number; odd: number; lado: "casa" | "fora" | null; ctx: Contexto; mercado: string; selecao: string;
-}) {
-  const { prob, ev, odd, lado, ctx, mercado, selecao } = args;
-  let score = prob * 100;
-
-  // Value real melhora score, mas sem exagerar. EV negativo derruba forte.
-  if (ev > 0) score += clamp(ev * 65, 0, 8);
-  else score += clamp(ev * 90, -12, 0);
-
-  const forma = lado === "casa" ? ctx.formaCasa : lado === "fora" ? ctx.formaFora : null;
-  if (forma != null) score += clamp((forma - 0.5) * 12, -5, 5);
-
-  if (lado === "casa") {
-    score += clamp((ctx.forcaCasa - 1) * 5, -4, 4);
-    if (ctx.nLesFora >= 2) score += 1.5;
-    if (ctx.nLesCasa >= 3) score -= 3;
-  } else if (lado === "fora") {
-    score += clamp((ctx.forcaFora - 1) * 5, -4, 4);
-    if (ctx.nLesCasa >= 2) score += 1.5;
-    if (ctx.nLesFora >= 3) score -= 3;
-  }
-
-  score += (ctx.qualidadeDados - 60) * 0.08;
-  if (ctx.escalacaoConfirmada) score += 1.5;
-  if (ctx.variacaoGols > 0.55) score -= 2; // jogo instável
-  if (odd < 1.22) score -= 3;
-  if (odd >= 1.55 && odd <= 2.25) score += 1.2;
-  score -= riscoMercado(mercado, selecao, odd);
-
-  return clamp(Math.round(score), 1, 96);
-}
-
 // ---------- Value Bet (item 2) ----------
 function classificarValor(ev: number): ValorLabel {
   if (ev >= 0.08) return "Excelente Valor";
@@ -538,8 +422,6 @@ function traduzPt(selecao: string) {
   return String(selecao ?? "")
     .replace(/\bOver\s*([0-9.]+)?/gi, (_m, n) => `Mais de${n ? ` ${n}` : ""}`)
     .replace(/\bUnder\s*([0-9.]+)?/gi, (_m, n) => `Menos de${n ? ` ${n}` : ""}`)
-    .replace(/\bHome\b/gi, "Casa")
-    .replace(/\bAway\b/gi, "Fora")
     .replace(/\bDraw\b/gi, "Empate")
     .replace(/\bYes\b/gi, "Sim")
     .replace(/\bNo\b/gi, "Não")
@@ -659,25 +541,56 @@ export function analisarLocal(partida: PartidaRow, casa: string): AnalisePartida
     const s = normKey(o.selecao);
     const lado = ladoDaSelecao(s, kCasa, kFora);
 
-    // ----- SCORE DE CONFIANÇA COMPOSTO V2 -----
-    const oddsMesmoMercado = oddsCasa.filter((x) => normKey(x.mercado || "") === normKey(o.mercado || ""));
-    const probMercado = probImplicitaNormalizada(oddsMesmoMercado, o.selecao);
-    const probCalibrada = calibrarComMercado(prob, probMercado, ctx, o.mercado || "");
-    const ev = probCalibrada * o.valor - 1; // valor esperado por unidade apostada
-    const confianca = scoreConfianca({ prob: probCalibrada, ev, odd: o.valor, lado, ctx, mercado: o.mercado || "", selecao: o.selecao });
-    const oddJusta = Number((1 / probCalibrada).toFixed(2));
+    // ----- SCORE DE CONFIANÇA COMPOSTO (item 1) -----
+    // Base = probabilidade do modelo (mantém calibração). Ajustes ponderados
+    // por fatores de apoio: forma, valor, desfalques, odd, escalação.
+    let bonus = 0;
+    const ev = prob * o.valor - 1; // valor esperado por unidade apostada
+
+    // Valor esperado: bônus proporcional.
+    if (ev >= 0.08) bonus += 5;
+    else if (ev >= 0.04) bonus += 3;
+    else if (ev >= 0.01) bonus += 1.5;
+    else if (ev < 0) bonus -= 3;
+
+    // Forma recente do lado favorecido.
+    const forma = lado === "casa" ? ctx.formaCasa : lado === "fora" ? ctx.formaFora : null;
+    if (forma != null) {
+      if (forma >= 0.6) bonus += 3;
+      else if (forma <= 0.35) bonus -= 3;
+    }
+
+    // Desfalques: do adversário ajudam, os próprios atrapalham.
+    if (lado === "casa") {
+      if (ctx.nLesFora >= 2) bonus += 1.5;
+      if (ctx.nLesCasa >= 3) bonus -= 2;
+    } else if (lado === "fora") {
+      if (ctx.nLesCasa >= 2) bonus += 1.5;
+      if (ctx.nLesFora >= 3) bonus -= 2;
+    }
+
+    // Qualidade da odd: odds muito baixas rendem pouco (penaliza levemente);
+    // faixa saudável de valor ganha leve bônus.
+    if (o.valor < 1.25) bonus -= 2;
+    else if (o.valor >= 1.6 && o.valor <= 2.4) bonus += 1;
+
+    // Escalação confirmada aumenta a confiabilidade da leitura.
+    if (ctx.escalacaoConfirmada) bonus += 1;
+
+    const confianca = clamp(Math.round(prob * 100 + bonus), 1, 96);
+    const oddJusta = Number((1 / prob).toFixed(2));
     const valorLabel = classificarValor(ev);
     const estrelas = estrelasDaPick(confianca, ev);
-    const motivos = montarMotivos({ ctx, prob: probCalibrada, ev, odd: o.valor, lado, casa: partida.time_casa, fora: partida.time_fora, mercado: o.mercado || "" });
+    const motivos = montarMotivos({ ctx, prob, ev, odd: o.valor, lado, casa: partida.time_casa, fora: partida.time_fora, mercado: o.mercado || "" });
 
     const cand: Cand = {
       mercado: o.mercado || "Resultado Final",
       selecao: traduzPt(o.selecao),
       odd: o.valor,
       confianca,
-      prob: probCalibrada,
+      prob,
       ev,
-      probModelo: Math.round(probCalibrada * 100),
+      probModelo: Math.round(prob * 100),
       oddJusta,
       evPct: Number((ev * 100).toFixed(1)),
       valorLabel,
@@ -690,15 +603,15 @@ export function analisarLocal(partida: PartidaRow, casa: string): AnalisePartida
     // Mantém a melhor seleção por mercado (evita over + under do mesmo mercado).
     const chave = normKey(cand.mercado);
     const atual = porMercado.get(chave);
-    if (!atual || cand.confianca + cand.ev * 80 > atual.confianca + atual.ev * 80) porMercado.set(chave, cand);
+    if (!atual || cand.prob > atual.prob) porMercado.set(chave, cand);
   }
 
   // ----- Filtros inteligentes (item 15) + regra de value bet (item 2) -----
   // Só recomenda picks com valor esperado positivo. Ordena por estrelas e
   // confiança (mais consistentes primeiro) e mantém as melhores.
-  const comValor = [...porMercado.values()].filter((p) => p.ev > 0.003 && p.confianca >= 55);
+  const comValor = [...porMercado.values()].filter((p) => p.ev > 0);
   const escolhidas = comValor
-    .sort((a, b) => (b.estrelas ?? 0) - (a.estrelas ?? 0) || b.confianca - a.confianca || b.ev - a.ev)
+    .sort((a, b) => (b.estrelas ?? 0) - (a.estrelas ?? 0) || b.prob - a.prob)
     .slice(0, 6)
     .map(({ prob, ev, ...p }) => p);
 
