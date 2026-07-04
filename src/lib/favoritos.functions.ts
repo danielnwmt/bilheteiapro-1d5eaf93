@@ -14,7 +14,7 @@ export type Favorito = {
   tipo: TipoFavorito;
   valor: string;
   rotulo: string | null;
-  metadata: Record<string, unknown>;
+  metadata: Json;
   created_at: string;
 };
 
@@ -24,7 +24,7 @@ function mapRow(r: any): Favorito {
     tipo: r.tipo as TipoFavorito,
     valor: r.valor,
     rotulo: r.rotulo ?? null,
-    metadata: (r.metadata ?? {}) as Record<string, unknown>,
+    metadata: (r.metadata ?? {}) as Json,
     created_at: r.created_at,
   };
 }
