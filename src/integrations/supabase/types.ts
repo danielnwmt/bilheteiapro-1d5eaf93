@@ -816,6 +816,42 @@ export type Database = {
         }
         Relationships: []
       }
+      suporte_faq: {
+        Row: {
+          ativo: boolean
+          categoria: string | null
+          created_at: string
+          id: string
+          ordem: number
+          pergunta: string
+          resposta: string
+          tags: string[]
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          categoria?: string | null
+          created_at?: string
+          id?: string
+          ordem?: number
+          pergunta: string
+          resposta: string
+          tags?: string[]
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          categoria?: string | null
+          created_at?: string
+          id?: string
+          ordem?: number
+          pergunta?: string
+          resposta?: string
+          tags?: string[]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       suporte_mensagens: {
         Row: {
           arquivo_nome: string | null
