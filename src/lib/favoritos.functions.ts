@@ -5,6 +5,7 @@
 // priorizar sugestões (leitura via getFavoritos).
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { Json } from "@/integrations/supabase/types";
 
 export type TipoFavorito = "campeonato" | "jogo" | "mercado" | "time" | "bilhete";
 
