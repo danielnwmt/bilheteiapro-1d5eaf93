@@ -316,6 +316,11 @@ function AuthPage() {
             </button>
           </p>
         </Card>
+        <nav className="mt-4 flex items-center justify-center gap-4 text-xs text-muted-foreground">
+          <Link to="/sobre" className="hover:text-foreground">Sobre</Link>
+          <Link to="/precos" className="hover:text-foreground">Planos</Link>
+          <Link to="/jogo-responsavel" className="hover:text-foreground">Jogo Responsável</Link>
+        </nav>
       </div>
     </main>
   );
