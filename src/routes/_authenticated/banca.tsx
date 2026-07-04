@@ -78,6 +78,7 @@ const RESULTADOS: { v: Resultado; label: string }[] = [
   { v: "green", label: "Green (ganhou)" },
   { v: "red", label: "Red (perdeu)" },
   { v: "anulada", label: "Anulada" },
+  { v: "encerrada", label: "Encerrada" },
 ];
 
 const ESPORTES: { v: string; label: string }[] = [
@@ -131,6 +132,12 @@ function statusBadge(r: Resultado) {
       return (
         <Badge className="border-muted-foreground/20 bg-muted text-muted-foreground hover:bg-muted">
           Anulada
+        </Badge>
+      );
+    case "encerrada":
+      return (
+        <Badge className="border-blue-500/30 bg-blue-500/15 text-blue-500 hover:bg-blue-500/15">
+          Encerrada
         </Badge>
       );
   }

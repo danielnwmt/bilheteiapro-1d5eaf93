@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-export type Resultado = "pendente" | "green" | "red" | "anulada";
+export type Resultado = "pendente" | "green" | "red" | "anulada" | "encerrada";
 
 export type BancaEntrada = {
   id: string;
