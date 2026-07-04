@@ -95,6 +95,46 @@ async function apiGet(path: string, key: string): Promise<ApiFixture[]> {
 const API_THROTTLE_MS = 300;
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+// Intervalo mínimo GLOBAL entre chamadas à API-Football (respeita o limite
+// por minuto do plano). Ajustável via env; padrão ~2s (~30 req/min).
+const API_FOOTBALL_MIN_INTERVAL_MS = Number(process.env.API_FOOTBALL_MIN_INTERVAL_MS) || 2100;
+
+// Fila serial: garante que duas chamadas nunca disparem juntas e que haja um
+// espaçamento mínimo entre elas, mesmo com o loop de estatísticas.
+let footballGate: Promise<void> = Promise.resolve();
+let footballUltima = 0;
+async function throttleFootball(): Promise<void> {
+  const anterior = footballGate;
+  let liberar!: () => void;
+  footballGate = new Promise<void>((r) => (liberar = r));
+  await anterior;
+  const espera = API_FOOTBALL_MIN_INTERVAL_MS - (Date.now() - footballUltima);
+  if (espera > 0) await sleep(espera);
+  footballUltima = Date.now();
+  liberar();
+}
+
+// Fetch da API-Football com throttle global + backoff exponencial quando o
+// plano responde "Too many requests" (status 429 ou erro no corpo).
+async function apiFootballFetch(url: string, key: string, tentativas = 4): Promise<Response> {
+  for (let i = 0; i < tentativas; i++) {
+    await throttleFootball();
+    await registrarChamada("API_FOOTBALL_KEY");
+    const res = await fetch(url, { headers: { "x-apisports-key": key } });
+    const corpo = await res.clone().text().catch(() => "");
+    const rateLimited = res.status === 429 || /too many requests|rate ?limit/i.test(corpo);
+    if (rateLimited && i < tentativas - 1) {
+      const backoff = 6000 * (i + 1);
+      console.warn(`API-Football rate limit. Aguardando ${backoff}ms antes de tentar novamente...`);
+      await sleep(backoff);
+      continue;
+    }
+    return res;
+  }
+  throw new Error("API-Football: limite de requisições excedido após múltiplas tentativas");
+}
+
+
 const STATUS_MAP: Record<string, string> = {
   NS: "agendado",
   TBD: "agendado",
@@ -519,11 +559,8 @@ interface ApiInjuryResponse {
 
 // Lesões / suspensões de um jogo. Não lança erro — sem dados retorna [].
 async function apiGetInjuries(fixtureId: string, key: string): Promise<ApiInjuryResponse[]> {
-  await registrarChamada("API_FOOTBALL_KEY");
   try {
-    const res = await fetch(`${API_BASE}/injuries?fixture=${fixtureId}`, {
-      headers: { "x-apisports-key": key },
-    });
+    const res = await apiFootballFetch(`${API_BASE}/injuries?fixture=${fixtureId}`, key);
     if (!res.ok) return [];
     const json = (await res.json()) as { response?: ApiInjuryResponse[] };
     return json.response ?? [];
@@ -534,11 +571,8 @@ async function apiGetInjuries(fixtureId: string, key: string): Promise<ApiInjury
 
 // Escalação oficial: > 0 quando os times já divulgaram a escalação confirmada.
 async function apiGetLineupsCount(fixtureId: string, key: string): Promise<number> {
-  await registrarChamada("API_FOOTBALL_KEY");
   try {
-    const res = await fetch(`${API_BASE}/fixtures/lineups?fixture=${fixtureId}`, {
-      headers: { "x-apisports-key": key },
-    });
+    const res = await apiFootballFetch(`${API_BASE}/fixtures/lineups?fixture=${fixtureId}`, key);
     if (!res.ok) return 0;
     const json = (await res.json()) as { response?: unknown[] };
     return json.response?.length ?? 0;
@@ -549,10 +583,7 @@ async function apiGetLineupsCount(fixtureId: string, key: string): Promise<numbe
 
 
 async function apiGetPredictions(fixtureId: string, key: string): Promise<ApiPredResponse[]> {
-  await registrarChamada("API_FOOTBALL_KEY");
-  const res = await fetch(`${API_BASE}/predictions?fixture=${fixtureId}`, {
-    headers: { "x-apisports-key": key },
-  });
+  const res = await apiFootballFetch(`${API_BASE}/predictions?fixture=${fixtureId}`, key);
   if (!res.ok) throw new Error(`API-Football predictions ${res.status}`);
   const json = (await res.json()) as { errors?: unknown; response?: ApiPredResponse[] };
   const hasErr =
@@ -560,6 +591,7 @@ async function apiGetPredictions(fixtureId: string, key: string): Promise<ApiPre
   if (hasErr) throw new Error(`API-Football predictions erro: ${JSON.stringify(json.errors)}`);
   return json.response ?? [];
 }
+
 
 // Média de cartões por jogo (amarelos + vermelhos) a partir do resumo de temporada.
 function mediaCartoes(lg?: ApiPredLeague | null): string | null {
