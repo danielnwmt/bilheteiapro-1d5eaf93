@@ -613,11 +613,8 @@ interface ApiInjuryResponse {
 
 // Lesões / suspensões de um jogo. Não lança erro — sem dados retorna [].
 async function apiGetInjuries(fixtureId: string, key: string): Promise<ApiInjuryResponse[]> {
-  await registrarChamada("API_FOOTBALL_KEY");
   try {
-    const res = await fetch(`${API_BASE}/injuries?fixture=${fixtureId}`, {
-      headers: { "x-apisports-key": key },
-    });
+    const res = await apiFootballFetch(`${API_BASE}/injuries?fixture=${fixtureId}`, key);
     if (!res.ok) return [];
     const json = (await res.json()) as { response?: ApiInjuryResponse[] };
     return json.response ?? [];
@@ -628,11 +625,8 @@ async function apiGetInjuries(fixtureId: string, key: string): Promise<ApiInjury
 
 // Escalação oficial: > 0 quando os times já divulgaram a escalação confirmada.
 async function apiGetLineupsCount(fixtureId: string, key: string): Promise<number> {
-  await registrarChamada("API_FOOTBALL_KEY");
   try {
-    const res = await fetch(`${API_BASE}/fixtures/lineups?fixture=${fixtureId}`, {
-      headers: { "x-apisports-key": key },
-    });
+    const res = await apiFootballFetch(`${API_BASE}/fixtures/lineups?fixture=${fixtureId}`, key);
     if (!res.ok) return 0;
     const json = (await res.json()) as { response?: unknown[] };
     return json.response?.length ?? 0;
@@ -643,10 +637,7 @@ async function apiGetLineupsCount(fixtureId: string, key: string): Promise<numbe
 
 
 async function apiGetPredictions(fixtureId: string, key: string): Promise<ApiPredResponse[]> {
-  await registrarChamada("API_FOOTBALL_KEY");
-  const res = await fetch(`${API_BASE}/predictions?fixture=${fixtureId}`, {
-    headers: { "x-apisports-key": key },
-  });
+  const res = await apiFootballFetch(`${API_BASE}/predictions?fixture=${fixtureId}`, key);
   if (!res.ok) throw new Error(`API-Football predictions ${res.status}`);
   const json = (await res.json()) as { errors?: unknown; response?: ApiPredResponse[] };
   const hasErr =
