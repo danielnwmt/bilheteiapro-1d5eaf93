@@ -48,7 +48,8 @@ function MelhoresPicksPage() {
         data: {
           tipo: "jogo",
           valor: p.jogo,
-          meta: { mercado: p.mercado, selecao: p.selecao, odd: p.odd, liga: p.liga },
+          rotulo: `${p.mercado}: ${p.selecao}`,
+          metadata: { mercado: p.mercado, selecao: p.selecao, odd: p.odd, liga: p.liga },
         },
       }),
     onSuccess: () => toast.success("Adicionado aos favoritos"),
