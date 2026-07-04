@@ -1,4 +1,4 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { createFileRoute, useRouter, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -316,6 +316,11 @@ function AuthPage() {
             </button>
           </p>
         </Card>
+        <nav className="mt-4 flex items-center justify-center gap-4 text-xs text-muted-foreground">
+          <Link to="/sobre" className="hover:text-foreground">Sobre</Link>
+          <Link to="/precos" className="hover:text-foreground">Planos</Link>
+          <Link to="/jogo-responsavel" className="hover:text-foreground">Jogo Responsável</Link>
+        </nav>
       </div>
     </main>
   );
