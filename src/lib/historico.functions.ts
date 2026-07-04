@@ -149,7 +149,7 @@ export const updateHistorico = createServerFn({ method: "POST" })
 
     const { error } = await supabase
       .from("historico_bilhetes")
-      .update(patch)
+      .update(patch as never)
       .eq("id", data.id)
       .eq("user_id", userId);
     if (error) throw new Error(error.message);
