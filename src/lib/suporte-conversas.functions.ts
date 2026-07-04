@@ -485,6 +485,81 @@ export const removerRespostaRapida = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+
+// ============ FAQ determinístico do suporte ============
+export type SuporteFAQ = {
+  id: string;
+  pergunta: string;
+  resposta: string;
+  categoria: string | null;
+  tags: string[];
+  ativo: boolean;
+  ordem: number;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export const listSuporteFAQ = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const ctx = context as Ctx;
+    await assertAdmin(ctx);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await (supabaseAdmin as any)
+      .from("suporte_faq")
+      .select("id, pergunta, resposta, categoria, tags, ativo, ordem, created_at, updated_at")
+      .order("ordem", { ascending: true })
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return ((data ?? []) as any[]).map((r) => ({
+      id: r.id,
+      pergunta: r.pergunta,
+      resposta: r.resposta,
+      categoria: r.categoria ?? null,
+      tags: Array.isArray(r.tags) ? r.tags : [],
+      ativo: Boolean(r.ativo),
+      ordem: Number(r.ordem ?? 0),
+      created_at: r.created_at,
+      updated_at: r.updated_at,
+    })) as SuporteFAQ[];
+  });
+
+export const salvarSuporteFAQ = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id?: string; pergunta: string; resposta: string; categoria?: string; tags?: string[]; ativo?: boolean; ordem?: number }) => d)
+  .handler(async ({ data, context }) => {
+    const ctx = context as Ctx;
+    await assertAdmin(ctx);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const pergunta = data.pergunta.trim();
+    const resposta = data.resposta.trim();
+    if (!pergunta || !resposta) throw new Error("Preencha pergunta e resposta");
+    const payload = {
+      pergunta,
+      resposta,
+      categoria: data.categoria?.trim() || null,
+      tags: (data.tags ?? []).map((t) => String(t).trim().toLowerCase()).filter(Boolean),
+      ativo: data.ativo ?? true,
+      ordem: Number.isFinite(data.ordem) ? Number(data.ordem) : 0,
+    };
+    const q = (supabaseAdmin as any).from("suporte_faq");
+    const { error } = data.id ? await q.update(payload).eq("id", data.id) : await q.insert(payload);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const removerSuporteFAQ = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string }) => d)
+  .handler(async ({ data, context }) => {
+    const ctx = context as Ctx;
+    await assertAdmin(ctx);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await (supabaseAdmin as any).from("suporte_faq").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 // ============ Configuração de horário ============
 export type SuporteConfig = {
   dias: Record<string, { ativo: boolean; inicio: string; fim: string }>;
