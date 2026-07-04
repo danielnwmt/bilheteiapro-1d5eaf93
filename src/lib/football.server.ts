@@ -306,22 +306,27 @@ function mapBetValue(betName: string, rawValue: unknown, jogoCasa: string, jogoF
     const lado = v.startsWith("over") ? "Mais de" : v.startsWith("under") ? "Menos de" : value;
     return { mercado: "Gols no 1º Tempo", selecao: num ? `${lado} ${num} (1ºT)` : lado };
   }
-  // Time Marca Gol (To Score / Team To Score)
-  if (bn.includes("to score")) {
-    if (bn.includes("home") || v === "home")
+  // Time Marca Gol — SOMENTE o mercado "time marca ao menos 1 gol" (Yes/No).
+  // IMPORTANTE: NÃO usar `includes("to score")` genérico: isso capturava
+  // "Team To Score First/Last", "To Score A Penalty", "To Score In Both Halves"
+  // e "(First/Last) Goal Scorer" (por jogador), rotulando odds de "quem marca
+  // primeiro" como "marca pelo menos 1 gol" — valores totalmente errados.
+  if (
+    bn.includes("score a goal") &&
+    !bn.includes("first") &&
+    !bn.includes("last") &&
+    !bn.includes("half") &&
+    !bn.includes("penalty")
+  ) {
+    if (bn.includes("home"))
       return { mercado: "Time Marca Gol", selecao: `${jogoCasa} marca pelo menos 1 gol` };
-    if (bn.includes("away") || v === "away")
+    if (bn.includes("away"))
       return { mercado: "Time Marca Gol", selecao: `${jogoFora} marca pelo menos 1 gol` };
-    return {
-      mercado: "Time Marca Gol",
-      selecao:
-        v === "yes"
-          ? "O time marca pelo menos 1 gol"
-          : v === "no"
-            ? "O time NÃO marca gol"
-            : value,
-    };
+    if (v === "yes") return { mercado: "Time Marca Gol", selecao: "O time marca pelo menos 1 gol" };
+    if (v === "no") return { mercado: "Time Marca Gol", selecao: "O time NÃO marca gol" };
+    return null;
   }
+
   return null;
 }
 
@@ -341,7 +346,7 @@ const WANTED_BETS_KEYWORDS = [
   "exact score",
   "correct score",
   "first half",
-  "to score",
+  "score a goal",
 ];
 
 function betQuerido(name: string): boolean {
