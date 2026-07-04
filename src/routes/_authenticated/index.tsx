@@ -835,6 +835,9 @@ function Index() {
             <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/dashboard" })}>
               <LineChart className="mr-2 h-4 w-4" /> Dashboard
             </Button>
+            <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/melhores-picks" })}>
+              <Flame className="mr-2 h-4 w-4" /> Melhores Picks
+            </Button>
             <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/historico" })}>
               <HistoryIcon className="mr-2 h-4 w-4" /> Histórico
             </Button>
