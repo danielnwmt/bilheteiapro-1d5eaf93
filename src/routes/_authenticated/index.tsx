@@ -835,6 +835,12 @@ function Index() {
             <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/dashboard" })}>
               <LineChart className="mr-2 h-4 w-4" /> Dashboard
             </Button>
+            <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/historico" })}>
+              <History className="mr-2 h-4 w-4" /> Histórico
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/favoritos" })}>
+              <Star className="mr-2 h-4 w-4" /> Favoritos
+            </Button>
             {(isStaff || !!planoCfg?.recursos?.planilhaBanca) && (
               <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/banca" })}>
                 <Wallet className="mr-2 h-4 w-4" /> Banca
