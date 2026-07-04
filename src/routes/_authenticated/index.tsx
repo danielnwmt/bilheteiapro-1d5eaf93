@@ -363,7 +363,7 @@ function Index() {
   const [aoVivo, setAoVivo] = useState<EstatAoVivo | null>(null);
   const [loadingAoVivo, setLoadingAoVivo] = useState(false);
   const [statsMap, setStatsMap] = useState<Record<string, { pc: number; pe: number; pf: number }>>({});
-  const [oddMin, setOddMin] = useState("2.5");
+  const [oddMin, setOddMin] = useState("1.2");
   const [limiteJogos, setLimiteJogos] = useState("4");
   const [tipoBilhete, setTipoBilhete] = useState<"simples" | "multipla" | "mesmojogo">("multipla");
   const [jogosSel, setJogosSel] = useState<string[]>([]);
