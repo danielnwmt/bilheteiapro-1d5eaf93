@@ -12,7 +12,7 @@ export interface ApiFlowStep {
 // Rótulos amigáveis das chaves de API.
 export const API_LABEL: Record<string, string> = {
   API_FOOTBALL_KEY: "API-Football",
-  GEMINI_API_KEY: "IA (Gemini)",
+  MOTOR_LOCAL: "Motor local (sem IA)",
 };
 
 // Etapas do fluxo, em ordem de execução.
@@ -32,8 +32,8 @@ export const FLUXO_ETAPAS: ApiFlowStep[] = [
   {
     id: "analise",
     label: "Montar múltipla (análise)",
-    descricao: "Analisa os jogos e monta os bilhetes.",
-    apis: ["GEMINI_API_KEY"],
+    descricao: "Analisa os jogos e monta os bilhetes (motor estatístico local, sem IA).",
+    apis: ["MOTOR_LOCAL"],
   },
 ];
 
