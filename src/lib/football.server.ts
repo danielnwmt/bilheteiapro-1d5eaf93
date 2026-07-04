@@ -95,46 +95,6 @@ async function apiGet(path: string, key: string): Promise<ApiFixture[]> {
 const API_THROTTLE_MS = 300;
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-// Intervalo mínimo GLOBAL entre chamadas à API-Football (respeita o limite
-// por minuto do plano). Ajustável via env; padrão ~2s (~30 req/min).
-const API_FOOTBALL_MIN_INTERVAL_MS = Number(process.env.API_FOOTBALL_MIN_INTERVAL_MS) || 2100;
-
-// Fila serial: garante que duas chamadas nunca disparem juntas e que haja um
-// espaçamento mínimo entre elas, mesmo com o loop de estatísticas.
-let footballGate: Promise<void> = Promise.resolve();
-let footballUltima = 0;
-async function throttleFootball(): Promise<void> {
-  const anterior = footballGate;
-  let liberar!: () => void;
-  footballGate = new Promise<void>((r) => (liberar = r));
-  await anterior;
-  const espera = API_FOOTBALL_MIN_INTERVAL_MS - (Date.now() - footballUltima);
-  if (espera > 0) await sleep(espera);
-  footballUltima = Date.now();
-  liberar();
-}
-
-// Fetch da API-Football com throttle global + backoff exponencial quando o
-// plano responde "Too many requests" (status 429 ou erro no corpo).
-async function apiFootballFetch(url: string, key: string, tentativas = 4): Promise<Response> {
-  for (let i = 0; i < tentativas; i++) {
-    await throttleFootball();
-    await registrarChamada("API_FOOTBALL_KEY");
-    const res = await fetch(url, { headers: { "x-apisports-key": key } });
-    const corpo = await res.clone().text().catch(() => "");
-    const rateLimited = res.status === 429 || /too many requests|rate ?limit/i.test(corpo);
-    if (rateLimited && i < tentativas - 1) {
-      const backoff = 6000 * (i + 1);
-      console.warn(`API-Football rate limit. Aguardando ${backoff}ms antes de tentar novamente...`);
-      await sleep(backoff);
-      continue;
-    }
-    return res;
-  }
-  throw new Error("API-Football: limite de requisições excedido após múltiplas tentativas");
-}
-
-
 const STATUS_MAP: Record<string, string> = {
   NS: "agendado",
   TBD: "agendado",
@@ -203,14 +163,47 @@ export async function syncFixtures(periodo: Periodo): Promise<number> {
 
 // ---------- Odds reais ----------
 
-// Mapeia o nome da casa (app) -> bookmaker id da API-Football.
+// Casa padrão para futebol na API-Sports/API-Football.
+// Bet365 costuma ter a maior cobertura de mercados. Se não houver Bet365
+// para uma partida/liga, o sistema cai automaticamente para a próxima casa
+// da prioridade abaixo, salvando SEMPRE o nome real da casa encontrada.
+export const CASA_PADRAO_ODDS = "Bet365";
+
+export const BOOKMAKER_PRIORITY = [
+  "Bet365",
+  "Betano",
+  "Pinnacle",
+  "Betfair",
+  "1xBet",
+  "Bwin",
+  "William Hill",
+  "Unibet",
+  "Marathonbet",
+] as const;
+
+// Mapeia o nome da casa (app/API) -> bookmaker id da API-Football.
 const BOOKMAKER_NAME_TO_ID: Record<string, number> = {
-  betano: 32,
   bet365: 8,
+  betano: 32,
+  pinnacle: 4,
   betfair: 3,
   "1xbet": 11,
-  pinnacle: 4,
+  bwin: 6,
+  williamhill: 15,
+  unibet: 16,
   marathonbet: 2,
+};
+
+const BOOKMAKER_ALIASES: Record<string, string> = {
+  bet365: "Bet365",
+  betano: "Betano",
+  pinnacle: "Pinnacle",
+  betfair: "Betfair",
+  "1xbet": "1xBet",
+  bwin: "Bwin",
+  williamhill: "William Hill",
+  unibet: "Unibet",
+  marathonbet: "Marathonbet",
 };
 
 // Carrega os templates de deep link por casa e devolve uma função que
@@ -219,11 +212,13 @@ async function buildDeepLinkResolver(
   supabase: ReturnType<typeof createClient<Database>>,
   casa: string,
 ) {
-  const casaNorm = normCasa(casa);
+  const casaNormDefault = normCasa(casa);
   const { data } = await supabase.from("deep_links").select("casa, mercado, url_template");
-  const templates = (data ?? []).filter((d) => normCasa(d.casa) === casaNorm);
+  const allTemplates = data ?? [];
 
-  return (mercado: string, jogoCasa: string, jogoFora: string): string | null => {
+  return (mercado: string, jogoCasa: string, jogoFora: string, casaOverride?: string): string | null => {
+    const casaNorm = normCasa(casaOverride ?? casaNormDefault);
+    const templates = allTemplates.filter((d) => normCasa(d.casa) === casaNorm);
     if (!templates.length) return null;
     const especifico = templates.find((t) => t.mercado && normCasa(t.mercado) === normCasa(mercado));
     const generico = templates.find((t) => !t.mercado);
@@ -243,6 +238,28 @@ function normCasa(value: string) {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "");
+}
+
+function canonicalCasa(value: string): string {
+  const clean = String(value ?? "").trim();
+  return BOOKMAKER_ALIASES[normCasa(clean)] ?? clean;
+}
+
+function escolherBookmaker(entry: ApiOddResponse, casaPreferida: string): ApiOddBookmaker | null {
+  const casaNorm = normCasa(casaPreferida || CASA_PADRAO_ODDS);
+  const bookmakerId = BOOKMAKER_NAME_TO_ID[casaNorm];
+
+  const preferida = entry.bookmakers.find((b) => b.id === bookmakerId || normCasa(b.name) === casaNorm);
+  if (preferida) return preferida;
+
+  for (const nome of BOOKMAKER_PRIORITY) {
+    const n = normCasa(nome);
+    const id = BOOKMAKER_NAME_TO_ID[n];
+    const encontrada = entry.bookmakers.find((b) => b.id === id || normCasa(b.name) === n);
+    if (encontrada) return encontrada;
+  }
+
+  return entry.bookmakers[0] ?? null;
 }
 
 interface ApiOddValue {
@@ -409,8 +426,7 @@ export async function syncOdds(
   const targets = fixtures.filter((f) => f.external_id).slice(0, maxFixtures);
   if (!targets.length) return 0;
 
-  const casaNorm = normCasa(casa);
-  const bookmakerId = BOOKMAKER_NAME_TO_ID[casaNorm];
+  const casaPreferida = casa || CASA_PADRAO_ODDS;
 
   const supabase = createClient<Database>(
     process.env.SUPABASE_URL!,
@@ -418,7 +434,7 @@ export async function syncOdds(
     { auth: { persistSession: false, autoRefreshToken: false } },
   );
 
-  const resolveDeep = await buildDeepLinkResolver(supabase, casa);
+  const resolveDeep = await buildDeepLinkResolver(supabase, casaPreferida);
 
   const rows: Array<{
     partida_id: string;
@@ -433,8 +449,9 @@ export async function syncOdds(
   for (const f of targets) {
     let resp: ApiOddResponse[];
     try {
-      const q = bookmakerId ? `&bookmaker=${bookmakerId}` : "";
-      resp = await apiGetOdds(`/odds?fixture=${f.external_id}${q}`, key);
+      // Não filtramos por bookmaker na chamada: isso permite fallback quando
+      // a casa padrão não possui odds para aquela partida.
+      resp = await apiGetOdds(`/odds?fixture=${f.external_id}`, key);
     } catch (e) {
       console.error("Falha ao buscar odds da partida", f.external_id, e);
       continue;
@@ -443,11 +460,9 @@ export async function syncOdds(
     const entry = resp[0];
     if (!entry) continue;
 
-    // Escolhe o bookmaker: preferido por id/nome, senão o primeiro.
-    const bm =
-      entry.bookmakers.find((b) => b.id === bookmakerId || normCasa(b.name) === casaNorm) ??
-      entry.bookmakers[0];
+    const bm = escolherBookmaker(entry, casaPreferida);
     if (!bm) continue;
+    const casaReal = canonicalCasa(bm.name);
 
     for (const bet of bm.bets) {
       if (!betQuerido(bet.name)) continue;
@@ -458,12 +473,12 @@ export async function syncOdds(
         if (!Number.isFinite(valor)) continue;
         rows.push({
           partida_id: f.id,
-          casa,
+          casa: casaReal,
           mercado: mapped.mercado,
           selecao: mapped.selecao,
           valor,
           external_odd_id: `${f.external_id}:${bm.id}:${bet.id}:${val.value}`,
-          deep_link: resolveDeep(mapped.mercado, f.time_casa, f.time_fora),
+          deep_link: resolveDeep(mapped.mercado, f.time_casa, f.time_fora, casaReal),
         });
       }
     }
@@ -559,8 +574,11 @@ interface ApiInjuryResponse {
 
 // Lesões / suspensões de um jogo. Não lança erro — sem dados retorna [].
 async function apiGetInjuries(fixtureId: string, key: string): Promise<ApiInjuryResponse[]> {
+  await registrarChamada("API_FOOTBALL_KEY");
   try {
-    const res = await apiFootballFetch(`${API_BASE}/injuries?fixture=${fixtureId}`, key);
+    const res = await fetch(`${API_BASE}/injuries?fixture=${fixtureId}`, {
+      headers: { "x-apisports-key": key },
+    });
     if (!res.ok) return [];
     const json = (await res.json()) as { response?: ApiInjuryResponse[] };
     return json.response ?? [];
@@ -571,8 +589,11 @@ async function apiGetInjuries(fixtureId: string, key: string): Promise<ApiInjury
 
 // Escalação oficial: > 0 quando os times já divulgaram a escalação confirmada.
 async function apiGetLineupsCount(fixtureId: string, key: string): Promise<number> {
+  await registrarChamada("API_FOOTBALL_KEY");
   try {
-    const res = await apiFootballFetch(`${API_BASE}/fixtures/lineups?fixture=${fixtureId}`, key);
+    const res = await fetch(`${API_BASE}/fixtures/lineups?fixture=${fixtureId}`, {
+      headers: { "x-apisports-key": key },
+    });
     if (!res.ok) return 0;
     const json = (await res.json()) as { response?: unknown[] };
     return json.response?.length ?? 0;
@@ -583,7 +604,10 @@ async function apiGetLineupsCount(fixtureId: string, key: string): Promise<numbe
 
 
 async function apiGetPredictions(fixtureId: string, key: string): Promise<ApiPredResponse[]> {
-  const res = await apiFootballFetch(`${API_BASE}/predictions?fixture=${fixtureId}`, key);
+  await registrarChamada("API_FOOTBALL_KEY");
+  const res = await fetch(`${API_BASE}/predictions?fixture=${fixtureId}`, {
+    headers: { "x-apisports-key": key },
+  });
   if (!res.ok) throw new Error(`API-Football predictions ${res.status}`);
   const json = (await res.json()) as { errors?: unknown; response?: ApiPredResponse[] };
   const hasErr =
@@ -591,7 +615,6 @@ async function apiGetPredictions(fixtureId: string, key: string): Promise<ApiPre
   if (hasErr) throw new Error(`API-Football predictions erro: ${JSON.stringify(json.errors)}`);
   return json.response ?? [];
 }
-
 
 // Média de cartões por jogo (amarelos + vermelhos) a partir do resumo de temporada.
 function mediaCartoes(lg?: ApiPredLeague | null): string | null {
@@ -741,7 +764,7 @@ function seasonForDate(dateStr: string): number {
  * 8 = a semana inteira). Retorna { ligas, chamadas, odds }.
  */
 export async function syncOddsByLeagueDias(
-  casa: string = "betano",
+  casa: string = CASA_PADRAO_ODDS,
   dias: number = 1,
 ): Promise<{ ligas: number; chamadas: number; odds: number }> {
   const key = await getApiFootballKey();
@@ -752,9 +775,8 @@ export async function syncOddsByLeagueDias(
     { auth: { persistSession: false, autoRefreshToken: false } },
   );
 
-  const casaNorm = normCasa(casa);
-  const bookmakerId = BOOKMAKER_NAME_TO_ID[casaNorm];
-  const resolveDeep = await buildDeepLinkResolver(supabase, casa);
+  const casaPreferida = casa || CASA_PADRAO_ODDS;
+  const resolveDeep = await buildDeepLinkResolver(supabase, casaPreferida);
 
   const rows: Array<{
     partida_id: string;
@@ -841,10 +863,9 @@ export async function syncOddsByLeagueDias(
         for (const entry of resp) {
           const f = byFixture.get(String(entry.fixture.id));
           if (!f) continue; // fixture não está entre as partidas do banco
-          const bm =
-            entry.bookmakers.find((b) => b.id === bookmakerId || normCasa(b.name) === casaNorm) ??
-            entry.bookmakers[0];
+          const bm = escolherBookmaker(entry, casaPreferida);
           if (!bm) continue;
+          const casaReal = canonicalCasa(bm.name);
 
           for (const bet of bm.bets) {
             if (!betQuerido(bet.name)) continue;
@@ -855,12 +876,12 @@ export async function syncOddsByLeagueDias(
               if (!Number.isFinite(valor)) continue;
               rows.push({
                 partida_id: f.id,
-                casa,
+                casa: casaReal,
                 mercado: mapped.mercado,
                 selecao: mapped.selecao,
                 valor,
                 external_odd_id: `${f.external_id}:${bm.id}:${bet.id}:${val.value}`,
-                deep_link: resolveDeep(mapped.mercado, f.time_casa, f.time_fora),
+                deep_link: resolveDeep(mapped.mercado, f.time_casa, f.time_fora, casaReal),
               });
             }
           }
@@ -885,7 +906,7 @@ export async function syncOddsByLeagueDias(
 
 /** Compat: coleta as odds só de hoje (1 dia). */
 export async function syncOddsByLeagueToday(
-  casa: string = "betano",
+  casa: string = CASA_PADRAO_ODDS,
 ): Promise<{ ligas: number; chamadas: number; odds: number }> {
   return syncOddsByLeagueDias(casa, 1);
 }
