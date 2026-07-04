@@ -15,6 +15,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedPlanosRouteImport } from './routes/_authenticated/planos'
 import { Route as AuthenticatedPerfilRouteImport } from './routes/_authenticated/perfil'
+import { Route as AuthenticatedMelhoresPicksRouteImport } from './routes/_authenticated/melhores-picks'
 import { Route as AuthenticatedHistoricoRouteImport } from './routes/_authenticated/historico'
 import { Route as AuthenticatedFavoritosRouteImport } from './routes/_authenticated/favoritos'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
@@ -67,6 +68,12 @@ const AuthenticatedPerfilRoute = AuthenticatedPerfilRouteImport.update({
   path: '/perfil',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedMelhoresPicksRoute =
+  AuthenticatedMelhoresPicksRouteImport.update({
+    id: '/melhores-picks',
+    path: '/melhores-picks',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedHistoricoRoute = AuthenticatedHistoricoRouteImport.update({
   id: '/historico',
   path: '/historico',
@@ -199,6 +206,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/favoritos': typeof AuthenticatedFavoritosRoute
   '/historico': typeof AuthenticatedHistoricoRoute
+  '/melhores-picks': typeof AuthenticatedMelhoresPicksRoute
   '/perfil': typeof AuthenticatedPerfilRoute
   '/planos': typeof AuthenticatedPlanosRoute
   '/admin/apis': typeof AuthenticatedAdminApisRoute
@@ -226,6 +234,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/favoritos': typeof AuthenticatedFavoritosRoute
   '/historico': typeof AuthenticatedHistoricoRoute
+  '/melhores-picks': typeof AuthenticatedMelhoresPicksRoute
   '/perfil': typeof AuthenticatedPerfilRoute
   '/planos': typeof AuthenticatedPlanosRoute
   '/': typeof AuthenticatedIndexRoute
@@ -257,6 +266,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/favoritos': typeof AuthenticatedFavoritosRoute
   '/_authenticated/historico': typeof AuthenticatedHistoricoRoute
+  '/_authenticated/melhores-picks': typeof AuthenticatedMelhoresPicksRoute
   '/_authenticated/perfil': typeof AuthenticatedPerfilRoute
   '/_authenticated/planos': typeof AuthenticatedPlanosRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
@@ -289,6 +299,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/favoritos'
     | '/historico'
+    | '/melhores-picks'
     | '/perfil'
     | '/planos'
     | '/admin/apis'
@@ -316,6 +327,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/favoritos'
     | '/historico'
+    | '/melhores-picks'
     | '/perfil'
     | '/planos'
     | '/'
@@ -346,6 +358,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/favoritos'
     | '/_authenticated/historico'
+    | '/_authenticated/melhores-picks'
     | '/_authenticated/perfil'
     | '/_authenticated/planos'
     | '/_authenticated/'
@@ -424,6 +437,13 @@ declare module '@tanstack/react-router' {
       path: '/perfil'
       fullPath: '/perfil'
       preLoaderRoute: typeof AuthenticatedPerfilRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/melhores-picks': {
+      id: '/_authenticated/melhores-picks'
+      path: '/melhores-picks'
+      fullPath: '/melhores-picks'
+      preLoaderRoute: typeof AuthenticatedMelhoresPicksRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/historico': {
@@ -619,6 +639,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedFavoritosRoute: typeof AuthenticatedFavoritosRoute
   AuthenticatedHistoricoRoute: typeof AuthenticatedHistoricoRoute
+  AuthenticatedMelhoresPicksRoute: typeof AuthenticatedMelhoresPicksRoute
   AuthenticatedPerfilRoute: typeof AuthenticatedPerfilRoute
   AuthenticatedPlanosRoute: typeof AuthenticatedPlanosRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
@@ -630,6 +651,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedFavoritosRoute: AuthenticatedFavoritosRoute,
   AuthenticatedHistoricoRoute: AuthenticatedHistoricoRoute,
+  AuthenticatedMelhoresPicksRoute: AuthenticatedMelhoresPicksRoute,
   AuthenticatedPerfilRoute: AuthenticatedPerfilRoute,
   AuthenticatedPlanosRoute: AuthenticatedPlanosRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
