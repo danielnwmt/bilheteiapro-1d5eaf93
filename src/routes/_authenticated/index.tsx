@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Sparkles, Target, TrendingUp, Trophy, Building2, ExternalLink, ListChecks, LogOut, Lock, Crown, Users, Wallet, CalendarDays, UserCircle, Play, Flame, Zap, RefreshCw, Flag, CreditCard, LineChart, TrendingDown, Trash2, AlertTriangle, Check, X, LifeBuoy } from "lucide-react";
+import { Loader2, Sparkles, Target, TrendingUp, Trophy, Building2, ExternalLink, ListChecks, LogOut, Lock, Crown, Users, Wallet, CalendarDays, UserCircle, Play, Flame, Zap, RefreshCw, Flag, CreditCard, LineChart, TrendingDown, Trash2, AlertTriangle, Check, X, LifeBuoy, History as HistoryIcon, Star as StarIcon } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import logo from "@/assets/bilheteia-logo.png";
@@ -834,6 +834,12 @@ function Index() {
             <AccentPicker compact />
             <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/dashboard" })}>
               <LineChart className="mr-2 h-4 w-4" /> Dashboard
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/historico" })}>
+              <HistoryIcon className="mr-2 h-4 w-4" /> Histórico
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/favoritos" })}>
+              <StarIcon className="mr-2 h-4 w-4" /> Favoritos
             </Button>
             {(isStaff || !!planoCfg?.recursos?.planilhaBanca) && (
               <Button variant="outline" size="sm" onClick={() => router.navigate({ to: "/banca" })}>

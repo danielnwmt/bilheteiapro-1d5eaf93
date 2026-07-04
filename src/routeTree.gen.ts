@@ -15,6 +15,8 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedPlanosRouteImport } from './routes/_authenticated/planos'
 import { Route as AuthenticatedPerfilRouteImport } from './routes/_authenticated/perfil'
+import { Route as AuthenticatedHistoricoRouteImport } from './routes/_authenticated/historico'
+import { Route as AuthenticatedFavoritosRouteImport } from './routes/_authenticated/favoritos'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedBancaRouteImport } from './routes/_authenticated/banca'
 import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/admin/route'
@@ -63,6 +65,16 @@ const AuthenticatedPlanosRoute = AuthenticatedPlanosRouteImport.update({
 const AuthenticatedPerfilRoute = AuthenticatedPerfilRouteImport.update({
   id: '/perfil',
   path: '/perfil',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedHistoricoRoute = AuthenticatedHistoricoRouteImport.update({
+  id: '/historico',
+  path: '/historico',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedFavoritosRoute = AuthenticatedFavoritosRouteImport.update({
+  id: '/favoritos',
+  path: '/favoritos',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
@@ -185,6 +197,8 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AuthenticatedAdminRouteRouteWithChildren
   '/banca': typeof AuthenticatedBancaRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/favoritos': typeof AuthenticatedFavoritosRoute
+  '/historico': typeof AuthenticatedHistoricoRoute
   '/perfil': typeof AuthenticatedPerfilRoute
   '/planos': typeof AuthenticatedPlanosRoute
   '/admin/apis': typeof AuthenticatedAdminApisRoute
@@ -210,6 +224,8 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/banca': typeof AuthenticatedBancaRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/favoritos': typeof AuthenticatedFavoritosRoute
+  '/historico': typeof AuthenticatedHistoricoRoute
   '/perfil': typeof AuthenticatedPerfilRoute
   '/planos': typeof AuthenticatedPlanosRoute
   '/': typeof AuthenticatedIndexRoute
@@ -239,6 +255,8 @@ export interface FileRoutesById {
   '/_authenticated/admin': typeof AuthenticatedAdminRouteRouteWithChildren
   '/_authenticated/banca': typeof AuthenticatedBancaRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/favoritos': typeof AuthenticatedFavoritosRoute
+  '/_authenticated/historico': typeof AuthenticatedHistoricoRoute
   '/_authenticated/perfil': typeof AuthenticatedPerfilRoute
   '/_authenticated/planos': typeof AuthenticatedPlanosRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
@@ -269,6 +287,8 @@ export interface FileRouteTypes {
     | '/admin'
     | '/banca'
     | '/dashboard'
+    | '/favoritos'
+    | '/historico'
     | '/perfil'
     | '/planos'
     | '/admin/apis'
@@ -294,6 +314,8 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/banca'
     | '/dashboard'
+    | '/favoritos'
+    | '/historico'
     | '/perfil'
     | '/planos'
     | '/'
@@ -322,6 +344,8 @@ export interface FileRouteTypes {
     | '/_authenticated/admin'
     | '/_authenticated/banca'
     | '/_authenticated/dashboard'
+    | '/_authenticated/favoritos'
+    | '/_authenticated/historico'
     | '/_authenticated/perfil'
     | '/_authenticated/planos'
     | '/_authenticated/'
@@ -400,6 +424,20 @@ declare module '@tanstack/react-router' {
       path: '/perfil'
       fullPath: '/perfil'
       preLoaderRoute: typeof AuthenticatedPerfilRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/historico': {
+      id: '/_authenticated/historico'
+      path: '/historico'
+      fullPath: '/historico'
+      preLoaderRoute: typeof AuthenticatedHistoricoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/favoritos': {
+      id: '/_authenticated/favoritos'
+      path: '/favoritos'
+      fullPath: '/favoritos'
+      preLoaderRoute: typeof AuthenticatedFavoritosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/dashboard': {
@@ -579,6 +617,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRouteRoute: typeof AuthenticatedAdminRouteRouteWithChildren
   AuthenticatedBancaRoute: typeof AuthenticatedBancaRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedFavoritosRoute: typeof AuthenticatedFavoritosRoute
+  AuthenticatedHistoricoRoute: typeof AuthenticatedHistoricoRoute
   AuthenticatedPerfilRoute: typeof AuthenticatedPerfilRoute
   AuthenticatedPlanosRoute: typeof AuthenticatedPlanosRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
@@ -588,6 +628,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRouteRoute: AuthenticatedAdminRouteRouteWithChildren,
   AuthenticatedBancaRoute: AuthenticatedBancaRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedFavoritosRoute: AuthenticatedFavoritosRoute,
+  AuthenticatedHistoricoRoute: AuthenticatedHistoricoRoute,
   AuthenticatedPerfilRoute: AuthenticatedPerfilRoute,
   AuthenticatedPlanosRoute: AuthenticatedPlanosRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
