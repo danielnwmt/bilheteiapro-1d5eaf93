@@ -335,6 +335,101 @@ export type Database = {
           },
         ]
       }
+      favoritos: {
+        Row: {
+          created_at: string
+          id: string
+          metadata: Json
+          rotulo: string | null
+          tipo: string
+          user_id: string
+          valor: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          metadata?: Json
+          rotulo?: string | null
+          tipo: string
+          user_id: string
+          valor: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          metadata?: Json
+          rotulo?: string | null
+          tipo?: string
+          user_id?: string
+          valor?: string
+        }
+        Relationships: []
+      }
+      historico_bilhetes: {
+        Row: {
+          bilhete_id: string | null
+          casa: string | null
+          created_at: string
+          data_evento: string
+          id: string
+          jogos: string
+          mercados: string
+          observacoes: string | null
+          odd_total: number
+          odds_detalhe: Json
+          resultado: string
+          retorno: number
+          stake: number
+          tipo: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bilhete_id?: string | null
+          casa?: string | null
+          created_at?: string
+          data_evento?: string
+          id?: string
+          jogos?: string
+          mercados?: string
+          observacoes?: string | null
+          odd_total?: number
+          odds_detalhe?: Json
+          resultado?: string
+          retorno?: number
+          stake?: number
+          tipo?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bilhete_id?: string | null
+          casa?: string | null
+          created_at?: string
+          data_evento?: string
+          id?: string
+          jogos?: string
+          mercados?: string
+          observacoes?: string | null
+          odd_total?: number
+          odds_detalhe?: Json
+          resultado?: string
+          retorno?: number
+          stake?: number
+          tipo?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "historico_bilhetes_bilhete_id_fkey"
+            columns: ["bilhete_id"]
+            isOneToOne: false
+            referencedRelation: "bilhetes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       odds: {
         Row: {
           casa: string
