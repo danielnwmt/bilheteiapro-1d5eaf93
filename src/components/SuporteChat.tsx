@@ -37,6 +37,43 @@ type FluxoOpcao = { label: string; resposta: string; ouvidoria?: boolean; destin
 type Fluxo = { saudacao: string; opcoes: FluxoOpcao[]; mensagens?: string[] };
 type Bolha = { id: string; autor: "cliente" | "suporte"; conteudo: string };
 
+type FAQItem = { id: string; pergunta: string; resposta: string; categoria?: string | null; tags?: string[] | null };
+
+const FLUXO_PADRAO_SEM_IA: Fluxo = {
+  saudacao: "Olá! Sou o atendimento automático do BilheteIA Pro. Escolha uma opção abaixo ou digite sua dúvida. Todas as respostas são fixas e cadastradas, sem uso de IA.",
+  opcoes: [
+    {
+      label: "Pagamentos",
+      resposta: "Para dúvidas de pagamento, confira se sua assinatura está ativa em Perfil > Assinatura. Se o pagamento já foi feito e o acesso não liberou, envie o comprovante e fale com um atendente.",
+    },
+    {
+      label: "Planos",
+      resposta: "Os planos disponíveis são Start, Pro e Elite. Cada plano libera campeonatos, histórico e recursos diferentes. Acesse a página Planos para comparar e fazer upgrade.",
+    },
+    {
+      label: "Como gerar bilhete",
+      resposta: "Para gerar um bilhete, escolha período, campeonatos, mercados, odd-alvo e tipo de bilhete. O sistema lê as análises já salvas em cache e monta sugestões com odds reais.",
+    },
+    {
+      label: "Gestão de banca",
+      resposta: "Na área Banca você registra depósitos, entradas, resultados e acompanha ROI, lucro/prejuízo e evolução da banca.",
+    },
+    {
+      label: "Problemas técnicos",
+      resposta: "Se encontrou erro, envie uma descrição com print, horário aproximado e o que estava tentando fazer. Um atendente irá verificar.",
+    },
+    {
+      label: "Cancelamento",
+      resposta: "Para cancelar, fale com um atendente. Ele vai confirmar seu plano, período atual e orientar os próximos passos.",
+    },
+    {
+      label: "Falar com atendente",
+      resposta: "",
+    },
+  ],
+  mensagens: [],
+};
+
 const STATUS_LABEL: Record<string, string> = {
   aberto: "Aberto",
   aguardando_atendente: "Aguardando atendente",
@@ -98,6 +135,7 @@ export function SuporteChat({
   const [enviando, setEnviando] = useState(false);
   const [carregando, setCarregando] = useState(true);
   const [fluxoLocal, setFluxoLocal] = useState<Bolha[]>([]);
+  const [faq, setFaq] = useState<FAQItem[]>([]);
   const [iniciado, setIniciado] = useState(false);
   const [modoReclamacao, setModoReclamacao] = useState(false);
   const [falandoAtendente, setFalandoAtendente] = useState(false);
@@ -111,12 +149,24 @@ export function SuporteChat({
   const canalRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const typingTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const temFluxo = Boolean(fluxo && (fluxo.saudacao.trim() || fluxo.opcoes.length));
+  const fluxoAtual = fluxo && (fluxo.saudacao.trim() || fluxo.opcoes.length) ? fluxo : FLUXO_PADRAO_SEM_IA;
+  const temFluxo = Boolean(fluxoAtual && (fluxoAtual.saudacao.trim() || fluxoAtual.opcoes.length));
   const fluxoAtivo = iniciado || msgs.length > 0;
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setUserId(data.session?.user?.id ?? null));
   }, []);
+
+  // FAQ determinístico: sem IA, sem geração livre. Apenas respostas cadastradas e ativas.
+  useEffect(() => {
+    if (!open) return;
+    (supabase as any)
+      .from("suporte_faq")
+      .select("id, pergunta, resposta, categoria, tags")
+      .eq("ativo", true)
+      .order("ordem", { ascending: true })
+      .then(({ data }: { data: FAQItem[] | null }) => setFaq(data ?? []));
+  }, [open]);
 
   // Carrega a conversa ativa do cliente (não finalizada) + mensagens.
   useEffect(() => {
@@ -262,8 +312,32 @@ export function SuporteChat({
     setModoReclamacao(false);
     setFluxoLocal((prev) => [
       ...prev,
-      { id: `sys-${Date.now()}`, autor: "suporte", conteudo: fluxo?.saudacao || "Selecione uma opção:" },
+      { id: `sys-${Date.now()}`, autor: "suporte", conteudo: fluxoAtual?.saudacao || "Selecione uma opção:" },
     ]);
+  }
+
+  function normalizarBusca(v: string) {
+    return v
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function buscarRespostaFAQ(termo: string): FAQItem | null {
+    const busca = normalizarBusca(termo);
+    if (!busca || faq.length === 0) return null;
+    const palavras = busca.split(" ").filter((p) => p.length >= 3);
+    let melhor: { item: FAQItem; score: number } | null = null;
+    for (const item of faq) {
+      const alvo = normalizarBusca([item.pergunta, item.resposta, item.categoria ?? "", ...(item.tags ?? [])].join(" "));
+      let score = alvo.includes(busca) ? 8 : 0;
+      for (const p of palavras) if (alvo.includes(p)) score += 1;
+      if (score > 0 && (!melhor || score > melhor.score)) melhor = { item, score };
+    }
+    return melhor && melhor.score >= 2 ? melhor.item : null;
   }
 
   async function enviar() {
@@ -289,6 +363,29 @@ export function SuporteChat({
       return;
     }
 
+    if (!falandoAtendente) {
+      const respostaFAQ = buscarRespostaFAQ(conteudo);
+      if (respostaFAQ) {
+        const cId = await ensureConversa("aberto");
+        setTexto("");
+        setFluxoLocal((prev) => [
+          ...prev,
+          { id: `cli-${Date.now()}`, autor: "cliente", conteudo },
+          { id: `bot-${Date.now() + 1}`, autor: "suporte", conteudo: respostaFAQ.resposta },
+        ]);
+        if (cId) {
+          await supabase.from("chatbot_logs").insert({
+            user_id: userId,
+            conversa_id: cId,
+            evento: "faq_respondido",
+            detalhes: { faq_id: respostaFAQ.id, pergunta: respostaFAQ.pergunta },
+          });
+        }
+        setEnviando(false);
+        return;
+      }
+    }
+
     const cId = await ensureConversa("aguardando_atendente");
     if (!cId) {
       setEnviando(false);
@@ -305,9 +402,9 @@ export function SuporteChat({
   // usa o conteúdo dela; senão, usa a resposta direta da opção.
   function respostaDaOpcao(op: FluxoOpcao): string {
     if (op.destino) {
-      if (op.destino === "msg") return (fluxo?.saudacao ?? "").trim();
+      if (op.destino === "msg") return (fluxoAtual?.saudacao ?? "").trim();
       const m = op.destino.match(/^extra-(\d+)$/);
-      if (m) return ((fluxo?.mensagens ?? [])[Number(m[1])] ?? "").trim();
+      if (m) return ((fluxoAtual?.mensagens ?? [])[Number(m[1])] ?? "").trim();
     }
     return op.resposta.trim();
   }
@@ -315,6 +412,13 @@ export function SuporteChat({
   async function escolherOpcao(op: FluxoOpcao) {
     if (!userId) return;
     setFluxoLocal((prev) => [...prev, { id: `cli-${Date.now()}`, autor: "cliente", conteudo: op.label }]);
+    const labelNormalizada = normalizarBusca(op.label);
+    if (labelNormalizada.includes("atendente") || labelNormalizada.includes("cancelamento") || labelNormalizada.includes("problemas tecnicos")) {
+      if (labelNormalizada.includes("atendente")) {
+        await falarComAtendente();
+        return;
+      }
+    }
     const resp = respostaDaOpcao(op);
 
     if (op.ouvidoria) {
@@ -430,8 +534,8 @@ export function SuporteChat({
   }
 
   const mostraMenu =
-    temFluxo && fluxo!.opcoes.length > 0 && !falandoAtendente && !modoReclamacao && status !== "finalizado";
-  const mostraInput = falandoAtendente || modoReclamacao || (!temFluxo);
+    temFluxo && fluxoAtual!.opcoes.length > 0 && !falandoAtendente && !modoReclamacao && status !== "finalizado";
+  const mostraInput = falandoAtendente || modoReclamacao || (!temFluxo) || fluxoAtivo;
 
   const digitandoBolha = atendenteDigitando ? (
     <div className="flex justify-start">
@@ -475,8 +579,8 @@ export function SuporteChat({
 
               {(fluxoAtivo || fluxoLocal.length > 0) &&
                 (() => {
-                  const saud = fluxo?.saudacao?.trim();
-                  const extras = (fluxo?.mensagens ?? []).map((m) => m.trim()).filter(Boolean);
+                  const saud = fluxoAtual?.saudacao?.trim();
+                  const extras = (fluxoAtual?.mensagens ?? []).map((m) => m.trim()).filter(Boolean);
                   const intro = Array.from(new Set([saud, ...extras].filter(Boolean)));
                   return intro.map((m, i) => (
                     <div key={`intro-${i}`} className="flex justify-start">
@@ -533,7 +637,7 @@ export function SuporteChat({
               {mostraMenu && (
                 <div className="flex flex-col items-start gap-2 pt-1">
                   <p className="text-xs text-muted-foreground">Selecione uma opção:</p>
-                  {fluxo!.opcoes.map((op, i) => (
+                  {fluxoAtual!.opcoes.map((op, i) => (
                     <Button
                       key={i}
                       variant="outline"
