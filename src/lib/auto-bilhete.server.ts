@@ -1,34 +1,12 @@
-// Robô autônomo: varre a API-Football por jogos nas próximas 4h (ligas principais),
-// busca odds reais, chama o Gemini e salva o bilhete + palpites no banco.
-// Server-only (service role + chave da IA).
-import { generateText } from "ai";
+// Robô autônomo: monta bilhetes usando somente odds reais salvas,
+// estatísticas do banco e o motor estatístico local. Não usa IA/LLM.
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
-import { getAiModel } from "./ai-gateway.server";
+import { analisarLocal } from "./analise-local.server";
+import type { PartidaRow, PickAnalise } from "./analise.server";
+import type { EstatisticasResumo } from "./football.server";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-// Chama a IA com backoff exponencial para sobreviver a "Too Many Requests"
-// (429) e "Service Unavailable" (503) do provedor, em vez de estourar após
-// as 3 tentativas padrão do SDK e não gerar nenhum pick.
-async function gerarComBackoff(prompt: string, tentativas = 5): Promise<string> {
-  let ultimoErro: unknown;
-  for (let i = 0; i < tentativas; i++) {
-    try {
-      const { text } = await generateText({ model: await getAiModel(), prompt, maxRetries: 0 });
-      return text;
-    } catch (e) {
-      ultimoErro = e;
-      const msg = String((e as Error)?.message ?? e);
-      const rate = /too many requests|429|service unavailable|503|overloaded|rate limit/i.test(msg);
-      if (!rate || i === tentativas - 1) throw e;
-      const espera = Math.min(45_000, 3_000 * 2 ** i) + Math.floor(Math.random() * 1_000);
-      console.warn(`auto-bilhete: IA sobrecarregada, aguardando ${Math.round(espera)}ms (tentativa ${i + 1}/${tentativas})`);
-      await sleep(espera);
-    }
-  }
-  throw ultimoErro;
-}
 
 // Configuração de cada tipo de bilhete que o robô monta.
 export interface BilheteConfig {
@@ -47,7 +25,6 @@ const CASA = "Betano";
 // Ligas principais: Brasileirão Série A e Série B (nomes gravados na coluna "liga").
 const LIGAS_FOCO = ["Brasileirão Série A", "Brasileirão Série B"];
 
-// Bilhete padrão (conservador).
 const CONFIG_PADRAO: BilheteConfig = {
   tipo: "padrao",
   janelaHoras: 4,
@@ -60,8 +37,6 @@ const CONFIG_PADRAO: BilheteConfig = {
   mercados: null,
 };
 
-// Super Múltipla: 4-5 jogos de alta confiança, odds individuais 1.60-2.20,
-// odd total combinada entre 15.00 e 30.00, mercados de vitória/ambos marcam/cartões/escanteios/gols.
 const CONFIG_SUPER: BilheteConfig = {
   tipo: "super_multipla",
   janelaHoras: 4,
@@ -71,63 +46,15 @@ const CONFIG_SUPER: BilheteConfig = {
   oddMaxTotal: 30,
   minJogos: 4,
   maxJogos: 5,
-  mercados: ["vitoria", "vencedor", "resultado", "match winner", "1x2", "ambos marcam", "both teams", "cartoes", "cartao", "card", "escanteio", "corner", "gol", "goal", "over", "under", "total"],
+  mercados: [
+    "vitoria", "vencedor", "resultado", "match winner", "1x2",
+    "ambos marcam", "both teams", "cartoes", "cartao", "card",
+    "escanteio", "corner", "gol", "goal", "over", "under", "total",
+  ],
 };
-
-function mercadoPermitido(cfg: BilheteConfig, mercado: string, selecao: string) {
-  if (!cfg.mercados) return true;
-  const alvo = `${normKey(mercado)} ${normKey(selecao)}`;
-  return cfg.mercados.some((m) => alvo.includes(normKey(m)));
-}
-
-type OddRow = {
-  casa: string;
-  mercado: string;
-  selecao: string;
-  valor: number;
-  external_odd_id: string | null;
-};
-type PartidaRow = {
-  id: string;
-  external_id: string | null;
-  liga: string | null;
-  time_casa: string;
-  time_fora: string;
-  inicio: string;
-  status: string;
-  odds: OddRow[];
-};
-
-type EstatisticaRow = {
-  partida_id: string | null;
-  tipo: string | null;
-  payload: unknown;
-};
-
-// Resume o payload (json) de estatísticas em texto curto e legível pra IA.
-function resumirEstatisticas(stats: EstatisticaRow[]): string {
-  const partes: string[] = [];
-  for (const s of stats) {
-    const p = s.payload;
-    if (p == null) continue;
-    let txt = "";
-    if (typeof p === "string") {
-      txt = p;
-    } else if (typeof p === "object") {
-      txt = Object.entries(p as Record<string, unknown>)
-        .filter(([, v]) => v != null && typeof v !== "object")
-        .map(([k, v]) => `${k}: ${v}`)
-        .join(", ");
-    }
-    txt = txt.trim();
-    if (!txt) continue;
-    partes.push(s.tipo ? `${s.tipo} → ${txt}` : txt);
-  }
-  return partes.join(" | ").slice(0, 600);
-}
 
 function normKey(v: string) {
-  return v
+  return String(v ?? "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
@@ -135,23 +62,10 @@ function normKey(v: string) {
     .trim();
 }
 
-function formatMatchDate(iso: string) {
-  return new Intl.DateTimeFormat("pt-BR", {
-    timeZone: "America/Sao_Paulo",
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(new Date(iso));
-}
-
-function extractJson(text: string) {
-  const cleaned = text.replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
-  const start = cleaned.indexOf("{");
-  const end = cleaned.lastIndexOf("}");
-  if (start === -1 || end === -1 || end <= start) throw new Error("JSON não encontrado");
-  return cleaned.slice(start, end + 1);
+function mercadoPermitido(cfg: BilheteConfig, mercado: string, selecao: string) {
+  if (!cfg.mercados) return true;
+  const alvo = `${normKey(mercado)} ${normKey(selecao)}`;
+  return cfg.mercados.some((m) => alvo.includes(normKey(m)));
 }
 
 function admin() {
@@ -172,234 +86,186 @@ export interface AutoResult {
   motivo?: string;
 }
 
+type OddRow = PartidaRow["odds"][number];
+type PartidaComStats = PartidaRow & { estatisticas?: EstatisticasResumo | null };
+type Pick = {
+  partida_id: string;
+  jogo: string;
+  mercado: string;
+  selecao: string;
+  odd: number;
+  confianca: number;
+  justificativa: string;
+  external_odd_id: string | null;
+  estrelas: number;
+  evPct: number;
+};
+
+function oddElegivel(cfg: BilheteConfig, o: OddRow) {
+  return (
+    normKey(o.casa) === normKey(CASA) &&
+    Number.isFinite(o.valor) &&
+    o.valor >= cfg.oddMinJogo &&
+    o.valor <= cfg.oddMaxJogo &&
+    mercadoPermitido(cfg, o.mercado, o.selecao)
+  );
+}
+
+function pickElegivel(cfg: BilheteConfig, p: PickAnalise) {
+  return (
+    Number.isFinite(p.odd) &&
+    p.odd >= cfg.oddMinJogo &&
+    p.odd <= cfg.oddMaxJogo &&
+    mercadoPermitido(cfg, p.mercado, p.selecao)
+  );
+}
+
+function scorePick(p: Pick) {
+  return p.confianca * 10 + p.estrelas * 25 + Math.max(0, p.evPct) * 2 - Math.max(0, p.odd - 2.5) * 8;
+}
+
+function oddTotalDe(arr: Pick[]) {
+  return arr.reduce((t, p) => t * p.odd, 1);
+}
+
+function escolherCombinacao(candidatos: Pick[], cfg: BilheteConfig): Pick[] {
+  const ordenados = [...candidatos].sort((a, b) => scorePick(b) - scorePick(a)).slice(0, 18);
+  let melhor: Pick[] = [];
+  let melhorScore = -Infinity;
+
+  const dfs = (inicio: number, atual: Pick[]) => {
+    if (atual.length >= cfg.minJogos) {
+      const oddTotal = oddTotalDe(atual);
+      if (oddTotal >= cfg.oddMinTotal && oddTotal <= cfg.oddMaxTotal) {
+        const alvo = cfg.oddMinTotal > 1 ? (cfg.oddMinTotal + cfg.oddMaxTotal) / 2 : Math.min(2.2, cfg.oddMaxTotal);
+        const proximidade = -Math.abs(Math.log(oddTotal / alvo)) * 35;
+        const mediaScore = atual.reduce((s, p) => s + scorePick(p), 0) / atual.length;
+        const score = mediaScore + proximidade + atual.length * 3;
+        if (score > melhorScore) {
+          melhorScore = score;
+          melhor = [...atual];
+        }
+      }
+    }
+    if (atual.length >= cfg.maxJogos) return;
+
+    for (let i = inicio; i < ordenados.length; i++) {
+      const prox = ordenados[i];
+      const novaOdd = oddTotalDe(atual) * prox.odd;
+      // Para bilhete padrão, evita continuar quando já passou muito do teto.
+      if (cfg.oddMinTotal <= 1 && novaOdd > cfg.oddMaxTotal * 1.15) continue;
+      atual.push(prox);
+      dfs(i + 1, atual);
+      atual.pop();
+    }
+  };
+
+  dfs(0, []);
+  return melhor;
+}
+
 async function montarBilhete(cfg: BilheteConfig): Promise<AutoResult> {
   const supabase = admin();
   const now = Date.now();
   const from = new Date(now).toISOString();
   const to = new Date(now + cfg.janelaHoras * 3600_000).toISOString();
 
-  // 1) Geração de bilhete não chama API-Football. Usa somente o cache/banco.
+  const { data: partidas, error } = await supabase
+    .from("partidas")
+    .select("id, external_id, liga, time_casa, time_fora, inicio, status, arbitro, odds(casa, mercado, selecao, valor, external_odd_id)")
+    .in("liga", LIGAS_FOCO)
+    .or(`status.eq.ao_vivo,and(inicio.gte.${from},inicio.lte.${to})`)
+    .order("inicio", { ascending: true })
+    .limit(20);
 
-  const lerPartidas = async () =>
-    supabase
-      .from("partidas")
-      .select(
-        "id, external_id, liga, time_casa, time_fora, inicio, status, odds(casa, mercado, selecao, valor, external_odd_id)",
-      )
-      .in("liga", LIGAS_FOCO)
-      .or(`status.eq.ao_vivo,and(inicio.gte.${from},inicio.lte.${to})`)
-      .order("inicio", { ascending: true })
-      .limit(20);
-
-  let { data: partidas } = await lerPartidas();
-  let rows = (partidas ?? []) as PartidaRow[];
-
-  if (!rows.length) {
-    return { ok: true, tipo: cfg.tipo, jogosAnalisados: 0, picks: 0, motivo: "Nenhum jogo nas próximas 4h nas ligas principais." };
+  if (error) {
+    console.error("auto-bilhete: erro ao ler partidas", error);
+    return { ok: false, tipo: cfg.tipo, jogosAnalisados: 0, picks: 0, motivo: "Erro ao ler partidas." };
   }
 
-  // 2) Não busca odds na API aqui. Só usa odds já salvas no banco.
+  const rows = ((partidas ?? []) as PartidaComStats[]).filter((r) => r.odds?.some((o) => oddElegivel(cfg, o)));
+  if (!rows.length) {
+    return { ok: true, tipo: cfg.tipo, jogosAnalisados: 0, picks: 0, motivo: "Nenhum jogo elegível com odds salvas." };
+  }
 
-  // Odd elegível: casa correta, dentro da faixa por jogo e mercado permitido.
-  const oddElegivel = (o: OddRow) =>
-    normKey(o.casa) === normKey(CASA) &&
-    o.valor >= cfg.oddMinJogo &&
-    o.valor <= cfg.oddMaxJogo &&
-    mercadoPermitido(cfg, o.mercado, o.selecao);
+  try {
+    const ids = rows.map((r) => r.id);
+    const { data: stats } = await supabase
+      .from("estatisticas")
+      .select("partida_id, payload")
+      .eq("tipo", "predicoes")
+      .in("partida_id", ids);
+    const statsMap = new Map<string, EstatisticasResumo>();
+    for (const s of stats ?? []) statsMap.set(String((s as any).partida_id), (s as any).payload as EstatisticasResumo);
+    for (const r of rows) r.estatisticas = statsMap.get(r.id) ?? null;
+  } catch (e) {
+    console.error("auto-bilhete: falha ao buscar estatísticas", e);
+  }
 
-  // Só jogos que têm pelo menos uma odd elegível.
-  const elegiveis = rows.filter((r) => r.odds.some(oddElegivel));
-  if (elegiveis.length < cfg.minJogos) {
+  const candidatos: Pick[] = [];
+  for (const partida of rows) {
+    const analise = analisarLocal(partida, CASA);
+    const melhor = analise.picks
+      .filter((p) => pickElegivel(cfg, p))
+      .sort((a, b) =>
+        (b.estrelas ?? 0) - (a.estrelas ?? 0) ||
+        b.confianca - a.confianca ||
+        (b.evPct ?? 0) - (a.evPct ?? 0),
+      )[0];
+
+    if (!melhor) continue;
+    candidatos.push({
+      partida_id: partida.id,
+      jogo: `${partida.time_casa} x ${partida.time_fora}`,
+      mercado: melhor.mercado,
+      selecao: melhor.selecao,
+      odd: melhor.odd,
+      confianca: Math.max(1, Math.min(96, Math.round(melhor.confianca || 60))),
+      justificativa: melhor.justificativa || melhor.motivos?.join(" • ") || "Pick selecionada pelo motor estatístico local.",
+      external_odd_id: melhor.external_odd_id,
+      estrelas: melhor.estrelas ?? 2,
+      evPct: melhor.evPct ?? 0,
+    });
+  }
+
+  if (candidatos.length < cfg.minJogos) {
     return {
       ok: true,
       tipo: cfg.tipo,
       jogosAnalisados: rows.length,
       picks: 0,
-      motivo: `Jogos elegíveis insuficientes (${elegiveis.length}) para ${cfg.tipo} (mín. ${cfg.minJogos}).`,
+      motivo: `Picks elegíveis insuficientes (${candidatos.length}) para ${cfg.tipo} (mín. ${cfg.minJogos}).`,
     };
   }
 
-  // 3) Busca estatísticas reais dos jogos elegíveis (forma, médias, etc.).
-  const statsPorPartida = new Map<string, EstatisticaRow[]>();
-  try {
-    const ids = elegiveis.map((r) => r.id);
-    const { data: stats } = await supabase
-      .from("estatisticas")
-      .select("partida_id, tipo, payload")
-      .in("partida_id", ids);
-    for (const s of (stats ?? []) as EstatisticaRow[]) {
-      if (!s.partida_id) continue;
-      const list = statsPorPartida.get(s.partida_id) ?? [];
-      list.push(s);
-      statsPorPartida.set(s.partida_id, list);
-    }
-  } catch (e) {
-    console.error("auto-bilhete: falha ao buscar estatísticas", e);
-  }
-
-  // 4) Monta o texto e chama o Gemini.
-  const jogosTexto = elegiveis
-    .map((r) => {
-      const jogo = `${r.time_casa} x ${r.time_fora}`;
-      const odds = r.odds
-        .filter(oddElegivel)
-        .map((o) => `${o.mercado} - ${o.selecao}: @${o.valor.toFixed(2)}`)
-        .join(" | ");
-      const stats = resumirEstatisticas(statsPorPartida.get(r.id) ?? []);
-      const statsLinha = stats ? `\n  Estatísticas: ${stats}` : "";
-      return `- ${jogo} (${r.liga}, ${formatMatchDate(r.inicio)}): ${odds}${statsLinha}`;
-    })
-    .join("\n");
-
-  const faixaJogo =
-    cfg.oddMaxJogo === Infinity
-      ? `>= ${cfg.oddMinJogo.toFixed(2)}`
-      : `entre ${cfg.oddMinJogo.toFixed(2)} e ${cfg.oddMaxJogo.toFixed(2)}`;
-  const regraTotal =
-    cfg.oddMinTotal > 1
-      ? `A odd total (produto das odds) deve ficar ENTRE ${cfg.oddMinTotal.toFixed(2)} e ${cfg.oddMaxTotal.toFixed(2)}.`
-      : `A odd total (produto das odds) deve ser <= ${cfg.oddMaxTotal.toFixed(2)}.`;
-
-  const cabecalho =
-    cfg.tipo === "super_multipla"
-      ? `Você é um analista de apostas esportivas. Monte UMA "Super Múltipla": combine de ${cfg.minJogos} a ${cfg.maxJogos} jogos de ALTA CONFIANÇA para alcançar a odd total alvo.`
-      : `Você é um analista de apostas esportivas. Monte UM ÚNICO bilhete múltiplo a partir das odds reais abaixo.`;
-
-  const prompt = `${cabecalho}
-
-REGRAS OBRIGATÓRIAS:
-- Use SOMENTE seleções listadas abaixo (mesmo jogo, mercado, seleção).
-- Cada seleção deve ter odd ${faixaJogo}.
-- Use de ${cfg.minJogos} a ${cfg.maxJogos} jogos no bilhete (um jogo só pode aparecer uma vez).
-- ${regraTotal}
-- Priorize as entradas mais seguras e de maior confiança.
-- Quando houver "Estatísticas" no jogo, USE-AS para decidir (forma, médias de gols, etc.); prefira seleções sustentadas pelos dados.
-
-JOGOS, ODDS E ESTATÍSTICAS DISPONÍVEIS:
-${jogosTexto}
-
-Responda APENAS em JSON, sem texto fora do JSON:
-{
-  "resumo": "string curta",
-  "risco": "baixo" | "medio" | "alto",
-  "observacoes": "string",
-  "picks": [
-    { "jogo": "Time A x Time B", "mercado": "...", "selecao": "...", "confianca": 0-100, "justificativa": "..." }
-  ]
-}`;
-
-  let raw: Record<string, unknown>;
-  try {
-    const text = await gerarComBackoff(prompt);
-    raw = JSON.parse(extractJson(text)) as Record<string, unknown>;
-  } catch (e) {
-    console.error("auto-bilhete: falha na IA", e);
-    const msg = String((e as Error)?.message ?? e);
-    const rate = /too many requests|429|service unavailable|503|overloaded|rate/i.test(msg);
-    return {
-      ok: false,
-      tipo: cfg.tipo,
-      jogosAnalisados: elegiveis.length,
-      picks: 0,
-      motivo: rate
-        ? "IA temporariamente sobrecarregada (limite de requisições). O robô tentará novamente na próxima rodada."
-        : "Falha ao gerar/parsear resposta da IA.",
-    };
-  }
-
-  // 4) Valida picks contra o banco e aplica as regras.
-  const rawPicks = Array.isArray(raw.picks) ? (raw.picks as Record<string, unknown>[]) : [];
-  const usados = new Set<string>();
-  type Pick = {
-    partida_id: string;
-    jogo: string;
-    mercado: string;
-    selecao: string;
-    odd: number;
-    confianca: number;
-    justificativa: string;
-    external_odd_id: string | null;
-  };
-  const picks: Pick[] = [];
-
-  for (const item of rawPicks) {
-    const jogo = String(item.jogo ?? "").trim();
-    const selecao = String(item.selecao ?? "").trim();
-    if (!jogo || !selecao) continue;
-
-    const partida = elegiveis.find((r) => normKey(`${r.time_casa} x ${r.time_fora}`) === normKey(jogo));
-    if (!partida || usados.has(partida.id)) continue;
-
-    const oddRow = partida.odds.find((o) => oddElegivel(o) && normKey(o.selecao) === normKey(selecao));
-    if (!oddRow) continue;
-
-    usados.add(partida.id);
-    picks.push({
-      partida_id: partida.id,
-      jogo,
-      mercado: oddRow.mercado,
-      selecao: oddRow.selecao,
-      odd: oddRow.valor,
-      confianca: Math.max(0, Math.min(100, Number(item.confianca) || 60)),
-      justificativa: String(item.justificativa ?? "Entrada baseada nas odds reais."),
-      external_odd_id: oddRow.external_odd_id,
-    });
-    if (picks.length >= cfg.maxJogos) break;
-  }
-
-  const oddTotalDe = (arr: Pick[]) => arr.reduce((t, p) => t * p.odd, 1);
-  // Maior confiança primeiro; remove as menos confiáveis até caber no teto.
-  let escolhidos = [...picks].sort((a, b) => b.confianca - a.confianca);
-  while (escolhidos.length > cfg.minJogos && oddTotalDe(escolhidos) > cfg.oddMaxTotal) {
-    escolhidos.sort((a, b) => b.odd - a.odd);
-    escolhidos.shift();
-  }
-
-  const oddTotalFinal = oddTotalDe(escolhidos);
-  const dentroDasRegras =
-    escolhidos.length >= cfg.minJogos &&
-    escolhidos.length <= cfg.maxJogos &&
-    oddTotalFinal >= cfg.oddMinTotal &&
-    oddTotalFinal <= cfg.oddMaxTotal;
-
-  if (!dentroDasRegras) {
+  const escolhidos = escolherCombinacao(candidatos, cfg);
+  if (!escolhidos.length) {
     return {
       ok: true,
       tipo: cfg.tipo,
-      jogosAnalisados: elegiveis.length,
+      jogosAnalisados: rows.length,
       picks: 0,
-      motivo: `Não foi possível montar ${cfg.tipo} dentro das regras (odd total ${oddTotalFinal.toFixed(2)}, ${escolhidos.length} jogos).`,
+      motivo: `Não foi possível montar ${cfg.tipo} dentro das regras de odd total.`,
     };
   }
 
-  const oddTotal = Number(oddTotalFinal.toFixed(2));
+  const oddTotal = Number(oddTotalDe(escolhidos).toFixed(2));
   const avg = escolhidos.reduce((s, p) => s + p.confianca, 0) / escolhidos.length;
-  const risco: string =
-    typeof raw.risco === "string" && ["baixo", "medio", "alto"].includes(raw.risco)
-      ? (raw.risco as string)
-      : cfg.tipo === "super_multipla"
-        ? avg >= 80
-          ? "medio"
-          : "alto"
-        : oddTotal <= 2.2 && avg >= 70
-          ? "baixo"
-          : avg < 55
-            ? "alto"
-            : "medio";
+  const risco = cfg.tipo === "super_multipla"
+    ? avg >= 82 ? "medio" : "alto"
+    : oddTotal <= 2.2 && avg >= 70 ? "baixo" : avg < 55 ? "alto" : "medio";
 
-  const resumoPadrao =
-    cfg.tipo === "super_multipla"
-      ? `Super Múltipla (${escolhidos.length} jogos, odd total ${oddTotal}).`
-      : `Bilhete automático (odd total ${oddTotal}).`;
+  const resumo = cfg.tipo === "super_multipla"
+    ? `Super Múltipla local (${escolhidos.length} jogos, odd total ${oddTotal}).`
+    : `Bilhete automático local (${escolhidos.length} jogo(s), odd total ${oddTotal}).`;
 
-  // 5) Salva bilhete + palpites.
   const { data: bilhete, error: errBilhete } = await supabase
     .from("bilhetes")
     .insert({
-      resumo: String(raw.resumo ?? resumoPadrao),
+      resumo,
       odd_total: oddTotal,
       risco,
-      observacoes: String(raw.observacoes ?? "Odds reais da API-Football; podem variar até a confirmação na casa."),
+      observacoes: "Gerado pelo motor estatístico local com odds reais salvas; confirme as odds na casa antes de apostar.",
       casa: CASA,
       periodo: "aovivo",
       tipo: cfg.tipo,
@@ -409,7 +275,7 @@ Responda APENAS em JSON, sem texto fora do JSON:
 
   if (errBilhete || !bilhete) {
     console.error("auto-bilhete: erro ao salvar bilhete", errBilhete);
-    return { ok: false, tipo: cfg.tipo, jogosAnalisados: elegiveis.length, picks: 0, motivo: "Erro ao salvar bilhete." };
+    return { ok: false, tipo: cfg.tipo, jogosAnalisados: rows.length, picks: 0, motivo: "Erro ao salvar bilhete." };
   }
 
   const { error: errPalpites } = await supabase.from("palpites").insert(
@@ -429,28 +295,23 @@ Responda APENAS em JSON, sem texto fora do JSON:
     ok: true,
     tipo: cfg.tipo,
     bilheteId: bilhete.id,
-    jogosAnalisados: elegiveis.length,
+    jogosAnalisados: rows.length,
     picks: escolhidos.length,
     oddTotal,
   };
 }
 
-// Bilhete padrão (compatível com chamadas existentes).
 export async function gerarBilheteAutomatico(): Promise<AutoResult> {
   return montarBilhete(CONFIG_PADRAO);
 }
 
-// Super Múltipla (4-5 jogos, odd total 15.00-30.00).
 export async function gerarSuperMultipla(): Promise<AutoResult> {
   return montarBilhete(CONFIG_SUPER);
 }
 
-// Roda os dois tipos numa só passada do robô (usado pelo cron).
-// Espaça as duas chamadas de IA para não bater no rate limit do provedor.
 export async function gerarTodosBilhetes(): Promise<AutoResult[]> {
   const padrao = await gerarBilheteAutomatico();
-  await sleep(2_000);
+  await sleep(500);
   const superMultipla = await gerarSuperMultipla();
   return [padrao, superMultipla];
 }
-
