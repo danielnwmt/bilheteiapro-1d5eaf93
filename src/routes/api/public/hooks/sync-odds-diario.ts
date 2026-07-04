@@ -5,7 +5,7 @@ import { verificarCronSecret } from "@/lib/cron-auth";
 
 // Robô diário (1x por dia):
 // API-Football atualiza as partidas/ligas do dia E coleta as odds.
-const CASA_PADRAO = "betano";
+const CASA_PADRAO = "Bet365";
 // Compartilha a mesma janela semanal do robô principal (1x/hora) usando a
 // chave "football_semana". Assim os dois crons não puxam a semana em duplicidade.
 const INTERVALO_SEMANA_MIN = 60;
