@@ -47,7 +47,7 @@ export const listFavoritos = createServerFn({ method: "GET" })
 export const addFavorito = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
-    (d: { tipo: TipoFavorito; valor: string; rotulo?: string | null; metadata?: Record<string, unknown> }) => d,
+    (d: { tipo: TipoFavorito; valor: string; rotulo?: string | null; metadata?: Json }) => d,
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
@@ -61,6 +61,7 @@ export const addFavorito = createServerFn({ method: "POST" })
           valor: data.valor.trim(),
           rotulo: data.rotulo ?? data.valor.trim(),
           metadata: data.metadata ?? {},
+
         },
         { onConflict: "user_id,tipo,valor" },
       )
