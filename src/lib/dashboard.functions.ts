@@ -92,7 +92,8 @@ const DIAS_SEMANA = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta"
 /** Retorno financeiro de uma entrada já resolvida. */
 function retornoDe(e: EntradaDb): number {
   if (e.resultado === "green") return e.valor * e.odd;
-  if (e.resultado === "anulada") return e.valor;
+  // "anulada" (void) e "encerrada" (cashout neutro) devolvem o stake.
+  if (e.resultado === "anulada" || e.resultado === "encerrada") return e.valor;
   return 0; // red
 }
 
@@ -100,7 +101,7 @@ function retornoDe(e: EntradaDb): number {
 function lucroDe(e: EntradaDb): number {
   if (e.resultado === "green") return e.valor * (e.odd - 1);
   if (e.resultado === "red") return -e.valor;
-  return 0; // void
+  return 0; // void / encerrada não impactam o lucro
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
