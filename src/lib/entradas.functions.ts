@@ -1,6 +1,47 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { diaSaoPaulo } from "./analise.server";
+import { getPlanoAccess } from "./plan-gates.server";
+
+function normKey(value: string) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+const LIGA_ALIASES: Record<string, string[]> = {
+  "brasileirao serie a": ["brasileirao serie a", "serie a brazil", "brazil serie a", "brasileirao"],
+  "brasileirao serie b": ["brasileirao serie b", "serie b brazil", "brazil serie b"],
+  "brasileirao serie c": ["brasileirao serie c", "serie c brazil", "brazil serie c"],
+  "brasileirao serie d": ["brasileirao serie d", "serie d brazil", "brazil serie d"],
+  "copa do brasil": ["copa do brasil", "brazil cup"],
+  libertadores: ["libertadores", "copa libertadores", "conmebol libertadores"],
+  "sul americana": ["sul americana", "copa sudamericana", "conmebol sudamericana", "sudamericana"],
+  "premier league": ["premier league", "english premier league", "epl"],
+  "la liga": ["la liga", "laliga", "primera division"],
+  "serie a italia": ["serie a italia", "serie a", "italy serie a"],
+  bundesliga: ["bundesliga", "1 bundesliga", "germany bundesliga"],
+  "ligue 1": ["ligue 1", "france ligue 1"],
+  "champions league": ["champions league", "uefa champions league", "liga dos campeoes"],
+  "europa league": ["europa league", "uefa europa league", "liga europa"],
+  "conference league": ["conference league", "uefa europa conference league", "europa conference league"],
+  "copa do mundo": ["copa do mundo", "world cup", "fifa world cup", "copa do mundo fifa"],
+};
+
+function ligaLiberadaPorPlano(liga: string | null, ligas: string[] | null) {
+  if (ligas === null) return true; // staff: tudo liberado
+  if (!liga) return false;
+  const ligaKey = normKey(liga);
+  return ligas.some((c) => {
+    const ck = normKey(c);
+    if (ligaKey === ck) return true;
+    const aliases = LIGA_ALIASES[ck];
+    return aliases ? aliases.some((a) => ligaKey === a) : false;
+  });
+}
 
 export type MelhorEntrada = {
   jogo: string;
