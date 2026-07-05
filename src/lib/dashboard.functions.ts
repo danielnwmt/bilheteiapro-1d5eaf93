@@ -14,7 +14,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertRecursoPlano } from "./plan-gates.server";
 
-type ResultadoDb = "pendente" | "green" | "red" | "anulada";
+type ResultadoDb = "pendente" | "green" | "red" | "anulada" | "encerrada";
 
 type EntradaDb = {
   data: string;
