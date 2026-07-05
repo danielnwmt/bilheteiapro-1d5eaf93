@@ -1,6 +1,47 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { diaSaoPaulo } from "./analise.server";
+import { getPlanoAccess } from "./plan-gates.server";
+
+function normKey(value: string) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+const LIGA_ALIASES: Record<string, string[]> = {
+  "brasileirao serie a": ["brasileirao serie a", "serie a brazil", "brazil serie a", "brasileirao"],
+  "brasileirao serie b": ["brasileirao serie b", "serie b brazil", "brazil serie b"],
+  "brasileirao serie c": ["brasileirao serie c", "serie c brazil", "brazil serie c"],
+  "brasileirao serie d": ["brasileirao serie d", "serie d brazil", "brazil serie d"],
+  "copa do brasil": ["copa do brasil", "brazil cup"],
+  libertadores: ["libertadores", "copa libertadores", "conmebol libertadores"],
+  "sul americana": ["sul americana", "copa sudamericana", "conmebol sudamericana", "sudamericana"],
+  "premier league": ["premier league", "english premier league", "epl"],
+  "la liga": ["la liga", "laliga", "primera division"],
+  "serie a italia": ["serie a italia", "serie a", "italy serie a"],
+  bundesliga: ["bundesliga", "1 bundesliga", "germany bundesliga"],
+  "ligue 1": ["ligue 1", "france ligue 1"],
+  "champions league": ["champions league", "uefa champions league", "liga dos campeoes"],
+  "europa league": ["europa league", "uefa europa league", "liga europa"],
+  "conference league": ["conference league", "uefa europa conference league", "europa conference league"],
+  "copa do mundo": ["copa do mundo", "world cup", "fifa world cup", "copa do mundo fifa"],
+};
+
+function ligaLiberadaPorPlano(liga: string | null, ligas: string[] | null) {
+  if (ligas === null) return true; // staff: tudo liberado
+  if (!liga) return false;
+  const ligaKey = normKey(liga);
+  return ligas.some((c) => {
+    const ck = normKey(c);
+    if (ligaKey === ck) return true;
+    const aliases = LIGA_ALIASES[ck];
+    return aliases ? aliases.some((a) => ligaKey === a) : false;
+  });
+}
 
 export type MelhorEntrada = {
   jogo: string;
@@ -33,10 +74,16 @@ function traduzSelecao(selecao: string) {
 // que ainda não começaram. Retorna as seleções de maior confiança.
 export const getMelhoresEntradas = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async () => {
+  .handler(async ({ context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const dia = diaSaoPaulo();
     const agora = new Date().toISOString();
+
+    // Controle de acesso por plano: cliente só vê ligas liberadas no plano.
+    const access = await getPlanoAccess(supabaseAdmin, context.userId, context.claims);
+    const ligasLiberadas: string[] | null = access.isStaff ? null : (access.cfg?.ligas ?? []);
+    // Cliente sem plano ativo não vê nenhuma entrada.
+    if (!access.isStaff && !access.plano) return { entradas: [] as MelhorEntrada[] };
 
     // Jogos que ainda não começaram.
     const { data: partidas } = await supabaseAdmin
@@ -47,15 +94,16 @@ export const getMelhoresEntradas = createServerFn({ method: "GET" })
       .order("inicio", { ascending: true })
       .limit(120);
 
-    const rows = (partidas ?? []) as Array<{
+    const rows = ((partidas ?? []) as Array<{
       id: string;
       liga: string | null;
       time_casa: string;
       time_fora: string;
       inicio: string;
       status: string;
-    }>;
+    }>).filter((r) => ligaLiberadaPorPlano(r.liga, ligasLiberadas));
     if (!rows.length) return { entradas: [] as MelhorEntrada[] };
+
 
     const ids = rows.map((r) => r.id);
     const { data: caches } = await supabaseAdmin
