@@ -74,10 +74,16 @@ function traduzSelecao(selecao: string) {
 // que ainda não começaram. Retorna as seleções de maior confiança.
 export const getMelhoresEntradas = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async () => {
+  .handler(async ({ context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const dia = diaSaoPaulo();
     const agora = new Date().toISOString();
+
+    // Controle de acesso por plano: cliente só vê ligas liberadas no plano.
+    const access = await getPlanoAccess(supabaseAdmin, context.userId, context.claims);
+    const ligasLiberadas: string[] | null = access.isStaff ? null : (access.cfg?.ligas ?? []);
+    // Cliente sem plano ativo não vê nenhuma entrada.
+    if (!access.isStaff && !access.plano) return { entradas: [] as MelhorEntrada[] };
 
     // Jogos que ainda não começaram.
     const { data: partidas } = await supabaseAdmin
@@ -88,15 +94,16 @@ export const getMelhoresEntradas = createServerFn({ method: "GET" })
       .order("inicio", { ascending: true })
       .limit(120);
 
-    const rows = (partidas ?? []) as Array<{
+    const rows = ((partidas ?? []) as Array<{
       id: string;
       liga: string | null;
       time_casa: string;
       time_fora: string;
       inicio: string;
       status: string;
-    }>;
+    }>).filter((r) => ligaLiberadaPorPlano(r.liga, ligasLiberadas));
     if (!rows.length) return { entradas: [] as MelhorEntrada[] };
+
 
     const ids = rows.map((r) => r.id);
     const { data: caches } = await supabaseAdmin
