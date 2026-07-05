@@ -12,6 +12,7 @@
 //   pendente-> ignorada nas métricas fechadas
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertRecursoPlano } from "./plan-gates.server";
 
 type ResultadoDb = "pendente" | "green" | "red" | "anulada";
 
@@ -29,7 +30,13 @@ type EntradaDb = {
 export type EvolucaoPonto = { data: string; lucro: number; acumulado: number };
 
 /** Agregado por rótulo (dia da semana, esporte, etc.). */
-export type AgregadoLabel = { label: string; lucro: number; total: number; green: number; red: number };
+export type AgregadoLabel = {
+  label: string;
+  lucro: number;
+  total: number;
+  green: number;
+  red: number;
+};
 
 export type AtividadeRecente = {
   data: string;
@@ -101,7 +108,14 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 export const getDashboard = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<DashboardResumo> => {
-    const { supabase, userId } = context;
+    const { supabase, userId, claims } = context;
+    await assertRecursoPlano(
+      supabase,
+      userId,
+      "planilhaBanca",
+      claims,
+      "Dashboard de performance disponível nos planos com Gestão de Banca.",
+    );
 
     // Leitura em paralelo: entradas da banca + contagem de bilhetes + perfil.
     const [entradasRes, bilhetesRes, perfilRes] = await Promise.all([
@@ -136,9 +150,12 @@ export const getDashboard = createServerFn({ method: "GET" })
     const valorRetornado = resolvidas.reduce((s, e) => s + retornoDe(e), 0);
     const lucroLiquido = valorRetornado - valorApostado;
     const roi = valorApostado > 0 ? (lucroLiquido / valorApostado) * 100 : 0;
-    const taxaAcerto = greens.length + reds.length > 0 ? (greens.length / (greens.length + reds.length)) * 100 : 0;
+    const taxaAcerto =
+      greens.length + reds.length > 0 ? (greens.length / (greens.length + reds.length)) * 100 : 0;
 
-    const oddMedia = resolvidas.length ? resolvidas.reduce((s, e) => s + e.odd, 0) / resolvidas.length : 0;
+    const oddMedia = resolvidas.length
+      ? resolvidas.reduce((s, e) => s + e.odd, 0) / resolvidas.length
+      : 0;
     const stakeMedia = resolvidas.length ? valorApostado / resolvidas.length : 0;
     const maiorOddVencedora = greens.reduce((m, e) => Math.max(m, e.odd), 0);
     const maiorOddPerdida = reds.reduce((m, e) => Math.max(m, e.odd), 0);
@@ -164,7 +181,10 @@ export const getDashboard = createServerFn({ method: "GET" })
     }
 
     // Evolução da banca: lucro acumulado por data.
-    const porDataMap = new Map<string, { lucro: number; total: number; green: number; red: number }>();
+    const porDataMap = new Map<
+      string,
+      { lucro: number; total: number; green: number; red: number }
+    >();
     for (const e of resolvidas) {
       const cur = porDataMap.get(e.data) ?? { lucro: 0, total: 0, green: 0, red: 0 };
       cur.lucro += lucroDe(e);
@@ -182,11 +202,20 @@ export const getDashboard = createServerFn({ method: "GET" })
     });
     const porDia: AgregadoLabel[] = datasOrdenadas.map((d) => {
       const p = porDataMap.get(d)!;
-      return { label: d, lucro: round2(p.lucro), total: round2(p.total), green: p.green, red: p.red };
+      return {
+        label: d,
+        lucro: round2(p.lucro),
+        total: round2(p.total),
+        green: p.green,
+        red: p.red,
+      };
     });
 
     // Agregação por dia da semana.
-    const semanaMap = new Map<number, { lucro: number; total: number; green: number; red: number }>();
+    const semanaMap = new Map<
+      number,
+      { lucro: number; total: number; green: number; red: number }
+    >();
     for (const e of resolvidas) {
       const wd = new Date(`${e.data}T12:00:00`).getDay();
       const cur = semanaMap.get(wd) ?? { lucro: 0, total: 0, green: 0, red: 0 };
@@ -198,10 +227,19 @@ export const getDashboard = createServerFn({ method: "GET" })
     }
     const porDiaSemana: AgregadoLabel[] = [...semanaMap.entries()]
       .sort((a, b) => a[0] - b[0])
-      .map(([wd, p]) => ({ label: DIAS_SEMANA[wd], lucro: round2(p.lucro), total: round2(p.total), green: p.green, red: p.red }));
+      .map(([wd, p]) => ({
+        label: DIAS_SEMANA[wd],
+        lucro: round2(p.lucro),
+        total: round2(p.total),
+        green: p.green,
+        red: p.red,
+      }));
 
     // Agregação por esporte.
-    const esporteMap = new Map<string, { lucro: number; total: number; green: number; red: number }>();
+    const esporteMap = new Map<
+      string,
+      { lucro: number; total: number; green: number; red: number }
+    >();
     for (const e of resolvidas) {
       const cur = esporteMap.get(e.esporte) ?? { lucro: 0, total: 0, green: 0, red: 0 };
       cur.lucro += lucroDe(e);
@@ -224,7 +262,13 @@ export const getDashboard = createServerFn({ method: "GET" })
     const atividades: AtividadeRecente[] = [...entradas]
       .reverse()
       .slice(0, 8)
-      .map((e) => ({ data: e.data, descricao: e.descricao, valor: e.valor, odd: e.odd, resultado: e.resultado }));
+      .map((e) => ({
+        data: e.data,
+        descricao: e.descricao,
+        valor: e.valor,
+        odd: e.odd,
+        resultado: e.resultado,
+      }));
 
     const membroDesde = (perfilRes.data?.created_at as string | undefined) ?? null;
     const diasComoAssinante = membroDesde
@@ -246,7 +290,7 @@ export const getDashboard = createServerFn({ method: "GET" })
       taxaAcerto: round2(taxaAcerto),
       oddMedia: round2(oddMedia),
       stakeMedia: round2(stakeMedia),
-      stakeRecomendada: round2((valorApostado / Math.max(1, resolvidas.length)) || 0),
+      stakeRecomendada: round2(valorApostado / Math.max(1, resolvidas.length) || 0),
       maiorOddVencedora: round2(maiorOddVencedora),
       maiorOddPerdida: round2(maiorOddPerdida),
       seqGreenMax,

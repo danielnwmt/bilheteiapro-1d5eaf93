@@ -19,8 +19,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Loader2, Plus, Star, Trash2, Trophy, CalendarDays, Target, Users } from "lucide-react";
+import {
+  ArrowLeft,
+  Loader2,
+  Plus,
+  Star,
+  Trash2,
+  Trophy,
+  CalendarDays,
+  Target,
+  Users,
+} from "lucide-react";
 import { toast } from "sonner";
+import { useAccess } from "@/hooks/useAccess";
+import { usePlanos } from "@/hooks/usePlanos";
+import { recursoLiberado } from "@/lib/planos";
 
 export const Route = createFileRoute("/_authenticated/favoritos")({
   head: () => ({ meta: [{ title: "Favoritos — BilheteIA PRO" }] }),
@@ -44,8 +57,16 @@ function FavoritosPage() {
   const qc = useQueryClient();
   const [tipo, setTipo] = useState<TipoFavorito>("campeonato");
   const [valor, setValor] = useState("");
+  const { data: access } = useAccess();
+  const { byPlano } = usePlanos();
+  const planoCfg = access?.plano ? byPlano?.[access.plano] : null;
+  const liberado = !!access?.isStaff || recursoLiberado(planoCfg, "favoritos");
 
-  const { data, isLoading } = useQuery({ queryKey: ["favoritos"], queryFn: () => listFavoritos() });
+  const { data, isLoading } = useQuery({
+    queryKey: ["favoritos"],
+    queryFn: () => listFavoritos(),
+    enabled: liberado,
+  });
   const invalidate = () => qc.invalidateQueries({ queryKey: ["favoritos"] });
 
   const mAdd = useMutation({
@@ -72,77 +93,108 @@ function FavoritosPage() {
           <h1 className="flex items-center gap-2 truncate text-2xl font-black sm:text-3xl">
             <Star className="h-6 w-6 shrink-0 fill-yellow-400 text-yellow-400" /> Favoritos
           </h1>
-          <p className="text-sm text-muted-foreground">O sistema prioriza seus favoritos nas sugestões</p>
+          <p className="text-sm text-muted-foreground">
+            O sistema prioriza seus favoritos nas sugestões
+          </p>
         </div>
-        <Button variant="outline" size="sm" className="shrink-0" onClick={() => router.navigate({ to: "/" })}>
+        <Button
+          variant="outline"
+          size="sm"
+          className="shrink-0"
+          onClick={() => router.navigate({ to: "/" })}
+        >
           <ArrowLeft className="mr-2 h-4 w-4" /> Início
         </Button>
       </header>
 
-      <Card className="p-4">
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Select value={tipo} onValueChange={(v) => setTipo(v as TipoFavorito)}>
-            <SelectTrigger className="w-full sm:w-44">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {TIPOS.map((t) => (
-                <SelectItem key={t.v} value={t.v}>
-                  {t.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Input
-            className="flex-1"
-            placeholder="Nome (ex.: Brasileirão, Flamengo, Mais de 2.5...)"
-            value={valor}
-            onChange={(e) => setValor(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && valor.trim() && mAdd.mutate()}
-          />
-          <Button onClick={() => mAdd.mutate()} disabled={!valor.trim() || mAdd.isPending}>
-            {mAdd.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />} Adicionar
+      {!liberado ? (
+        <Card className="p-6 text-center">
+          <h2 className="text-lg font-bold">Favoritos bloqueado no seu plano</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Faça upgrade para salvar campeonatos, times, mercados e bilhetes favoritos.
+          </p>
+          <Button className="mt-4" onClick={() => router.navigate({ to: "/planos" })}>
+            Ver planos
           </Button>
-        </div>
-      </Card>
-
-      {isLoading ? (
-        <div className="flex justify-center py-16">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
-      ) : favoritos.length === 0 ? (
-        <Card className="border-dashed p-10 text-center text-sm text-muted-foreground">
-          Você ainda não tem favoritos. Adicione campeonatos, times e mercados que você mais aposta.
         </Card>
       ) : (
-        <div className="space-y-4">
-          {TIPOS.map((t) => {
-            const itens = porTipo(t.v);
-            if (!itens.length) return null;
-            return (
-              <Card key={t.v} className="p-4">
-                <h2 className="mb-3 flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-muted-foreground">
-                  {t.icon} {t.label}s
-                </h2>
-                <div className="flex flex-wrap gap-2">
-                  {itens.map((f: Favorito) => (
-                    <Badge key={f.id} variant="secondary" className="gap-1.5 py-1.5 pl-3 pr-1.5 text-sm">
-                      {iconePara(f.tipo)}
-                      {f.rotulo ?? f.valor}
-                      <button
-                        className="ml-1 rounded-full p-0.5 hover:bg-destructive/20"
-                        onClick={() => mRemove.mutate(f.id)}
-                        title="Remover"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </Badge>
+        <>
+          <Card className="p-4">
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Select value={tipo} onValueChange={(v) => setTipo(v as TipoFavorito)}>
+                <SelectTrigger className="w-full sm:w-44">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIPOS.map((t) => (
+                    <SelectItem key={t.v} value={t.v}>
+                      {t.label}
+                    </SelectItem>
                   ))}
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+                </SelectContent>
+              </Select>
+              <Input
+                className="flex-1"
+                placeholder="Nome (ex.: Brasileirão, Flamengo, Mais de 2.5...)"
+                value={valor}
+                onChange={(e) => setValor(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && valor.trim() && mAdd.mutate()}
+              />
+              <Button onClick={() => mAdd.mutate()} disabled={!valor.trim() || mAdd.isPending}>
+                {mAdd.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="mr-2 h-4 w-4" />
+                )}{" "}
+                Adicionar
+              </Button>
+            </div>
+          </Card>
+
+          {isLoading ? (
+            <div className="flex justify-center py-16">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : favoritos.length === 0 ? (
+            <Card className="border-dashed p-10 text-center text-sm text-muted-foreground">
+              Você ainda não tem favoritos. Adicione campeonatos, times e mercados que você mais
+              aposta.
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {TIPOS.map((t) => {
+                const itens = porTipo(t.v);
+                if (!itens.length) return null;
+                return (
+                  <Card key={t.v} className="p-4">
+                    <h2 className="mb-3 flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-muted-foreground">
+                      {t.icon} {t.label}s
+                    </h2>
+                    <div className="flex flex-wrap gap-2">
+                      {itens.map((f: Favorito) => (
+                        <Badge
+                          key={f.id}
+                          variant="secondary"
+                          className="gap-1.5 py-1.5 pl-3 pr-1.5 text-sm"
+                        >
+                          {iconePara(f.tipo)}
+                          {f.rotulo ?? f.valor}
+                          <button
+                            className="ml-1 rounded-full p-0.5 hover:bg-destructive/20"
+                            onClick={() => mRemove.mutate(f.id)}
+                            title="Remover"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

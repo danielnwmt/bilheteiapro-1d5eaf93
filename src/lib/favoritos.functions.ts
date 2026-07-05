@@ -6,6 +6,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Json } from "@/integrations/supabase/types";
+import { assertRecursoPlano } from "./plan-gates.server";
 
 export type TipoFavorito = "campeonato" | "jogo" | "mercado" | "time" | "bilhete";
 
@@ -33,7 +34,14 @@ function mapRow(r: any): Favorito {
 export const listFavoritos = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<Favorito[]> => {
-    const { supabase, userId } = context;
+    const { supabase, userId, claims } = context;
+    await assertRecursoPlano(
+      supabase,
+      userId,
+      "favoritos",
+      claims,
+      "Favoritos está disponível nos planos que incluem este recurso.",
+    );
     const { data, error } = await supabase
       .from("favoritos")
       .select("*")
@@ -50,7 +58,14 @@ export const addFavorito = createServerFn({ method: "POST" })
     (d: { tipo: TipoFavorito; valor: string; rotulo?: string | null; metadata?: Json }) => d,
   )
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { supabase, userId, claims } = context;
+    await assertRecursoPlano(
+      supabase,
+      userId,
+      "favoritos",
+      claims,
+      "Favoritos está disponível nos planos que incluem este recurso.",
+    );
     if (!data.valor?.trim()) throw new Error("Valor do favorito é obrigatório.");
     const { data: row, error } = await supabase
       .from("favoritos")
@@ -61,7 +76,6 @@ export const addFavorito = createServerFn({ method: "POST" })
           valor: data.valor.trim(),
           rotulo: data.rotulo ?? data.valor.trim(),
           metadata: data.metadata ?? {},
-
         },
         { onConflict: "user_id,tipo,valor" },
       )
@@ -76,7 +90,14 @@ export const removeFavorito = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { id?: string; tipo?: TipoFavorito; valor?: string }) => d)
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { supabase, userId, claims } = context;
+    await assertRecursoPlano(
+      supabase,
+      userId,
+      "favoritos",
+      claims,
+      "Favoritos está disponível nos planos que incluem este recurso.",
+    );
     let q = supabase.from("favoritos").delete().eq("user_id", userId);
     if (data.id) q = q.eq("id", data.id);
     else if (data.tipo && data.valor) q = q.eq("tipo", data.tipo).eq("valor", data.valor.trim());
