@@ -711,7 +711,12 @@ export async function syncEstatisticas(
 ): Promise<number> {
   const key = await getApiFootballKey();
 
-  const targets = fixtures.filter((f) => f.external_id).slice(0, maxFixtures);
+  // A API-Football exige um fixture id numérico. Partidas sem external_id
+  // numérico (ex.: prefixo "oddsapi:") são puladas para evitar o erro
+  // "The Fixture field must contain an integer" e chamadas desperdiçadas.
+  const targets = fixtures
+    .filter((f) => f.external_id != null && /^\d+$/.test(String(f.external_id).trim()))
+    .slice(0, maxFixtures);
   if (!targets.length) return 0;
 
   const supabase = createClient<Database>(

@@ -14,7 +14,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertRecursoPlano } from "./plan-gates.server";
 
-type ResultadoDb = "pendente" | "green" | "red" | "anulada";
+type ResultadoDb = "pendente" | "green" | "red" | "anulada" | "encerrada";
 
 type EntradaDb = {
   data: string;
@@ -92,7 +92,8 @@ const DIAS_SEMANA = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta"
 /** Retorno financeiro de uma entrada já resolvida. */
 function retornoDe(e: EntradaDb): number {
   if (e.resultado === "green") return e.valor * e.odd;
-  if (e.resultado === "anulada") return e.valor;
+  // "anulada" (void) e "encerrada" (cashout neutro) devolvem o stake.
+  if (e.resultado === "anulada" || e.resultado === "encerrada") return e.valor;
   return 0; // red
 }
 
@@ -100,7 +101,7 @@ function retornoDe(e: EntradaDb): number {
 function lucroDe(e: EntradaDb): number {
   if (e.resultado === "green") return e.valor * (e.odd - 1);
   if (e.resultado === "red") return -e.valor;
-  return 0; // void
+  return 0; // void / encerrada não impactam o lucro
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -143,7 +144,9 @@ export const getDashboard = createServerFn({ method: "GET" })
     const resolvidas = entradas.filter((e) => e.resultado !== "pendente");
     const greens = resolvidas.filter((e) => e.resultado === "green");
     const reds = resolvidas.filter((e) => e.resultado === "red");
-    const voids = resolvidas.filter((e) => e.resultado === "anulada");
+    const voids = resolvidas.filter(
+      (e) => e.resultado === "anulada" || e.resultado === "encerrada",
+    );
     const pendentes = entradas.filter((e) => e.resultado === "pendente");
 
     const valorApostado = resolvidas.reduce((s, e) => s + e.valor, 0);
