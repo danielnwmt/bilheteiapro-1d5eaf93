@@ -95,6 +95,8 @@ type EstatPayload = {
 const CAMPEONATOS = [
   "Brasileirão Série A",
   "Brasileirão Série B",
+  "Brasileirão Série C",
+  "Brasileirão Série D",
   "Copa do Brasil",
   "Libertadores",
   "Sul-Americana",
