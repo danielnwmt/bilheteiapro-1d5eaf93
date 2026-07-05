@@ -35,6 +35,8 @@ function dedupeOdds<T extends { partida_id: string; casa: string; mercado: strin
 const LEAGUE_ID_TO_NAME: Record<number, string> = {
   71: "Brasileirão Série A",
   72: "Brasileirão Série B",
+  75: "Brasileirão Série C",
+  76: "Brasileirão Série D",
   73: "Copa do Brasil",
   13: "Libertadores",
   11: "Sul-Americana",
