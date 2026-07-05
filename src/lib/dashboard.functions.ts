@@ -144,7 +144,9 @@ export const getDashboard = createServerFn({ method: "GET" })
     const resolvidas = entradas.filter((e) => e.resultado !== "pendente");
     const greens = resolvidas.filter((e) => e.resultado === "green");
     const reds = resolvidas.filter((e) => e.resultado === "red");
-    const voids = resolvidas.filter((e) => e.resultado === "anulada");
+    const voids = resolvidas.filter(
+      (e) => e.resultado === "anulada" || e.resultado === "encerrada",
+    );
     const pendentes = entradas.filter((e) => e.resultado === "pendente");
 
     const valorApostado = resolvidas.reduce((s, e) => s + e.valor, 0);
