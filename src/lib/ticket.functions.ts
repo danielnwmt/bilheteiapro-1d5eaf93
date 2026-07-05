@@ -2,7 +2,12 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { type Plano } from "./planos";
-import { analisarPartidas, analiseDeEstatisticas, diaSaoPaulo, type PartidaRow as AnalisePartidaRow } from "./analise.server";
+import {
+  analisarPartidas,
+  analiseDeEstatisticas,
+  diaSaoPaulo,
+  type PartidaRow as AnalisePartidaRow,
+} from "./analise.server";
 import { selecoesConflitam, grupoDoMercado, type GrupoCategoria } from "./market-conflicts";
 
 const InputSchema = z.object({
@@ -62,7 +67,13 @@ function saoPauloParts(now = new Date()) {
     hour12: false,
   }).formatToParts(now);
   const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
-  return { year: get("year"), month: get("month"), day: get("day"), hour: get("hour"), minute: get("minute") };
+  return {
+    year: get("year"),
+    month: get("month"),
+    day: get("day"),
+    hour: get("hour"),
+    minute: get("minute"),
+  };
 }
 
 // Offset (ms) entre UTC e America/Sao_Paulo no instante dado.
@@ -128,12 +139,13 @@ export function rotuloRisco(chancePct: number): string {
   return n === "alto" ? "Risco Alto" : n === "medio" ? "Risco Médio" : "Risco Baixo";
 }
 
-
-
-
-
 function normKey(value: string) {
-  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
 }
 
 // Aliases (PT + nomes da API em inglês) para casar o filtro de campeonato com o
@@ -143,16 +155,20 @@ const LIGA_ALIASES: Record<string, string[]> = {
   "brasileirao serie a": ["brasileirao serie a", "serie a brazil", "brazil serie a", "brasileirao"],
   "brasileirao serie b": ["brasileirao serie b", "serie b brazil", "brazil serie b"],
   "copa do brasil": ["copa do brasil", "brazil cup"],
-  "libertadores": ["libertadores", "copa libertadores", "conmebol libertadores"],
+  libertadores: ["libertadores", "copa libertadores", "conmebol libertadores"],
   "sul americana": ["sul americana", "copa sudamericana", "conmebol sudamericana", "sudamericana"],
   "premier league": ["premier league", "english premier league", "epl"],
   "la liga": ["la liga", "laliga", "primera division"],
   "serie a italia": ["serie a italia", "serie a", "italy serie a"],
-  "bundesliga": ["bundesliga", "1 bundesliga", "germany bundesliga"],
+  bundesliga: ["bundesliga", "1 bundesliga", "germany bundesliga"],
   "ligue 1": ["ligue 1", "france ligue 1"],
   "champions league": ["champions league", "uefa champions league", "liga dos campeoes"],
   "europa league": ["europa league", "uefa europa league", "liga europa"],
-  "conference league": ["conference league", "uefa europa conference league", "europa conference league"],
+  "conference league": [
+    "conference league",
+    "uefa europa conference league",
+    "europa conference league",
+  ],
   "copa do mundo": ["copa do mundo", "world cup", "fifa world cup", "copa do mundo fifa"],
 };
 
@@ -168,8 +184,13 @@ function ligaMatchesSelecao(liga: string | null, campeonatos: string[]) {
   });
 }
 
-
-type OddRow = { casa: string; mercado: string; selecao: string; valor: number; external_odd_id: string | null };
+type OddRow = {
+  casa: string;
+  mercado: string;
+  selecao: string;
+  valor: number;
+  external_odd_id: string | null;
+};
 type PartidaRow = {
   id: string;
   external_id: string | null;
@@ -191,7 +212,9 @@ function buildDeepLink(
   const casaKey = normKey(casa);
   const candidates = templates.filter((t) => normKey(t.casa) === casaKey);
   if (!candidates.length) return undefined;
-  const byMarket = candidates.find((t) => t.mercado && normKey(t.mercado) === normKey(pick.mercado));
+  const byMarket = candidates.find(
+    (t) => t.mercado && normKey(t.mercado) === normKey(pick.mercado),
+  );
   const tpl = (byMarket ?? candidates.find((t) => !t.mercado) ?? candidates[0]).url_template;
   return tpl
     .replaceAll("{jogo}", encodeURIComponent(jogo))
@@ -210,8 +233,13 @@ export const gerarBilhete = createServerFn({ method: "POST" })
       supabaseAdmin.auth.admin.getUserById(context.userId),
     ]);
     const roles = (roleRows ?? []).map((r) => r.role);
-    const userEmail = String(userData.user?.email ?? (context.claims as any)?.email ?? "").trim().toLowerCase();
-    const isStaff = roles.includes("admin") || roles.includes("operador") || userEmail === "contato@protenexus.com";
+    const userEmail = String(userData.user?.email ?? (context.claims as any)?.email ?? "")
+      .trim()
+      .toLowerCase();
+    const isStaff =
+      roles.includes("admin") ||
+      roles.includes("operador") ||
+      userEmail === "contato@protenexus.com";
 
     let plano: Plano | null = null;
     if (!isStaff) {
@@ -234,6 +262,7 @@ export const gerarBilhete = createServerFn({ method: "POST" })
     // Ligas/recursos liberados: staff vê tudo; cliente, conforme o plano (lido do banco).
     let ligasLiberadas: string[] | null = null;
     let permiteTempoReal = true;
+    let permiteOddPersonalizada = true;
     if (!isStaff) {
       const { data: cfg } = await supabaseAdmin
         .from("plano_config")
@@ -241,7 +270,23 @@ export const gerarBilhete = createServerFn({ method: "POST" })
         .eq("plano", plano as Plano)
         .maybeSingle();
       ligasLiberadas = Array.isArray(cfg?.ligas) ? (cfg!.ligas as string[]) : [];
-      permiteTempoReal = !!(cfg?.recursos as Record<string, boolean> | null)?.tempoReal;
+      const recursos = (cfg?.recursos as Record<string, boolean> | null) ?? {};
+      permiteTempoReal = !!recursos.tempoReal;
+      permiteOddPersonalizada = !!recursos.oddPersonalizada;
+    }
+
+    // Odd personalizada só se o plano liberar o recurso.
+    // Planos sem esse recurso usam a configuração padrão do produto.
+    if (!isStaff && !permiteOddPersonalizada) {
+      const oddPadrao = 5;
+      const oddMinPadrao = 1.2;
+      const mudouOddAlvo = Math.abs(Number(data.oddAlvo) - oddPadrao) > 0.001;
+      const mudouOddMin = Math.abs(Number(data.oddMin ?? oddMinPadrao) - oddMinPadrao) > 0.001;
+      if (mudouOddAlvo || mudouOddMin) {
+        throw new Error(
+          "Odd personalizada não está incluída no seu plano. Use a configuração padrão ou faça upgrade.",
+        );
+      }
     }
 
     // Tempo real (ao vivo) só se o plano liberar o recurso.
@@ -266,12 +311,13 @@ export const gerarBilhete = createServerFn({ method: "POST" })
     const now = new Date();
     const { from, to } = periodRange(data.periodo, now);
 
-
     const nowIso = now.toISOString();
     const lerPartidas = async () => {
       const query = supabaseAdmin
         .from("partidas")
-        .select("id, external_id, liga, time_casa, time_fora, inicio, status, arbitro, odds(casa, mercado, selecao, valor, external_odd_id)")
+        .select(
+          "id, external_id, liga, time_casa, time_fora, inicio, status, arbitro, odds(casa, mercado, selecao, valor, external_odd_id)",
+        )
         .gte("inicio", new Date(from).toISOString())
         .lte("inicio", new Date(to).toISOString())
         .neq("status", "encerrado")
@@ -292,8 +338,6 @@ export const gerarBilhete = createServerFn({ method: "POST" })
       });
       return { ...res, data: filtradas };
     };
-
-
 
     let { data: partidas, error } = await lerPartidas();
     if (error) {
@@ -316,7 +360,9 @@ export const gerarBilhete = createServerFn({ method: "POST" })
     // apenas para ler as odds/análises — o bilhete serve para qualquer casa.
     const comOdds = rows.filter((r) => r.odds.length > 0);
     if (!comOdds.length) {
-      throw new Error("Os jogos desse período ainda não têm odds salvas. Aguarde a sincronização automática configurada no painel.");
+      throw new Error(
+        "Os jogos desse período ainda não têm odds salvas. Aguarde a sincronização automática configurada no painel.",
+      );
     }
     const cobertura = new Map<string, number>();
     for (const r of comOdds) {
@@ -397,7 +443,11 @@ export const gerarBilhete = createServerFn({ method: "POST" })
             _partidaId: r.id,
           });
         }
-        if (lista.length) map.set(r.id, lista.sort((x, y) => y.confianca - x.confianca));
+        if (lista.length)
+          map.set(
+            r.id,
+            lista.sort((x, y) => y.confianca - x.confianca),
+          );
       }
       return map;
     };
@@ -419,9 +469,10 @@ export const gerarBilhete = createServerFn({ method: "POST" })
       porJogo = buildPorJogo(piso);
     }
 
-
     if (!porJogo.size) {
-      throw new Error("Nenhuma entrada encontrada para esse filtro. Tente outro período ou campeonato.");
+      throw new Error(
+        "Nenhuma entrada encontrada para esse filtro. Tente outro período ou campeonato.",
+      );
     }
 
     // ---- Monta o bilhete (sem nova chamada de IA) para chegar o mais perto
@@ -484,11 +535,16 @@ export const gerarBilhete = createServerFn({ method: "POST" })
     const elegivel = (p: Cand) => {
       if ((jogoCount.get(p._partidaId) ?? 0) >= MAX_POR_JOGO) return false;
       if ((grupoCount.get(grupoDe(p)) ?? 0) >= MAX_POR_GRUPO) return false;
-      if (chosen.some((c) => c._partidaId === p._partidaId && c.mercado === p.mercado && c.selecao === p.selecao)) return false;
+      if (
+        chosen.some(
+          (c) =>
+            c._partidaId === p._partidaId && c.mercado === p.mercado && c.selecao === p.selecao,
+        )
+      )
+        return false;
       if (chosen.some((c) => selecoesConflitam(c, p))) return false;
       return true;
     };
-
 
     // Passo a passo guloso com diversificação: a cada iteração escolhe a
     // seleção que mais aproxima o produto da odd alvo, priorizando grupos de
@@ -540,9 +596,10 @@ export const gerarBilhete = createServerFn({ method: "POST" })
       if (all[0]) tryAdd(all[0]);
     }
 
-
     // Tabela de tradução de deep links
-    const { data: templates } = await supabaseAdmin.from("deep_links").select("casa, mercado, url_template");
+    const { data: templates } = await supabaseAdmin
+      .from("deep_links")
+      .select("casa, mercado, url_template");
 
     const picks = chosen.map((c) => ({
       jogo: c.jogo,
@@ -563,7 +620,9 @@ export const gerarBilhete = createServerFn({ method: "POST" })
     }));
 
     if (!picks.length) {
-      throw new Error("Nenhuma entrada encontrada para esse filtro. Tente outro período ou campeonato.");
+      throw new Error(
+        "Nenhuma entrada encontrada para esse filtro. Tente outro período ou campeonato.",
+      );
     }
 
     const oddTotal = picks.reduce((t, p) => t * p.oddEstimada, 1);
@@ -586,7 +645,10 @@ export const gerarBilhete = createServerFn({ method: "POST" })
         .eq("tipo", "predicoes")
         .in("partida_id", multiplosIds);
       for (const s of statsRows ?? []) {
-        statsMap.set(String((s as { partida_id: string }).partida_id), (s as { payload: unknown }).payload);
+        statsMap.set(
+          String((s as { partida_id: string }).partida_id),
+          (s as { payload: unknown }).payload,
+        );
       }
     }
 
@@ -599,7 +661,10 @@ export const gerarBilhete = createServerFn({ method: "POST" })
         // Se há estatísticas reais salvas, recalcula os números; senão usa o
         // que veio do cache da IA.
         const analise = est
-          ? analiseDeEstatisticas({ ...(r as unknown as AnalisePartidaRow), estatisticas: est as never })
+          ? analiseDeEstatisticas({
+              ...(r as unknown as AnalisePartidaRow),
+              estatisticas: est as never,
+            })
           : a.analise;
         return { jogo: `${r.time_casa} x ${r.time_fora}`, ...analise };
       })
@@ -633,7 +698,6 @@ export const gerarBilhete = createServerFn({ method: "POST" })
       risco: riskFromPicks(picks, oddTotal),
       observacoes,
     };
-
 
     const parsed = TicketSchema.safeParse(ticket);
     if (!parsed.success) {
@@ -740,4 +804,3 @@ export const deletarBilhete = createServerFn({ method: "POST" })
     if (error) throw error;
     return { ok: true };
   });
-

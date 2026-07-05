@@ -97,7 +97,7 @@ function DashboardPage() {
           <ArrowLeft className="mr-2 h-4 w-4" /> Voltar
         </Button>
         <Card className="mt-6 p-6 text-center text-muted-foreground">
-          Não foi possível carregar o dashboard. Tente novamente.
+          {(error as Error)?.message ?? "Não foi possível carregar o dashboard. Tente novamente."}
         </Card>
       </div>
     );
@@ -131,7 +131,10 @@ function DashboardPage() {
       {semDados && (
         <Card className="border-dashed p-6 text-center text-sm text-muted-foreground">
           Ainda não há apostas registradas. Registre suas entradas em{" "}
-          <button className="font-semibold text-primary underline" onClick={() => router.navigate({ to: "/banca" })}>
+          <button
+            className="font-semibold text-primary underline"
+            onClick={() => router.navigate({ to: "/banca" })}
+          >
             Gestão de Banca
           </button>{" "}
           para ver seus números aqui.
@@ -140,33 +143,81 @@ function DashboardPage() {
 
       {/* Métricas principais */}
       <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Metric icon={<Wallet className="h-4 w-4" />} label="Lucro líquido" value={brl(d.lucroLiquido)} tone={lucroTone} hint={`ROI ${pct(d.roi)}`} />
-        <Metric icon={<Percent className="h-4 w-4" />} label="Taxa de acerto" value={pct(d.taxaAcerto)} hint={`${d.green}G / ${d.red}R`} />
-        <Metric icon={<TrendingUp className="h-4 w-4" />} label="Valor apostado" value={brl(d.valorApostado)} />
-        <Metric icon={<Trophy className="h-4 w-4" />} label="Valor retornado" value={brl(d.valorRetornado)} />
-        <Metric icon={<TicketIcon className="h-4 w-4" />} label="Bilhetes gerados" value={String(d.bilhetesGerados)} />
-        <Metric icon={<Target className="h-4 w-4" />} label="Odd média" value={d.oddMedia.toFixed(2)} hint={`Stake média ${brl(d.stakeMedia)}`} />
-        <Metric icon={<Flame className="h-4 w-4" />} label="Sequência atual" value={d.seqAtual === 0 ? "—" : d.seqAtual > 0 ? `${d.seqAtual} greens` : `${Math.abs(d.seqAtual)} reds`} tone={d.seqAtual > 0 ? "green" : d.seqAtual < 0 ? "red" : "default"} hint={`Máx ${d.seqGreenMax}G / ${d.seqRedMax}R`} />
-        <Metric icon={<Activity className="h-4 w-4" />} label="Yield" value={pct(d.yield)} hint={`${d.totalApostas} apostas`} />
+        <Metric
+          icon={<Wallet className="h-4 w-4" />}
+          label="Lucro líquido"
+          value={brl(d.lucroLiquido)}
+          tone={lucroTone}
+          hint={`ROI ${pct(d.roi)}`}
+        />
+        <Metric
+          icon={<Percent className="h-4 w-4" />}
+          label="Taxa de acerto"
+          value={pct(d.taxaAcerto)}
+          hint={`${d.green}G / ${d.red}R`}
+        />
+        <Metric
+          icon={<TrendingUp className="h-4 w-4" />}
+          label="Valor apostado"
+          value={brl(d.valorApostado)}
+        />
+        <Metric
+          icon={<Trophy className="h-4 w-4" />}
+          label="Valor retornado"
+          value={brl(d.valorRetornado)}
+        />
+        <Metric
+          icon={<TicketIcon className="h-4 w-4" />}
+          label="Bilhetes gerados"
+          value={String(d.bilhetesGerados)}
+        />
+        <Metric
+          icon={<Target className="h-4 w-4" />}
+          label="Odd média"
+          value={d.oddMedia.toFixed(2)}
+          hint={`Stake média ${brl(d.stakeMedia)}`}
+        />
+        <Metric
+          icon={<Flame className="h-4 w-4" />}
+          label="Sequência atual"
+          value={
+            d.seqAtual === 0
+              ? "—"
+              : d.seqAtual > 0
+                ? `${d.seqAtual} greens`
+                : `${Math.abs(d.seqAtual)} reds`
+          }
+          tone={d.seqAtual > 0 ? "green" : d.seqAtual < 0 ? "red" : "default"}
+          hint={`Máx ${d.seqGreenMax}G / ${d.seqRedMax}R`}
+        />
+        <Metric
+          icon={<Activity className="h-4 w-4" />}
+          label="Yield"
+          value={pct(d.yield)}
+          hint={`${d.totalApostas} apostas`}
+        />
       </section>
 
       {/* Contadores G/R/Void */}
       <section className="grid grid-cols-3 gap-3">
         <Card className="p-4">
           <div className="flex items-center gap-2 text-emerald-500">
-            <CheckCircle2 className="h-4 w-4" /> <span className="text-xs font-semibold uppercase">Green</span>
+            <CheckCircle2 className="h-4 w-4" />{" "}
+            <span className="text-xs font-semibold uppercase">Green</span>
           </div>
           <p className="mt-1 text-xl font-black">{d.green}</p>
         </Card>
         <Card className="p-4">
           <div className="flex items-center gap-2 text-rose-500">
-            <XCircle className="h-4 w-4" /> <span className="text-xs font-semibold uppercase">Red</span>
+            <XCircle className="h-4 w-4" />{" "}
+            <span className="text-xs font-semibold uppercase">Red</span>
           </div>
           <p className="mt-1 text-xl font-black">{d.red}</p>
         </Card>
         <Card className="p-4">
           <div className="flex items-center gap-2 text-muted-foreground">
-            <MinusCircle className="h-4 w-4" /> <span className="text-xs font-semibold uppercase">Void</span>
+            <MinusCircle className="h-4 w-4" />{" "}
+            <span className="text-xs font-semibold uppercase">Void</span>
           </div>
           <p className="mt-1 text-xl font-black">{d.void}</p>
         </Card>
@@ -188,14 +239,31 @@ function DashboardPage() {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="data" tickFormatter={fmtData} fontSize={11} stroke="hsl(var(--muted-foreground))" />
+                <XAxis
+                  dataKey="data"
+                  tickFormatter={fmtData}
+                  fontSize={11}
+                  stroke="hsl(var(--muted-foreground))"
+                />
                 <YAxis fontSize={11} stroke="hsl(var(--muted-foreground))" width={48} />
                 <Tooltip
                   formatter={(v: number) => brl(v)}
                   labelFormatter={fmtData}
-                  contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+                  contentStyle={{
+                    background: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: 8,
+                    fontSize: 12,
+                  }}
                 />
-                <Area type="monotone" dataKey="acumulado" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#lucroGrad)" name="Acumulado" />
+                <Area
+                  type="monotone"
+                  dataKey="acumulado"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth={2}
+                  fill="url(#lucroGrad)"
+                  name="Acumulado"
+                />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -206,14 +274,29 @@ function DashboardPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         {d.porDiaSemana.length > 0 && (
           <Card className="p-4">
-            <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-muted-foreground">Lucro por dia da semana</h2>
+            <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-muted-foreground">
+              Lucro por dia da semana
+            </h2>
             <div className="h-56 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={d.porDiaSemana} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis dataKey="label" fontSize={10} stroke="hsl(var(--muted-foreground))" tickFormatter={(l: string) => l.slice(0, 3)} />
+                  <XAxis
+                    dataKey="label"
+                    fontSize={10}
+                    stroke="hsl(var(--muted-foreground))"
+                    tickFormatter={(l: string) => l.slice(0, 3)}
+                  />
                   <YAxis fontSize={11} stroke="hsl(var(--muted-foreground))" width={48} />
-                  <Tooltip formatter={(v: number) => brl(v)} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
+                  <Tooltip
+                    formatter={(v: number) => brl(v)}
+                    contentStyle={{
+                      background: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: 8,
+                      fontSize: 12,
+                    }}
+                  />
                   <Bar dataKey="lucro" radius={[4, 4, 0, 0]}>
                     {d.porDiaSemana.map((p, i) => (
                       <Cell key={i} fill={p.lucro >= 0 ? "hsl(142 71% 45%)" : "hsl(347 77% 50%)"} />
@@ -226,14 +309,39 @@ function DashboardPage() {
         )}
 
         <Card className="p-4">
-          <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-muted-foreground">Estatísticas</h2>
+          <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-muted-foreground">
+            Estatísticas
+          </h2>
           <dl className="space-y-2 text-sm">
-            <Linha label="Maior odd vencedora" value={d.maiorOddVencedora ? d.maiorOddVencedora.toFixed(2) : "—"} />
-            <Linha label="Maior odd perdida" value={d.maiorOddPerdida ? d.maiorOddPerdida.toFixed(2) : "—"} />
+            <Linha
+              label="Maior odd vencedora"
+              value={d.maiorOddVencedora ? d.maiorOddVencedora.toFixed(2) : "—"}
+            />
+            <Linha
+              label="Maior odd perdida"
+              value={d.maiorOddPerdida ? d.maiorOddPerdida.toFixed(2) : "—"}
+            />
             <Linha label="Stake média" value={brl(d.stakeMedia)} />
-            <Linha label="Melhor dia da semana" value={d.melhorDiaSemana ? `${d.melhorDiaSemana.label} (${brl(d.melhorDiaSemana.lucro)})` : "—"} />
-            <Linha label="Esporte mais lucrativo" value={d.melhorEsporte ? `${d.melhorEsporte.label} (${brl(d.melhorEsporte.lucro)})` : "—"} />
-            {d.piorEsporte && <Linha label="Esporte menos lucrativo" value={`${d.piorEsporte.label} (${brl(d.piorEsporte.lucro)})`} />}
+            <Linha
+              label="Melhor dia da semana"
+              value={
+                d.melhorDiaSemana
+                  ? `${d.melhorDiaSemana.label} (${brl(d.melhorDiaSemana.lucro)})`
+                  : "—"
+              }
+            />
+            <Linha
+              label="Esporte mais lucrativo"
+              value={
+                d.melhorEsporte ? `${d.melhorEsporte.label} (${brl(d.melhorEsporte.lucro)})` : "—"
+              }
+            />
+            {d.piorEsporte && (
+              <Linha
+                label="Esporte menos lucrativo"
+                value={`${d.piorEsporte.label} (${brl(d.piorEsporte.lucro)})`}
+              />
+            )}
             <Linha label="Sequência máx. de greens" value={String(d.seqGreenMax)} />
             <Linha label="Sequência máx. de reds" value={String(d.seqRedMax)} />
           </dl>
@@ -251,7 +359,9 @@ function DashboardPage() {
               <li key={i} className="flex items-center justify-between gap-3 py-2">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">{a.descricao || "Aposta"}</p>
-                  <p className="text-xs text-muted-foreground">{fmtData(a.data)} · odd {a.odd.toFixed(2)} · {brl(a.valor)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {fmtData(a.data)} · odd {a.odd.toFixed(2)} · {brl(a.valor)}
+                  </p>
                 </div>
                 <ResultadoBadge resultado={a.resultado} />
               </li>
@@ -274,10 +384,24 @@ function Linha({ label, value }: { label: string; value: string }) {
 
 function ResultadoBadge({ resultado }: { resultado: string }) {
   if (resultado === "green")
-    return <Badge className="shrink-0 bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15">Green</Badge>;
+    return (
+      <Badge className="shrink-0 bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15">
+        Green
+      </Badge>
+    );
   if (resultado === "red")
-    return <Badge className="shrink-0 bg-rose-500/15 text-rose-500 hover:bg-rose-500/15">Red</Badge>;
+    return (
+      <Badge className="shrink-0 bg-rose-500/15 text-rose-500 hover:bg-rose-500/15">Red</Badge>
+    );
   if (resultado === "anulada")
-    return <Badge variant="secondary" className="shrink-0">Void</Badge>;
-  return <Badge variant="outline" className="shrink-0">Pendente</Badge>;
+    return (
+      <Badge variant="secondary" className="shrink-0">
+        Void
+      </Badge>
+    );
+  return (
+    <Badge variant="outline" className="shrink-0">
+      Pendente
+    </Badge>
+  );
 }

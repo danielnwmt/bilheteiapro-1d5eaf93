@@ -5,6 +5,7 @@
 // stake, retorno e resultado (green/red/void/pendente) de um bilhete.
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertPlanoAtivo, dataMinimaHistorico } from "./plan-gates.server";
 
 export type ResultadoHistorico = "pendente" | "green" | "red" | "void";
 
@@ -66,11 +67,12 @@ function mapRow(r: any): HistoricoBilhete {
 export const listHistorico = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<HistoricoBilhete[]> => {
-    const { supabase, userId } = context;
-    const { data, error } = await supabase
-      .from("historico_bilhetes")
-      .select("*")
-      .eq("user_id", userId)
+    const { supabase, userId, claims } = context;
+    const access = await assertPlanoAtivo(supabase, userId, claims);
+    const dataMinima = dataMinimaHistorico(access);
+    let q = supabase.from("historico_bilhetes").select("*").eq("user_id", userId);
+    if (dataMinima) q = q.gte("data_evento", dataMinima);
+    const { data, error } = await q
       .order("data_evento", { ascending: false })
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
@@ -82,7 +84,8 @@ export const addHistorico = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: NovoHistorico) => d)
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { supabase, userId, claims } = context;
+    await assertPlanoAtivo(supabase, userId, claims);
     const stake = num(data.stake);
     const oddTotal = num(data.odd_total, 1);
     const resultado = data.resultado ?? "pendente";
@@ -115,10 +118,18 @@ export const addHistorico = createServerFn({ method: "POST" })
 export const updateHistorico = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
-    (d: { id: string; resultado?: ResultadoHistorico; stake?: number; retorno?: number; observacoes?: string | null }) => d,
+    (d: {
+      id: string;
+      resultado?: ResultadoHistorico;
+      stake?: number;
+      retorno?: number;
+      observacoes?: string | null;
+    }) => d,
   )
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { supabase, userId, claims } = context;
+    const access = await assertPlanoAtivo(supabase, userId, claims);
+    const dataMinima = dataMinimaHistorico(access);
     const patch: Record<string, unknown> = {};
     if (data.stake !== undefined) patch.stake = num(data.stake);
     if (data.observacoes !== undefined) patch.observacoes = data.observacoes;
@@ -129,10 +140,14 @@ export const updateHistorico = createServerFn({ method: "POST" })
       // chamador enviar um retorno explícito.
       const { data: atual } = await supabase
         .from("historico_bilhetes")
-        .select("stake, odd_total")
+        .select("stake, odd_total, data_evento")
         .eq("id", data.id)
         .eq("user_id", userId)
         .maybeSingle();
+      if (dataMinima && atual?.data_evento && atual.data_evento < dataMinima)
+        throw new Error(
+          "Seu plano não permite alterar itens fora do período de histórico liberado.",
+        );
       const stake = num(data.stake ?? atual?.stake);
       const oddTotal = num(atual?.odd_total, 1);
       patch.retorno =
@@ -147,11 +162,13 @@ export const updateHistorico = createServerFn({ method: "POST" })
       patch.retorno = num(data.retorno);
     }
 
-    const { error } = await supabase
+    let q = supabase
       .from("historico_bilhetes")
       .update(patch as never)
       .eq("id", data.id)
       .eq("user_id", userId);
+    if (dataMinima) q = q.gte("data_evento", dataMinima);
+    const { error } = await q;
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -161,12 +178,12 @@ export const deleteHistorico = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { id: string }) => d)
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const { error } = await supabase
-      .from("historico_bilhetes")
-      .delete()
-      .eq("id", data.id)
-      .eq("user_id", userId);
+    const { supabase, userId, claims } = context;
+    const access = await assertPlanoAtivo(supabase, userId, claims);
+    const dataMinima = dataMinimaHistorico(access);
+    let q = supabase.from("historico_bilhetes").delete().eq("id", data.id).eq("user_id", userId);
+    if (dataMinima) q = q.gte("data_evento", dataMinima);
+    const { error } = await q;
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -176,13 +193,16 @@ export const duplicarHistorico = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { id: string }) => d)
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const { data: orig, error: e1 } = await supabase
+    const { supabase, userId, claims } = context;
+    const access = await assertPlanoAtivo(supabase, userId, claims);
+    const dataMinima = dataMinimaHistorico(access);
+    let origemQuery = supabase
       .from("historico_bilhetes")
       .select("*")
       .eq("id", data.id)
-      .eq("user_id", userId)
-      .single();
+      .eq("user_id", userId);
+    if (dataMinima) origemQuery = origemQuery.gte("data_evento", dataMinima);
+    const { data: orig, error: e1 } = await origemQuery.single();
     if (e1) throw new Error(e1.message);
     const { data: row, error } = await supabase
       .from("historico_bilhetes")
