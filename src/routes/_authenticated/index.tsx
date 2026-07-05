@@ -533,6 +533,8 @@ function Index() {
   const temAcesso = isStaff || !!plano;
   const permiteAoVivo = isStaff || !!planoCfg?.recursos?.tempoReal;
   const permiteOddPersonalizada = isStaff || recursoLiberado(planoCfg, "oddPersonalizada");
+  const ligasDoPlano = isStaff ? CAMPEONATOS : (planoCfg?.ligas ?? []);
+  const ligasVisiveis = CAMPEONATOS.filter((liga) => isStaff || ligasDoPlano.includes(liga));
 
   // Volta do checkout: atualiza o plano.
   useEffect(() => {
@@ -557,12 +559,30 @@ function Index() {
   useEffect(() => {
     let ativo = true;
     async function carregar() {
+      if (!temAcesso) {
+        setJogos([]);
+        setLoadingJogos(false);
+        return;
+      }
+      // Clientes só consultam campeonatos liberados no plano editável pelo admin.
+      // Isso evita mostrar jogos/odds de ligas bloqueadas mesmo antes dos filtros visuais.
+      const ligasPermitidas = isStaff ? CAMPEONATOS : (planoCfg?.ligas ?? []);
+      if (!isStaff && !planoCfg) {
+        setJogos([]);
+        setLoadingJogos(false);
+        return;
+      }
+      if (ligasPermitidas.length === 0) {
+        setJogos([]);
+        setLoadingJogos(false);
+        return;
+      }
       setLoadingJogos(true);
       try {
         let q = supabase
           .from("partidas")
           .select("id, liga, time_casa, time_fora, logo_casa, logo_fora, inicio, status, arbitro")
-          .in("liga", CAMPEONATOS)
+          .in("liga", ligasPermitidas)
           .order("inicio", { ascending: true });
 
         if (periodo === "aovivo") {
@@ -609,7 +629,7 @@ function Index() {
     return () => {
       ativo = false;
     };
-  }, [periodo]);
+  }, [periodo, temAcesso, isStaff, planoCfg]);
 
   // Carrega as melhores entradas já analisadas pelo robô.
   useEffect(() => {
@@ -696,8 +716,15 @@ function Index() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [temAcesso]);
 
+  // Se o admin editar um plano removendo uma liga, qualquer seleção antiga do cliente
+  // é limpa automaticamente para não gerar bilhete com campeonato bloqueado.
+  useEffect(() => {
+    if (isStaff) return;
+    setCampSel((prev) => prev.filter((liga) => ligasDoPlano.includes(liga)));
+  }, [isStaff, ligasDoPlano.join("|")]);
+
   function podeUsarLiga(c: string) {
-    return isStaff || ligaLiberada(planoCfg, c);
+    return isStaff || ligasDoPlano.includes(c) || ligaLiberada(planoCfg, c);
   }
 
   async function handleSignOut() {
@@ -825,7 +852,8 @@ function Index() {
   const jogosFiltrados = (() => {
     const vistos = new Set<string>();
     return jogos.filter((j) => {
-      if (campSel.length > 0 && !(j.liga ? campSel.includes(j.liga) : false)) return false;
+      if (!j.liga || !podeUsarLiga(j.liga)) return false;
+      if (campSel.length > 0 && !campSel.includes(j.liga)) return false;
       // Evita jogos duplicados (fontes diferentes criam 2 linhas do mesmo jogo).
       // Agrupa o horário por hora para tolerar pequenas diferenças entre fontes.
       const hora = Math.round(new Date(j.inicio).getTime() / (60 * 60 * 1000));
@@ -991,9 +1019,8 @@ function Index() {
             >
               Todos
             </button>
-            {CAMPEONATOS.map((c) => {
+            {ligasVisiveis.map((c) => {
               const active = campSel.includes(c);
-              const liberado = podeUsarLiga(c);
               return (
                 <button
                   type="button"
@@ -1003,9 +1030,8 @@ function Index() {
                     active
                       ? "border-primary bg-primary/15 text-primary"
                       : "border-border bg-input/40 text-muted-foreground hover:text-foreground"
-                  } ${liberado ? "" : "opacity-50"}`}
+                  }`}
                 >
-                  {!liberado && <Lock className="h-3 w-3" />}
                   {c}
                 </button>
               );
