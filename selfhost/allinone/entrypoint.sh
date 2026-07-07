@@ -68,14 +68,14 @@ RAM_MB=""
 if [ -r /proc/meminfo ]; then
   RAM_MB=$(awk '/^MemTotal:/{printf "%d", $2/1024}' /proc/meminfo)
 fi
-[ -z "${RAM_MB:-}" ] && RAM_MB=2048
-SHARED_MB=$(( RAM_MB / 4 ))                 # 25% da RAM
-[ "$SHARED_MB" -gt 8192 ] && SHARED_MB=8192 # teto de segurança (8GB)
-[ "$SHARED_MB" -lt 128 ] && SHARED_MB=128   # piso
-CACHE_MB=$(( RAM_MB / 2 ))                   # 50% da RAM
+if [ -z "${RAM_MB:-}" ]; then RAM_MB=2048; fi
+SHARED_MB=$(( RAM_MB / 4 ))                    # 25% da RAM
+if [ "$SHARED_MB" -gt 8192 ]; then SHARED_MB=8192; fi  # teto de segurança
+if [ "$SHARED_MB" -lt 128 ]; then SHARED_MB=128; fi    # piso
+CACHE_MB=$(( RAM_MB / 2 ))                     # 50% da RAM
 MAINT_MB=$(( RAM_MB / 16 ))
-[ "$MAINT_MB" -gt 1024 ] && MAINT_MB=1024
-[ "$MAINT_MB" -lt 64 ] && MAINT_MB=64
+if [ "$MAINT_MB" -gt 1024 ]; then MAINT_MB=1024; fi
+if [ "$MAINT_MB" -lt 64 ]; then MAINT_MB=64; fi
 echo ">> Tuning Postgres: RAM=${RAM_MB}MB shared_buffers=${SHARED_MB}MB effective_cache_size=${CACHE_MB}MB"
 cat > "$PGDATA/lovable-tuning.conf" <<CONF
 # Gerado automaticamente no boot — NÃO editar (sobrescrito a cada início).
