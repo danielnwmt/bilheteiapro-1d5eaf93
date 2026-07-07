@@ -114,6 +114,10 @@ async function throttleFootball(): Promise<void> {
   liberar();
 }
 
+// Sinaliza que o limite DIÁRIO da API-Football foi atingido: nesse caso não
+// adianta tentar de novo hoje, então abortamos o ciclo de sync mais cedo.
+export const DAILY_LIMIT_REACHED = "API-Football: limite diário atingido";
+
 // Fetch da API-Football com throttle global + backoff exponencial quando o
 // plano responde "Too many requests" (status 429 ou erro no corpo).
 async function apiFootballFetch(url: string, key: string, tentativas = 4): Promise<Response> {
@@ -122,6 +126,10 @@ async function apiFootballFetch(url: string, key: string, tentativas = 4): Promi
     await registrarChamada("API_FOOTBALL_KEY");
     const res = await fetch(url, { headers: { "x-apisports-key": key } });
     const corpo = await res.clone().text().catch(() => "");
+    // Limite DIÁRIO: não adianta tentar de novo — falha rápido e para o ciclo.
+    if (/daily|per day|requests allowed for your/i.test(corpo)) {
+      throw new Error(DAILY_LIMIT_REACHED);
+    }
     const rateLimited = res.status === 429 || /too many requests|rate ?limit/i.test(corpo);
     if (rateLimited && i < tentativas - 1) {
       const backoff = 6000 * (i + 1);
