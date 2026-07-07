@@ -166,12 +166,9 @@ export INGEST_SECRET="${INGEST_SECRET:-local-ingest-secret}"
 export CRON_SECRET="${CRON_SECRET:-local-cron-secret}"
 export HOST=127.0.0.1
 export PORT="$APP_INTERNAL_PORT"
-echo ">> Iniciando app..."
-if [ -f .output/server/index.mjs ]; then
-  node .output/server/index.mjs &
-else
-  node serve.mjs &
-fi
+echo ">> Iniciando app (cluster multi-núcleo)..."
+cp /opt/app/selfhost/allinone/cluster.mjs ./cluster.mjs 2>/dev/null || true
+node ./cluster.mjs &
 
 # --- nginx (porta pública única) -----------------------------------
 export NGINX_PORT="$LISTEN_PORT"
