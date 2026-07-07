@@ -879,10 +879,10 @@ export async function syncOddsByLeagueDias(
           // NÃO filtramos por casa (bookmaker) na chamada: se a casa escolhida
           // não tiver odds para o jogo (comum na Copa do Mundo), a API voltaria
           // vazia. Buscamos TODAS as casas e escolhemos a melhor disponível.
-          await registrarChamada("API_FOOTBALL_KEY");
-          const res = await fetch(
+          // Passa pelo gate global (throttle + backoff) para respeitar o limite/min.
+          const res = await apiFootballFetch(
             `${API_BASE}/odds?date=${date}&league=${leagueId}&season=${season}&page=${page}&timezone=America/Sao_Paulo`,
-            { headers: { "x-apisports-key": key } },
+            key,
           );
           chamadas++;
           if (!res.ok) throw new Error(`API-Football odds ${res.status}: ${await res.text()}`);
@@ -897,6 +897,8 @@ export async function syncOddsByLeagueDias(
           resp = json.response ?? [];
           raw = json;
         } catch (e) {
+          // Limite diário: aborta o ciclo inteiro (não adianta seguir para outras ligas hoje).
+          if (String(e).includes(DAILY_LIMIT_REACHED)) throw e;
           console.error("Falha ao buscar odds da liga", leagueId, "dia", date, "pág", page, e);
           break;
         }
