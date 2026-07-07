@@ -95,6 +95,13 @@ export const Route = createFileRoute("/api/public/hooks/sync-odds-diario")({
               requiresConfig: true,
             });
           }
+          if (msg.includes(DAILY_LIMIT_REACHED)) {
+            return Response.json({
+              ok: true,
+              skipped: { API_FOOTBALL_KEY: "limite diário da API-Football atingido" },
+              dailyLimit: true,
+            });
+          }
           console.error("Erro no robô diário de odds:", e);
           return Response.json({ ok: false, error: msg }, { status: 500 });
         }
