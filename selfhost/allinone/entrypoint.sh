@@ -57,26 +57,24 @@ if [ ! -s "$PGDATA/PG_VERSION" ]; then
   su postgres -c "$PGBIN/initdb -D '$PGDATA' --auth=trust --encoding=UTF8 -U postgres"
   echo "host all all 127.0.0.1/32 trust" >> "$PGDATA/pg_hba.conf"
 fi
-echo ">> Subindo Postgres (tuning automático conforme a RAM da máquina)..."
-# IMPORTANTE: valores calculados a partir da memória REAL da VPS. Valores fixos
-# grandes (ex.: shared_buffers=8GB) fazem o Postgres nem subir em servidores
-# menores ("could not map anonymous shared memory: Cannot allocate memory").
-# Você ainda pode sobrescrever qualquer um via env PG_*.
-TOTAL_MB=$(free -m 2>/dev/null | awk '/^Mem:/{print $2}')
-[ -z "$TOTAL_MB" ] && TOTAL_MB=2048
+echo ">> Subindo Postgres (tuning conservador + fallback automático)..."
+# IMPORTANTE: usa a memória DISPONÍVEL (não a total) e limita shared_buffers a
+# 2GB por padrão. Em Docker, pedir muita shared memory dá "could not map
+# anonymous shared memory: Cannot allocate memory" e o Postgres nem sobe.
+# Se mesmo assim falhar, tentamos de novo com config mínima (não derruba o app).
+AVAIL_MB=$(free -m 2>/dev/null | awk '/^Mem:/{print $7}')
+[ -z "$AVAIL_MB" ] || [ "$AVAIL_MB" -le 0 ] 2>/dev/null && AVAIL_MB=$(free -m 2>/dev/null | awk '/^Mem:/{print $2}')
+[ -z "$AVAIL_MB" ] && AVAIL_MB=2048
 CPUS=$(nproc 2>/dev/null || echo 2)
 
-# shared_buffers = 25% da RAM (mín. 128MB, máx. 8GB)
-SB_MB=$(( TOTAL_MB / 4 )); [ "$SB_MB" -lt 128 ] && SB_MB=128; [ "$SB_MB" -gt 8192 ] && SB_MB=8192
-# effective_cache_size = 60% da RAM
-EC_MB=$(( TOTAL_MB * 60 / 100 ))
-# maintenance_work_mem = 5% da RAM (mín. 64MB, máx. 1GB)
-MW_MB=$(( TOTAL_MB / 20 )); [ "$MW_MB" -lt 64 ] && MW_MB=64; [ "$MW_MB" -gt 1024 ] && MW_MB=1024
-# max_connections e work_mem escalam com a RAM
-if [ "$TOTAL_MB" -ge 16000 ]; then DEF_CONN=300; DEF_WM=16MB
-elif [ "$TOTAL_MB" -ge 8000 ]; then DEF_CONN=200; DEF_WM=8MB
-elif [ "$TOTAL_MB" -ge 4000 ]; then DEF_CONN=120; DEF_WM=6MB
-else DEF_CONN=80; DEF_WM=4MB; fi
+# shared_buffers = 20% da RAM disponível (mín. 128MB, máx. 2GB por padrão)
+SB_MB=$(( AVAIL_MB / 5 )); [ "$SB_MB" -lt 128 ] && SB_MB=128; [ "$SB_MB" -gt 2048 ] && SB_MB=2048
+EC_MB=$(( AVAIL_MB * 50 / 100 )); [ "$EC_MB" -lt 256 ] && EC_MB=256
+MW_MB=$(( AVAIL_MB / 20 )); [ "$MW_MB" -lt 64 ] && MW_MB=64; [ "$MW_MB" -gt 512 ] && MW_MB=512
+if [ "$AVAIL_MB" -ge 12000 ]; then DEF_CONN=250; DEF_WM=8MB
+elif [ "$AVAIL_MB" -ge 6000 ]; then DEF_CONN=180; DEF_WM=6MB
+elif [ "$AVAIL_MB" -ge 3000 ]; then DEF_CONN=120; DEF_WM=4MB
+else DEF_CONN=80; DEF_WM=3MB; fi
 
 PG_MAX_CONN="${PG_MAX_CONN:-$DEF_CONN}"
 PG_SHARED_BUFFERS="${PG_SHARED_BUFFERS:-${SB_MB}MB}"
@@ -84,19 +82,29 @@ PG_EFFECTIVE_CACHE="${PG_EFFECTIVE_CACHE:-${EC_MB}MB}"
 PG_WORK_MEM="${PG_WORK_MEM:-$DEF_WM}"
 PG_MAINT_WORK_MEM="${PG_MAINT_WORK_MEM:-${MW_MB}MB}"
 PG_PARALLEL="${PG_PARALLEL:-$CPUS}"
-echo ">> RAM=${TOTAL_MB}MB CPUS=${CPUS} -> shared_buffers=${PG_SHARED_BUFFERS} work_mem=${PG_WORK_MEM} max_connections=${PG_MAX_CONN}"
-su postgres -c "$PGBIN/pg_ctl -D '$PGDATA' -o '-c listen_addresses=127.0.0.1 -p 5432 \
-  -c max_connections=${PG_MAX_CONN} \
-  -c shared_buffers=${PG_SHARED_BUFFERS} \
-  -c effective_cache_size=${PG_EFFECTIVE_CACHE} \
-  -c work_mem=${PG_WORK_MEM} \
-  -c maintenance_work_mem=${PG_MAINT_WORK_MEM} \
-  -c max_worker_processes=${PG_PARALLEL} \
-  -c max_parallel_workers=${PG_PARALLEL} \
-  -c max_parallel_workers_per_gather=2 \
-  -c random_page_cost=1.1 \
-  -c effective_io_concurrency=200 \
-  -c synchronous_commit=off' -w -t 60 start"
+
+start_postgres() {
+  su postgres -c "$PGBIN/pg_ctl -D '$PGDATA' -o '-c listen_addresses=127.0.0.1 -p 5432 \
+    -c max_connections=$1 \
+    -c shared_buffers=$2 \
+    -c effective_cache_size=$3 \
+    -c work_mem=$4 \
+    -c maintenance_work_mem=$5 \
+    -c huge_pages=off \
+    -c max_worker_processes=${PG_PARALLEL} \
+    -c max_parallel_workers=${PG_PARALLEL} \
+    -c max_parallel_workers_per_gather=2 \
+    -c random_page_cost=1.1 \
+    -c effective_io_concurrency=200 \
+    -c synchronous_commit=off' -w -t 60 start"
+}
+
+echo ">> RAM disponível=${AVAIL_MB}MB CPUS=${CPUS} -> shared_buffers=${PG_SHARED_BUFFERS} work_mem=${PG_WORK_MEM} max_connections=${PG_MAX_CONN}"
+if ! start_postgres "$PG_MAX_CONN" "$PG_SHARED_BUFFERS" "$PG_EFFECTIVE_CACHE" "$PG_WORK_MEM" "$PG_MAINT_WORK_MEM"; then
+  echo ">> Postgres não subiu com o tuning. Tentando config MÍNIMA de segurança..."
+  su postgres -c "$PGBIN/pg_ctl -D '$PGDATA' stop -m immediate -w -t 20" 2>/dev/null || true
+  start_postgres 100 "256MB" "512MB" "3MB" "64MB"
+fi
 
 export PGHOST=127.0.0.1 PGPORT=5432 PGUSER=postgres PGDATABASE=postgres
 until pg_isready -h 127.0.0.1 -U postgres >/dev/null 2>&1; do sleep 1; done
