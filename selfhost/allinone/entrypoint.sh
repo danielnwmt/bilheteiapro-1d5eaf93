@@ -57,58 +57,8 @@ if [ ! -s "$PGDATA/PG_VERSION" ]; then
   su postgres -c "$PGBIN/initdb -D '$PGDATA' --auth=trust --encoding=UTF8 -U postgres"
   echo "host all all 127.0.0.1/32 trust" >> "$PGDATA/pg_hba.conf"
 fi
-echo ">> Subindo Postgres (tuning conservador + fallback automático)..."
-# IMPORTANTE: usa a memória DISPONÍVEL (não a total) e limita shared_buffers a
-# 2GB por padrão. Em Docker, pedir muita shared memory dá "could not map
-# anonymous shared memory: Cannot allocate memory" e o Postgres nem sobe.
-# Se mesmo assim falhar, tentamos de novo com config mínima (não derruba o app).
-AVAIL_MB=$(free -m 2>/dev/null | awk '/^Mem:/{print $7}')
-if [ -z "$AVAIL_MB" ] || ! [ "$AVAIL_MB" -gt 0 ] 2>/dev/null; then
-  AVAIL_MB=$(free -m 2>/dev/null | awk '/^Mem:/{print $2}')
-fi
-if [ -z "$AVAIL_MB" ] || ! [ "$AVAIL_MB" -gt 0 ] 2>/dev/null; then
-  AVAIL_MB=2048
-fi
-CPUS=$(nproc 2>/dev/null || echo 2)
-
-# shared_buffers = 20% da RAM disponível (mín. 128MB, máx. 2GB por padrão)
-SB_MB=$(( AVAIL_MB / 5 )); [ "$SB_MB" -lt 128 ] && SB_MB=128; [ "$SB_MB" -gt 2048 ] && SB_MB=2048
-EC_MB=$(( AVAIL_MB * 50 / 100 )); [ "$EC_MB" -lt 256 ] && EC_MB=256
-MW_MB=$(( AVAIL_MB / 20 )); [ "$MW_MB" -lt 64 ] && MW_MB=64; [ "$MW_MB" -gt 512 ] && MW_MB=512
-if [ "$AVAIL_MB" -ge 12000 ]; then DEF_CONN=250; DEF_WM=8MB
-elif [ "$AVAIL_MB" -ge 6000 ]; then DEF_CONN=180; DEF_WM=6MB
-elif [ "$AVAIL_MB" -ge 3000 ]; then DEF_CONN=120; DEF_WM=4MB
-else DEF_CONN=80; DEF_WM=3MB; fi
-
-PG_MAX_CONN="${PG_MAX_CONN:-$DEF_CONN}"
-PG_SHARED_BUFFERS="${PG_SHARED_BUFFERS:-${SB_MB}MB}"
-PG_EFFECTIVE_CACHE="${PG_EFFECTIVE_CACHE:-${EC_MB}MB}"
-PG_WORK_MEM="${PG_WORK_MEM:-$DEF_WM}"
-PG_MAINT_WORK_MEM="${PG_MAINT_WORK_MEM:-${MW_MB}MB}"
-PG_PARALLEL="${PG_PARALLEL:-$CPUS}"
-
-start_postgres() {
-  su postgres -c "$PGBIN/pg_ctl -D '$PGDATA' -o '-c listen_addresses=127.0.0.1 -p 5432 \
-    -c max_connections=$1 \
-    -c shared_buffers=$2 \
-    -c effective_cache_size=$3 \
-    -c work_mem=$4 \
-    -c maintenance_work_mem=$5 \
-    -c huge_pages=off \
-    -c max_worker_processes=${PG_PARALLEL} \
-    -c max_parallel_workers=${PG_PARALLEL} \
-    -c max_parallel_workers_per_gather=2 \
-    -c random_page_cost=1.1 \
-    -c effective_io_concurrency=200 \
-    -c synchronous_commit=off' -w -t 60 start"
-}
-
-echo ">> RAM disponível=${AVAIL_MB}MB CPUS=${CPUS} -> shared_buffers=${PG_SHARED_BUFFERS} work_mem=${PG_WORK_MEM} max_connections=${PG_MAX_CONN}"
-if ! start_postgres "$PG_MAX_CONN" "$PG_SHARED_BUFFERS" "$PG_EFFECTIVE_CACHE" "$PG_WORK_MEM" "$PG_MAINT_WORK_MEM"; then
-  echo ">> Postgres não subiu com o tuning. Tentando config MÍNIMA de segurança..."
-  su postgres -c "$PGBIN/pg_ctl -D '$PGDATA' stop -m immediate -w -t 20" 2>/dev/null || true
-  start_postgres 100 "256MB" "512MB" "3MB" "64MB"
-fi
+echo ">> Subindo Postgres..."
+su postgres -c "$PGBIN/pg_ctl -D '$PGDATA' -o '-c listen_addresses=127.0.0.1 -p 5432' -w -t 60 start"
 
 export PGHOST=127.0.0.1 PGPORT=5432 PGUSER=postgres PGDATABASE=postgres
 until pg_isready -h 127.0.0.1 -U postgres >/dev/null 2>&1; do sleep 1; done
@@ -179,9 +129,6 @@ export PGRST_DB_ANON_ROLE="anon"
 export PGRST_JWT_SECRET="$JWT_SECRET"
 export PGRST_SERVER_PORT="3001"
 export PGRST_DB_USE_LEGACY_GUCS="false"
-# Pool maior para aguentar mais requisições simultâneas.
-export PGRST_DB_POOL="${PGRST_DB_POOL:-100}"
-export PGRST_DB_POOL_ACQUISITION_TIMEOUT="${PGRST_DB_POOL_ACQUISITION_TIMEOUT:-10}"
 echo ">> Iniciando API (PostgREST)..."
 postgrest &
 
@@ -199,27 +146,12 @@ export INGEST_SECRET="${INGEST_SECRET:-local-ingest-secret}"
 export CRON_SECRET="${CRON_SECRET:-local-cron-secret}"
 export HOST=127.0.0.1
 export PORT="$APP_INTERNAL_PORT"
-# Passa RAM/CPU pro cluster decidir quantos workers Node subir sem estourar memória.
-export BILHETEIA_AVAIL_MB="$AVAIL_MB"
-export BILHETEIA_CPUS="$CPUS"
-echo ">> Iniciando app (cluster multi-núcleo)..."
-cp /opt/app/selfhost/allinone/cluster.mjs ./cluster.mjs 2>/dev/null || true
-node ./cluster.mjs &
-
-# --- Espera o app responder antes de abrir o nginx --------------------
-# Sem isto o nginx sobe e as primeiras requisições batem em porta morta
-# ("Connection reset by peer"). Aguarda até ~90s pelo SSR ficar de pé.
-echo ">> Aguardando o app responder na porta ${APP_INTERNAL_PORT}..."
-APP_OK=0
-for i in $(seq 1 45); do
-  if wget -qO- --timeout=3 "http://127.0.0.1:${APP_INTERNAL_PORT}/" >/dev/null 2>&1; then
-    APP_OK=1
-    echo ">> App respondeu após ~$((i*2))s."
-    break
-  fi
-  sleep 2
-done
-[ "$APP_OK" = "1" ] || echo ">> AVISO: app ainda não respondeu; subindo nginx mesmo assim."
+echo ">> Iniciando app..."
+if [ -f .output/server/index.mjs ]; then
+  node .output/server/index.mjs &
+else
+  node serve.mjs &
+fi
 
 # --- nginx (porta pública única) -----------------------------------
 export NGINX_PORT="$LISTEN_PORT"

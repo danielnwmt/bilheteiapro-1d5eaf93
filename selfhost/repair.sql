@@ -478,7 +478,6 @@ NOTIFY pgrst, 'reload schema';
 --  instalações antigas que não tinham esse recurso.
 -- ============================================================
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_seen timestamptz;
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS active_session text;
 
 CREATE OR REPLACE FUNCTION public.touch_last_seen()
 RETURNS void
