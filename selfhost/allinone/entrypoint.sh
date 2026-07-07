@@ -63,8 +63,12 @@ echo ">> Subindo Postgres (tuning conservador + fallback automático)..."
 # anonymous shared memory: Cannot allocate memory" e o Postgres nem sobe.
 # Se mesmo assim falhar, tentamos de novo com config mínima (não derruba o app).
 AVAIL_MB=$(free -m 2>/dev/null | awk '/^Mem:/{print $7}')
-[ -z "$AVAIL_MB" ] || [ "$AVAIL_MB" -le 0 ] 2>/dev/null && AVAIL_MB=$(free -m 2>/dev/null | awk '/^Mem:/{print $2}')
-[ -z "$AVAIL_MB" ] && AVAIL_MB=2048
+if [ -z "$AVAIL_MB" ] || ! [ "$AVAIL_MB" -gt 0 ] 2>/dev/null; then
+  AVAIL_MB=$(free -m 2>/dev/null | awk '/^Mem:/{print $2}')
+fi
+if [ -z "$AVAIL_MB" ] || ! [ "$AVAIL_MB" -gt 0 ] 2>/dev/null; then
+  AVAIL_MB=2048
+fi
 CPUS=$(nproc 2>/dev/null || echo 2)
 
 # shared_buffers = 20% da RAM disponível (mín. 128MB, máx. 2GB por padrão)
