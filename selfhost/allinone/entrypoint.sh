@@ -63,7 +63,11 @@ fi
 # Reescrito a cada boot num arquivo próprio incluído no fim do postgresql.conf,
 # então SEMPRE vence qualquer valor antigo (corrige installs travados por
 # "could not map anonymous shared memory: Cannot allocate memory").
-RAM_MB=$(free -m 2>/dev/null | awk '/^Mem:/{print $2}')
+# Lê a RAM total sem depender de `free` (ausente na imagem slim): usa /proc.
+RAM_MB=""
+if [ -r /proc/meminfo ]; then
+  RAM_MB=$(awk '/^MemTotal:/{printf "%d", $2/1024}' /proc/meminfo)
+fi
 [ -z "${RAM_MB:-}" ] && RAM_MB=2048
 SHARED_MB=$(( RAM_MB / 4 ))                 # 25% da RAM
 [ "$SHARED_MB" -gt 8192 ] && SHARED_MB=8192 # teto de segurança (8GB)
