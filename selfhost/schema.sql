@@ -253,6 +253,7 @@ CREATE TABLE public.profiles (
   data_nascimento date,
   telefone text,
   last_seen timestamptz,
+  active_session text,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
