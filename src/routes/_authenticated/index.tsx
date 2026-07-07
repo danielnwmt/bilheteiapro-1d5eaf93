@@ -961,8 +961,7 @@ function Index() {
           <div className="flex items-center gap-4 text-left">
             <img src={logo} alt="BilheteIA PRO" className="w-40 max-w-full shrink-0 md:w-48" />
             <p className="max-w-xl text-muted-foreground">
-              Pare de perder tempo analisando jogos. O motor estatístico encontra combinações com
-              odds reais e análises em cache.
+              O BilheteIA Pro analisa os jogos e gera sua múltipla automaticamente.
             </p>
           </div>
         </header>
