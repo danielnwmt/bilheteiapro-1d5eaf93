@@ -49,9 +49,12 @@ export async function preAnalisarTodos(): Promise<PreAnaliseResult> {
   const now = Date.now();
   const dia = diaSaoPaulo(new Date(now));
 
-  // Janela: jogos ao vivo + os que começam nas próximas 48h.
+  // Janela: jogos ao vivo + os que começam nos próximos 8 dias.
+  // Alinhada à janela de coleta de odds (8 dias): assim TODO jogo que já tem
+  // odds salvas também é analisado, em vez de só os das próximas 48h — antes
+  // jogos com odds a 2-3 dias apareciam sem análise.
   const liveFrom = new Date(now - 150 * 60_000).toISOString();
-  const to = new Date(now + 48 * 3600_000).toISOString();
+  const to = new Date(now + 8 * 24 * 3600_000).toISOString();
 
   const { data: partidas, error } = await supabase
     .from("partidas")
