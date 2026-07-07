@@ -115,8 +115,15 @@ export async function preAnalisarTodos(): Promise<PreAnaliseResult> {
   }
 
   let estatisticas = 0;
+  // Cada estatística é 1 chamada à API-Football com pausa (~2s). Buscar todas
+  // de uma vez num único request faz a análise ultrapassar 60s e tomar 504 no
+  // proxy (nginx) — o cache nunca é gravado. Limitamos por execução; como o
+  // cron roda a cada 5 min, os jogos restantes recebem estatísticas nas
+  // próximas passadas. A análise LOCAL roda sempre, mesmo sem estatísticas.
+  const MAX_STATS_POR_RUN = 10;
   const semStats = candidatos
     .filter((c) => c.partida.external_id && !statsMap.has(c.partida.id))
+    .slice(0, MAX_STATS_POR_RUN)
     .map((c) => ({
       id: c.partida.id,
       external_id: c.partida.external_id,
