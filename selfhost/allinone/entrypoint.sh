@@ -57,8 +57,25 @@ if [ ! -s "$PGDATA/PG_VERSION" ]; then
   su postgres -c "$PGBIN/initdb -D '$PGDATA' --auth=trust --encoding=UTF8 -U postgres"
   echo "host all all 127.0.0.1/32 trust" >> "$PGDATA/pg_hba.conf"
 fi
-echo ">> Subindo Postgres..."
-su postgres -c "$PGBIN/pg_ctl -D '$PGDATA' -o '-c listen_addresses=127.0.0.1 -p 5432' -w -t 60 start"
+echo ">> Subindo Postgres (com tuning para alta carga)..."
+# Tuning para servidor ~8 vCPU / 32 GB RAM. Ajuste PG_* via env se o servidor mudar.
+PG_MAX_CONN="${PG_MAX_CONN:-300}"
+PG_SHARED_BUFFERS="${PG_SHARED_BUFFERS:-8GB}"
+PG_EFFECTIVE_CACHE="${PG_EFFECTIVE_CACHE:-24GB}"
+PG_WORK_MEM="${PG_WORK_MEM:-32MB}"
+PG_MAINT_WORK_MEM="${PG_MAINT_WORK_MEM:-1GB}"
+su postgres -c "$PGBIN/pg_ctl -D '$PGDATA' -o '-c listen_addresses=127.0.0.1 -p 5432 \
+  -c max_connections=${PG_MAX_CONN} \
+  -c shared_buffers=${PG_SHARED_BUFFERS} \
+  -c effective_cache_size=${PG_EFFECTIVE_CACHE} \
+  -c work_mem=${PG_WORK_MEM} \
+  -c maintenance_work_mem=${PG_MAINT_WORK_MEM} \
+  -c max_worker_processes=8 \
+  -c max_parallel_workers=8 \
+  -c max_parallel_workers_per_gather=4 \
+  -c random_page_cost=1.1 \
+  -c effective_io_concurrency=200 \
+  -c synchronous_commit=off' -w -t 60 start"
 
 export PGHOST=127.0.0.1 PGPORT=5432 PGUSER=postgres PGDATABASE=postgres
 until pg_isready -h 127.0.0.1 -U postgres >/dev/null 2>&1; do sleep 1; done
