@@ -48,6 +48,10 @@ server {
         proxy_set_header X-Forwarded-Proto $bilheteia_forwarded_proto;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
+        # Rotas de robô (análise/sync) podem demorar. Evita 504.
+        proxy_connect_timeout 75s;
+        proxy_send_timeout 300s;
+        proxy_read_timeout 300s;
     }
 
     # App (SSR Node)
@@ -59,5 +63,9 @@ server {
         proxy_set_header X-Forwarded-Proto $bilheteia_forwarded_proto;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
+        # Rotas de robô (análise/sync) podem demorar. Evita 504.
+        proxy_connect_timeout 75s;
+        proxy_send_timeout 300s;
+        proxy_read_timeout 300s;
     }
 }
