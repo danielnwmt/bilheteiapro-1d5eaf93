@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { hasApiFootballKey, MISSING_API_FOOTBALL_KEY, syncFixtures, syncOddsByLeagueDias } from "@/lib/football.server";
+import { DAILY_LIMIT_REACHED, hasApiFootballKey, MISSING_API_FOOTBALL_KEY, syncFixtures, syncOddsByLeagueDias } from "@/lib/football.server";
 import { verificarCronSecret } from "@/lib/cron-auth";
 
 
@@ -93,6 +93,13 @@ export const Route = createFileRoute("/api/public/hooks/sync-odds-diario")({
               ok: true,
               skipped: { API_FOOTBALL_KEY: "chave não configurada em Configurações → APIs" },
               requiresConfig: true,
+            });
+          }
+          if (msg.includes(DAILY_LIMIT_REACHED)) {
+            return Response.json({
+              ok: true,
+              skipped: { API_FOOTBALL_KEY: "limite diário da API-Football atingido" },
+              dailyLimit: true,
             });
           }
           console.error("Erro no robô diário de odds:", e);

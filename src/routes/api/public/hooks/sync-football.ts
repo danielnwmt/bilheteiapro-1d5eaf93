@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { hasApiFootballKey, MISSING_API_FOOTBALL_KEY, syncFixtures, syncOddsByLeagueDias } from "@/lib/football.server";
+import { DAILY_LIMIT_REACHED, hasApiFootballKey, MISSING_API_FOOTBALL_KEY, syncFixtures, syncOddsByLeagueDias } from "@/lib/football.server";
 import { verificarCronSecret } from "@/lib/cron-auth";
 
 
@@ -131,6 +131,19 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
               hasLive,
               skipped: { API_FOOTBALL_KEY: "chave não configurada em Configurações → APIs" },
               requiresConfig: true,
+              fixturesHoje,
+              fixturesAoVivo,
+              oddsCount,
+            });
+          }
+          // Limite DIÁRIO da API-Football: não é erro do robô — apenas acabou a
+          // cota do dia. Evita 500 repetido no cron até o limite resetar.
+          if (msg.includes(DAILY_LIMIT_REACHED)) {
+            return Response.json({
+              ok: true,
+              hasLive,
+              skipped: { API_FOOTBALL_KEY: "limite diário da API-Football atingido" },
+              dailyLimit: true,
               fixturesHoje,
               fixturesAoVivo,
               oddsCount,
