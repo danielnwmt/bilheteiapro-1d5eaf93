@@ -63,8 +63,12 @@ echo ">> Subindo Postgres (tuning conservador + fallback automático)..."
 # anonymous shared memory: Cannot allocate memory" e o Postgres nem sobe.
 # Se mesmo assim falhar, tentamos de novo com config mínima (não derruba o app).
 AVAIL_MB=$(free -m 2>/dev/null | awk '/^Mem:/{print $7}')
-[ -z "$AVAIL_MB" ] || [ "$AVAIL_MB" -le 0 ] 2>/dev/null && AVAIL_MB=$(free -m 2>/dev/null | awk '/^Mem:/{print $2}')
-[ -z "$AVAIL_MB" ] && AVAIL_MB=2048
+if [ -z "$AVAIL_MB" ] || ! [ "$AVAIL_MB" -gt 0 ] 2>/dev/null; then
+  AVAIL_MB=$(free -m 2>/dev/null | awk '/^Mem:/{print $2}')
+fi
+if [ -z "$AVAIL_MB" ] || ! [ "$AVAIL_MB" -gt 0 ] 2>/dev/null; then
+  AVAIL_MB=2048
+fi
 CPUS=$(nproc 2>/dev/null || echo 2)
 
 # shared_buffers = 20% da RAM disponível (mín. 128MB, máx. 2GB por padrão)
@@ -195,9 +199,27 @@ export INGEST_SECRET="${INGEST_SECRET:-local-ingest-secret}"
 export CRON_SECRET="${CRON_SECRET:-local-cron-secret}"
 export HOST=127.0.0.1
 export PORT="$APP_INTERNAL_PORT"
+# Passa RAM/CPU pro cluster decidir quantos workers Node subir sem estourar memória.
+export BILHETEIA_AVAIL_MB="$AVAIL_MB"
+export BILHETEIA_CPUS="$CPUS"
 echo ">> Iniciando app (cluster multi-núcleo)..."
 cp /opt/app/selfhost/allinone/cluster.mjs ./cluster.mjs 2>/dev/null || true
 node ./cluster.mjs &
+
+# --- Espera o app responder antes de abrir o nginx --------------------
+# Sem isto o nginx sobe e as primeiras requisições batem em porta morta
+# ("Connection reset by peer"). Aguarda até ~90s pelo SSR ficar de pé.
+echo ">> Aguardando o app responder na porta ${APP_INTERNAL_PORT}..."
+APP_OK=0
+for i in $(seq 1 45); do
+  if wget -qO- --timeout=3 "http://127.0.0.1:${APP_INTERNAL_PORT}/" >/dev/null 2>&1; then
+    APP_OK=1
+    echo ">> App respondeu após ~$((i*2))s."
+    break
+  fi
+  sleep 2
+done
+[ "$APP_OK" = "1" ] || echo ">> AVISO: app ainda não respondeu; subindo nginx mesmo assim."
 
 # --- nginx (porta pública única) -----------------------------------
 export NGINX_PORT="$LISTEN_PORT"
