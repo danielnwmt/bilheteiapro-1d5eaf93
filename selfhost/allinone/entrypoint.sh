@@ -146,6 +146,9 @@ export PGRST_DB_ANON_ROLE="anon"
 export PGRST_JWT_SECRET="$JWT_SECRET"
 export PGRST_SERVER_PORT="3001"
 export PGRST_DB_USE_LEGACY_GUCS="false"
+# Pool maior para aguentar mais requisições simultâneas.
+export PGRST_DB_POOL="${PGRST_DB_POOL:-100}"
+export PGRST_DB_POOL_ACQUISITION_TIMEOUT="${PGRST_DB_POOL_ACQUISITION_TIMEOUT:-10}"
 echo ">> Iniciando API (PostgREST)..."
 postgrest &
 
