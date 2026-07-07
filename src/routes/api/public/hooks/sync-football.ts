@@ -136,6 +136,19 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
               oddsCount,
             });
           }
+          // Limite DIÁRIO da API-Football: não é erro do robô — apenas acabou a
+          // cota do dia. Evita 500 repetido no cron até o limite resetar.
+          if (msg.includes(DAILY_LIMIT_REACHED)) {
+            return Response.json({
+              ok: true,
+              hasLive,
+              skipped: { API_FOOTBALL_KEY: "limite diário da API-Football atingido" },
+              dailyLimit: true,
+              fixturesHoje,
+              fixturesAoVivo,
+              oddsCount,
+            });
+          }
           console.error("Erro no sync agendado:", e);
           return Response.json(
             { ok: false, error: msg },
