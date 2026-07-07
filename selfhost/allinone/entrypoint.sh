@@ -57,7 +57,36 @@ if [ ! -s "$PGDATA/PG_VERSION" ]; then
   su postgres -c "$PGBIN/initdb -D '$PGDATA' --auth=trust --encoding=UTF8 -U postgres"
   echo "host all all 127.0.0.1/32 trust" >> "$PGDATA/pg_hba.conf"
 fi
+
+# --- Tuning automático conforme a RAM da VPS ------------------------
+# Calcula shared_buffers/effective_cache com base na memória TOTAL da máquina.
+# Reescrito a cada boot num arquivo próprio incluído no fim do postgresql.conf,
+# então SEMPRE vence qualquer valor antigo (corrige installs travados por
+# "could not map anonymous shared memory: Cannot allocate memory").
+RAM_MB=$(free -m 2>/dev/null | awk '/^Mem:/{print $2}')
+[ -z "${RAM_MB:-}" ] && RAM_MB=2048
+SHARED_MB=$(( RAM_MB / 4 ))                 # 25% da RAM
+[ "$SHARED_MB" -gt 8192 ] && SHARED_MB=8192 # teto de segurança (8GB)
+[ "$SHARED_MB" -lt 128 ] && SHARED_MB=128   # piso
+CACHE_MB=$(( RAM_MB / 2 ))                   # 50% da RAM
+MAINT_MB=$(( RAM_MB / 16 ))
+[ "$MAINT_MB" -gt 1024 ] && MAINT_MB=1024
+[ "$MAINT_MB" -lt 64 ] && MAINT_MB=64
+echo ">> Tuning Postgres: RAM=${RAM_MB}MB shared_buffers=${SHARED_MB}MB effective_cache_size=${CACHE_MB}MB"
+cat > "$PGDATA/lovable-tuning.conf" <<CONF
+# Gerado automaticamente no boot — NÃO editar (sobrescrito a cada início).
+shared_buffers = ${SHARED_MB}MB
+effective_cache_size = ${CACHE_MB}MB
+maintenance_work_mem = ${MAINT_MB}MB
+max_connections = 100
+CONF
+chown postgres:postgres "$PGDATA/lovable-tuning.conf"
+if ! grep -q "include_if_exists = 'lovable-tuning.conf'" "$PGDATA/postgresql.conf"; then
+  echo "include_if_exists = 'lovable-tuning.conf'" >> "$PGDATA/postgresql.conf"
+fi
+
 echo ">> Subindo Postgres..."
+
 su postgres -c "$PGBIN/pg_ctl -D '$PGDATA' -o '-c listen_addresses=127.0.0.1 -p 5432' -w -t 60 start"
 
 export PGHOST=127.0.0.1 PGPORT=5432 PGUSER=postgres PGDATABASE=postgres
