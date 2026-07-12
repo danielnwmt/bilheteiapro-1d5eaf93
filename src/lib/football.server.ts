@@ -49,6 +49,12 @@ const LEAGUE_ID_TO_NAME: Record<number, string> = {
   3: "Europa League",
   848: "Conference League",
   1: "Copa do Mundo",
+  88: "Eredivisie",
+  94: "Primeira Liga (Portugal)",
+  253: "MLS",
+  262: "Liga MX",
+  128: "Campeonato Argentino",
+  98: "J1 League",
 };
 
 type Periodo = "hoje" | "amanha" | "semana" | "aovivo";
