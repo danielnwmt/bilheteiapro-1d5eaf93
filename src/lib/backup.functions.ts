@@ -576,8 +576,9 @@ export const enviarResetSenha = createServerFn({ method: "POST" })
       text: `Redefina sua senha acessando: ${actionLink}`,
     });
 
-    return { ok: true };
+    return { ok: true, sent: true };
   });
+
 
 
 
