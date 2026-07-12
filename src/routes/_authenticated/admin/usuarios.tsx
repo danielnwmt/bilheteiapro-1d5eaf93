@@ -664,6 +664,7 @@ function UsuariosPage() {
                                 <tbody>
                                   {filtrados.map((c) => {
                                     const dias = diasRestantes(c.periodo_fim);
+                                    const m = (metrics as Record<string, { banca: number; roi: number; bilhetes: number }> | undefined)?.[c.id];
                                     return (
                                       <tr
                                         key={c.id}
