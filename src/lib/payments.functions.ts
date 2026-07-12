@@ -125,12 +125,9 @@ export const pagarComCartao = createServerFn({ method: "POST" })
       const precoCentavos = precoCicloCentavos(cfg, data.ciclo);
       if (precoCentavos <= 0) throw new Error("Preço do plano inválido");
 
-      const cpf = data.cpf || (profile?.cpf ?? "").replace(/\D/g, "");
+      const cpf = (profile?.cpf ?? "").replace(/\D/g, "") || data.cpf;
       if (cpf.length !== 11 && cpf.length !== 14) {
-        throw new Error("Informe um CPF ou CNPJ válido para o pagamento.");
-      }
-      if (cpf && cpf !== (profile?.cpf ?? "").replace(/\D/g, "")) {
-        await supabase.from("profiles").update({ cpf }).eq("id", userId);
+        throw new Error("Cadastro sem CPF/CNPJ. Atualize seu cadastro para pagar.");
       }
 
       const externalReference = `${userId}|${data.plano}|${data.ciclo}`;
