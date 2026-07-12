@@ -154,6 +154,12 @@ const CAMPEONATOS = [
   "Europa League",
   "Conference League",
   "Copa do Mundo",
+  "Eredivisie",
+  "Primeira Liga (Portugal)",
+  "MLS",
+  "Liga MX",
+  "Campeonato Argentino",
+  "J1 League",
 ];
 
 const MERCADOS = [
