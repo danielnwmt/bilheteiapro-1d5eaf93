@@ -182,6 +182,16 @@ function PlanosPage() {
           <div className="flex justify-center py-16">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
+        ) : pixData ? (
+          <PixPagamento
+            pix={pixData}
+            nomePlano={checkoutCfg?.nome ?? "Plano"}
+            onSucesso={async () => {
+              await queryClient.invalidateQueries({ queryKey: ["my-access"] });
+              router.navigate({ to: "/" });
+            }}
+            onCancelar={() => setPixData(null)}
+          />
         ) : checkout && checkoutCfg && telaCartao ? (
           <CartaoPagamento
             plano={checkout}
