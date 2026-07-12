@@ -213,14 +213,41 @@ export const checarStatusPix = createServerFn({ method: "POST" })
     if (!data?.paymentId) throw new Error("Cobrança inválida");
     return { paymentId: data.paymentId };
   })
-  .handler(async ({ data }): Promise<StatusResult> => {
+  .handler(async ({ data, context }): Promise<StatusResult> => {
     try {
-      const { paid, status } = await consultarPagamento(data.paymentId);
+      const { userId } = context;
+      const { paid, status, externalReference } = await consultarPagamento(data.paymentId);
+
+      // Ao confirmar, libera o plano na hora (não depende só do webhook).
+      if (paid) {
+        const [refUserId, plano, cicloRaw] = String(externalReference).split("|");
+        // Só libera se a cobrança for do próprio usuário autenticado.
+        if (refUserId === userId && plano) {
+          const ciclo = ["mensal", "semestral", "anual"].includes(cicloRaw) ? cicloRaw : "mensal";
+          const mesesPorCiclo: Record<string, number> = { mensal: 1, semestral: 6, anual: 12 };
+          const periodoFim = new Date();
+          periodoFim.setMonth(periodoFim.getMonth() + (mesesPorCiclo[ciclo] ?? 1));
+          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          await supabaseAdmin.from("subscriptions").upsert(
+            {
+              user_id: userId,
+              plano: plano as "start" | "pro" | "elite",
+              status: "ativo",
+              external_subscription_id: `asaas_${data.paymentId}`,
+              periodo_fim: periodoFim.toISOString(),
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "user_id" },
+          );
+        }
+      }
+
       return { paid, status };
     } catch (error) {
       return { error: error instanceof Error ? error.message : "Falha ao consultar" };
     }
   });
+
 
 
 // ============ CANCELAR ASSINATURA ============
