@@ -2,7 +2,7 @@ import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ADMIN_EMAIL, listClientes, listClientesLocalFallback, setClientePlano, updateClienteProfile, setClientePassword, createCliente } from "@/lib/access.functions";
+import { ADMIN_EMAIL, listClientes, listClientesLocalFallback, setClientePlano, updateClienteProfile, setClientePassword, createCliente, getClientesMetrics } from "@/lib/access.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,6 +30,7 @@ function UsuariosPage() {
   const salvarPerfil = useServerFn(updateClienteProfile);
   const salvarSenha = useServerFn(setClientePassword);
   const criarCliente = useServerFn(createCliente);
+  const fetchMetrics = useServerFn(getClientesMetrics);
   const [edit, setEdit] = useState<Record<string, { plano: Plano; status: "ativo" | "inativo" | "cortesia"; periodo_fim: string }>>({});
   const [perfil, setPerfil] = useState<
     Record<string, { nome: string; email: string; cpf: string; telefone: string; data_nascimento: string }>
@@ -96,6 +97,15 @@ function UsuariosPage() {
     staleTime: 60_000,
   });
 
+  const { data: metrics } = useQuery({
+    queryKey: ["clientes-metrics"],
+    queryFn: () => fetchMetrics().catch(() => ({})),
+    placeholderData: {},
+    staleTime: 60_000,
+  });
+
+
+
   useEffect(() => {
     let active = true;
     supabase.auth.getSession().then(({ data }) => {
@@ -119,6 +129,7 @@ function UsuariosPage() {
       toast.success("Cliente atualizado");
       setOpenId(null);
       qc.invalidateQueries({ queryKey: ["clientes"] });
+      qc.invalidateQueries({ queryKey: ["clientes-metrics"] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
   });
@@ -135,6 +146,7 @@ function UsuariosPage() {
     onSuccess: () => {
       toast.success("Cadastro atualizado");
       qc.invalidateQueries({ queryKey: ["clientes"] });
+      qc.invalidateQueries({ queryKey: ["clientes-metrics"] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar cadastro"),
   });
@@ -168,6 +180,7 @@ function UsuariosPage() {
       setShowNovo(false);
       setNovo({ nome: "", email: "", senha: "", cpf: "", telefone: "", data_nascimento: "", plano: "start", status: "ativo" });
       qc.invalidateQueries({ queryKey: ["clientes"] });
+      qc.invalidateQueries({ queryKey: ["clientes-metrics"] });
     },
     onError: (e: any) => toast.error(traduzErro(e, "Erro ao criar usuário")),
   });
@@ -654,6 +667,7 @@ function UsuariosPage() {
                                 <tbody>
                                   {filtrados.map((c) => {
                                     const dias = diasRestantes(c.periodo_fim);
+                                    const m = (metrics as Record<string, { banca: number; roi: number; bilhetes: number }> | undefined)?.[c.id];
                                     return (
                                       <tr
                                         key={c.id}
@@ -684,9 +698,21 @@ function UsuariosPage() {
                                             )}
                                           </div>
                                         </td>
-                                        <td className="px-4 py-3 text-muted-foreground">—</td>
-                                        <td className="px-4 py-3 text-muted-foreground">—</td>
-                                        <td className="px-4 py-3 text-muted-foreground">—</td>
+                                        <td className="px-4 py-3">
+                                          {m ? `R$ ${m.banca.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : <span className="text-muted-foreground">—</span>}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                          {m && m.roi !== 0 ? (
+                                            <span className={cn(m.roi > 0 ? "text-emerald-500" : "text-red-500")}>
+                                              {m.roi > 0 ? "+" : ""}{m.roi.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
+                                            </span>
+                                          ) : (
+                                            <span className="text-muted-foreground">—</span>
+                                          )}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                          {m && m.bilhetes > 0 ? m.bilhetes : <span className="text-muted-foreground">—</span>}
+                                        </td>
                                         <td className="px-4 py-3 text-right text-muted-foreground">{fmtData(c.created_at)}</td>
                                       </tr>
                                     );

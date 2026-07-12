@@ -953,6 +953,106 @@ export const listClientesLocalFallback = createServerFn({ method: "GET" }).handl
   return rows;
 });
 
+// ============================================================================
+// Métricas por cliente (banca, ROI, bilhetes) para o painel de usuários.
+// Lê via cliente autenticado (RLS de admin) e, como fallback/merge, via REST
+// service role. Agrega em JS por user_id. 100% aditivo.
+// ============================================================================
+export type ClienteMetric = { banca: number; roi: number; bilhetes: number };
+
+function retornoBanca(valor: number, odd: number, resultado: string): number {
+  if (resultado === "green") return valor * odd;
+  if (resultado === "anulada" || resultado === "encerrada") return valor;
+  return 0; // red
+}
+
+export const getClientesMetrics = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<Record<string, ClienteMetric>> => {
+    const { userId, claims } = context;
+    const base = tryRestBase();
+    const currentEmail = getAuthEmail(claims);
+
+    if (currentEmail !== ADMIN_EMAIL && base) {
+      const roles = await assertStaff(base, userId, currentEmail);
+      if (!roles.includes("admin") && !roles.includes("operador")) {
+        throw new Error("Acesso restrito");
+      }
+    }
+
+    const readViaAuth = async (table: string, select: string): Promise<any[]> => {
+      try {
+        const { data, error } = await context.supabase.from(table as any).select(select);
+        if (error) return [];
+        return Array.isArray(data) ? data : [];
+      } catch {
+        return [];
+      }
+    };
+
+    const [ea, da, ba] = await Promise.all([
+      readViaAuth("banca_entradas", "user_id, valor, odd, resultado"),
+      readViaAuth("banca_depositos", "user_id, valor"),
+      readViaAuth("bilhetes", "user_id"),
+    ]);
+    const [er, dr, br] = base
+      ? await Promise.all([
+          restSelect<any>(base, "banca_entradas", { select: "user_id, valor, odd, resultado" }, "banca_entradas (metrics)"),
+          restSelect<any>(base, "banca_depositos", { select: "user_id, valor" }, "banca_depositos (metrics)"),
+          restSelect<any>(base, "bilhetes", { select: "user_id" }, "bilhetes (metrics)"),
+        ])
+      : [[], [], []];
+
+    const entradas = ea.length >= er.length ? ea : er;
+    const depositos = da.length >= dr.length ? da : dr;
+    const bilhetes = ba.length >= br.length ? ba : br;
+
+    const acc = new Map<
+      string,
+      { deposito: number; apostado: number; retornado: number; lucro: number; bilhetes: number }
+    >();
+    const bucket = (id: string) => {
+      let b = acc.get(id);
+      if (!b) {
+        b = { deposito: 0, apostado: 0, retornado: 0, lucro: 0, bilhetes: 0 };
+        acc.set(id, b);
+      }
+      return b;
+    };
+
+    for (const e of entradas) {
+      if (!e?.user_id) continue;
+      const valor = Number(e.valor) || 0;
+      const odd = Number(e.odd) || 0;
+      const resultado = String(e.resultado ?? "pendente");
+      if (resultado === "pendente") continue;
+      const b = bucket(e.user_id);
+      b.apostado += valor;
+      b.retornado += retornoBanca(valor, odd, resultado);
+    }
+    for (const d of depositos) {
+      if (!d?.user_id) continue;
+      bucket(d.user_id).deposito += Number(d.valor) || 0;
+    }
+    for (const bi of bilhetes) {
+      if (!bi?.user_id) continue;
+      bucket(bi.user_id).bilhetes += 1;
+    }
+
+    const round2 = (n: number) => Math.round(n * 100) / 100;
+    const out: Record<string, ClienteMetric> = {};
+    for (const [id, b] of acc) {
+      const lucro = b.retornado - b.apostado;
+      out[id] = {
+        banca: round2(b.deposito + lucro),
+        roi: b.apostado > 0 ? round2((lucro / b.apostado) * 100) : 0,
+        bilhetes: b.bilhetes,
+      };
+    }
+    return out;
+  });
+
+
 export const updateClienteProfile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
