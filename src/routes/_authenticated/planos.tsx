@@ -96,14 +96,10 @@ function PlanosPage() {
 
   async function pagar(metodo: "pix" | "cartao") {
     if (!checkout) return;
-    if (!cpfValido) {
-      toast.error("Informe um CPF ou CNPJ válido.");
-      return;
-    }
     setCarregando(true);
     try {
       const returnUrl = `${window.location.origin}/?checkout=success`;
-      const result = await asaasCheckout({ data: { plano: checkout, ciclo, returnUrl, metodo, cpf: cpfDigits } });
+      const result = await asaasCheckout({ data: { plano: checkout, ciclo, returnUrl, metodo } });
       if ("error" in result) {
         toast.error(result.error);
         return;
