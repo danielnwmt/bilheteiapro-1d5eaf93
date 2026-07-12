@@ -65,6 +65,7 @@ function HistoricoPage() {
   const qc = useQueryClient();
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState<ResultadoHistorico | "todos">("todos");
+  const [detalhe, setDetalhe] = useState<HistoricoBilhete | null>(null);
 
   const { data, isLoading } = useQuery({ queryKey: ["historico"], queryFn: () => listHistorico() });
 
