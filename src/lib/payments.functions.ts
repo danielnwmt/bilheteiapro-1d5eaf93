@@ -58,14 +58,10 @@ export const createAsaasCheckout = createServerFn({ method: "POST" })
       const precoCentavos = precoCicloCentavos(cfg, data.ciclo);
       if (precoCentavos <= 0) throw new Error("Preço do plano inválido");
 
-      // CPF/CNPJ é obrigatório no Asaas. Usa o informado ou o do cadastro.
-      const cpf = data.cpf || (profile?.cpf ?? "").replace(/\D/g, "");
+      // CPF/CNPJ é obrigatório no Asaas. Usa sempre o do cadastro do cliente.
+      const cpf = (profile?.cpf ?? "").replace(/\D/g, "") || data.cpf;
       if (cpf.length !== 11 && cpf.length !== 14) {
-        throw new Error("Informe um CPF ou CNPJ válido para gerar a cobrança.");
-      }
-      // Persiste o CPF no perfil para os próximos pagamentos.
-      if (cpf && cpf !== (profile?.cpf ?? "").replace(/\D/g, "")) {
-        await supabase.from("profiles").update({ cpf }).eq("id", userId);
+        throw new Error("Cadastro sem CPF/CNPJ. Atualize seu cadastro para gerar a cobrança.");
       }
 
       // externalReference carrega userId|plano|ciclo para liberar o acesso no webhook.
