@@ -1,6 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { criarCobranca, cobrarCartao } from "@/lib/asaas.server";
+import {
+  criarCobranca,
+  cobrarCartao,
+  obterPixQrCode,
+  consultarPagamento,
+} from "@/lib/asaas.server";
 import {
   CICLO_LABEL,
   precoCicloCentavos,
@@ -9,7 +14,18 @@ import {
   type PlanoConfig,
 } from "@/lib/planos";
 
-type CheckoutResult = { url: string } | { error: string };
+type CheckoutResult =
+  | { url: string }
+  | {
+      pix: {
+        paymentId: string;
+        encodedImage: string;
+        payload: string;
+        expirationDate?: string;
+        valorCentavos: number;
+      };
+    }
+  | { error: string };
 
 const CICLOS: Ciclo[] = ["mensal", "semestral", "anual"];
 
