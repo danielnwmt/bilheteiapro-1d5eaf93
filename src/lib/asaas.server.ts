@@ -54,14 +54,28 @@ async function obterCliente(customer: {
   email?: string;
   cpfCnpj?: string;
 }): Promise<string> {
+  const cpfCnpj = (customer.cpfCnpj || "").replace(/\D/g, "") || undefined;
   // Tenta localizar por e-mail para evitar duplicidade.
   if (customer.email) {
     const found = await asaasFetch(
       `/customers?email=${encodeURIComponent(customer.email)}`,
       { method: "GET" },
     );
-    if (Array.isArray(found?.data) && found.data[0]?.id) {
-      return found.data[0].id as string;
+    const existing = Array.isArray(found?.data) ? found.data[0] : null;
+    if (existing?.id) {
+      // Se o cliente já existe mas está sem CPF/CNPJ (ou diferente), atualiza —
+      // sem isso o Asaas recusa a cobrança com "necessário preencher o CPF".
+      const atual = (existing.cpfCnpj || "").replace(/\D/g, "");
+      if (cpfCnpj && atual !== cpfCnpj) {
+        await asaasFetch(`/customers/${existing.id}`, {
+          method: "POST",
+          body: JSON.stringify({
+            name: customer.name || existing.name || "Cliente BilheteIA",
+            cpfCnpj,
+          }),
+        });
+      }
+      return existing.id as string;
     }
   }
   const created = await asaasFetch("/customers", {
