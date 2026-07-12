@@ -14,6 +14,64 @@ import {
   type PlanoConfig,
 } from "@/lib/planos";
 
+const MESES_POR_CICLO: Record<string, number> = { mensal: 1, semestral: 6, anual: 12 };
+
+// Libera/troca o plano do usuário. Grava via REST direto (service role) para
+// funcionar tanto no Lovable Cloud quanto no self-host, onde o supabase-js pode
+// falhar. Faz upsert por user_id, então troca de plano substitui o anterior.
+async function ativarPlano(
+  userId: string,
+  plano: Plano,
+  ciclo: Ciclo,
+  externalId: string,
+): Promise<boolean> {
+  const meses = MESES_POR_CICLO[ciclo] ?? 1;
+  const periodoFim = new Date();
+  periodoFim.setMonth(periodoFim.getMonth() + meses);
+  const row = {
+    user_id: userId,
+    plano,
+    status: "ativo",
+    external_subscription_id: externalId,
+    periodo_fim: periodoFim.toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  const url = process.env.SUPABASE_URL?.replace(/\/$/, "");
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (url && key) {
+    try {
+      const res = await fetch(`${url}/rest/v1/subscriptions?on_conflict=user_id`, {
+        method: "POST",
+        headers: {
+          apikey: key,
+          Authorization: `Bearer ${key}`,
+          "Content-Type": "application/json",
+          Prefer: "resolution=merge-duplicates,return=minimal",
+        },
+        body: JSON.stringify(row),
+      });
+      if (res.ok) return true;
+      console.error("ativarPlano REST falhou:", res.status, await res.text().catch(() => ""));
+    } catch (e) {
+      console.error("ativarPlano REST erro:", e);
+    }
+  }
+
+  // Fallback: supabase-js (Lovable Cloud).
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("subscriptions")
+      .upsert(row as any, { onConflict: "user_id" });
+    if (error) throw error;
+    return true;
+  } catch (e) {
+    console.error("ativarPlano supabase-js falhou:", e);
+    return false;
+  }
+}
+
 type CheckoutResult =
   | { url: string }
   | {
@@ -181,21 +239,11 @@ export const pagarComCartao = createServerFn({ method: "POST" })
       }
 
       // Aprovado: libera o plano imediatamente (o webhook confirma depois também).
-      const mesesPorCiclo: Record<string, number> = { mensal: 1, semestral: 6, anual: 12 };
-      const periodoFim = new Date();
-      periodoFim.setMonth(periodoFim.getMonth() + (mesesPorCiclo[data.ciclo] ?? 1));
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      await supabaseAdmin.from("subscriptions").upsert(
-        {
-          user_id: userId,
-          plano: data.plano as "start" | "pro" | "elite",
-          status: "ativo",
-          external_subscription_id: `asaas_card_${Date.now()}`,
-          periodo_fim: periodoFim.toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id" },
-      );
+      const liberado = await ativarPlano(userId, data.plano, data.ciclo, `asaas_card_${Date.now()}`);
+      if (!liberado) {
+        return { ok: false, error: "Pagamento aprovado, mas houve falha ao liberar o plano. Contate o suporte." };
+      }
+
 
       return { ok: true, status };
     } catch (error) {
@@ -223,24 +271,11 @@ export const checarStatusPix = createServerFn({ method: "POST" })
         const [refUserId, plano, cicloRaw] = String(externalReference).split("|");
         // Só libera se a cobrança for do próprio usuário autenticado.
         if (refUserId === userId && plano) {
-          const ciclo = ["mensal", "semestral", "anual"].includes(cicloRaw) ? cicloRaw : "mensal";
-          const mesesPorCiclo: Record<string, number> = { mensal: 1, semestral: 6, anual: 12 };
-          const periodoFim = new Date();
-          periodoFim.setMonth(periodoFim.getMonth() + (mesesPorCiclo[ciclo] ?? 1));
-          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-          await supabaseAdmin.from("subscriptions").upsert(
-            {
-              user_id: userId,
-              plano: plano as "start" | "pro" | "elite",
-              status: "ativo",
-              external_subscription_id: `asaas_${data.paymentId}`,
-              periodo_fim: periodoFim.toISOString(),
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: "user_id" },
-          );
+          const ciclo = (["mensal", "semestral", "anual"].includes(cicloRaw) ? cicloRaw : "mensal") as Ciclo;
+          await ativarPlano(userId, plano as Plano, ciclo, `asaas_${data.paymentId}`);
         }
       }
+
 
       return { paid, status };
     } catch (error) {
