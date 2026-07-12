@@ -524,9 +524,12 @@ export const enviarResetSenha = createServerFn({ method: "POST" })
     const pass = await cfgGet(base, CFG_SMTP_PASS);
     const from = (await cfgGet(base, CFG_MAIL_FROM)) || user || "";
     const port = Number((await cfgGet(base, CFG_SMTP_PORT)) ?? "587");
+    // SMTP próprio não configurado: não é erro. Sinaliza para o cliente cair no
+    // envio nativo (Supabase Auth), que funciona por padrão na Lovable Cloud.
     if (!host || !user || !pass) {
-      throw new Error("SMTP não configurado. Configure o e-mail em Admin > Backup.");
+      return { ok: true, sent: false, reason: "sem_smtp" as const };
     }
+
 
     // Gera o link de recuperação usando a API admin (service role).
     const genRes = await fetch(`${base.url}/auth/v1/admin/generate_link`, {
@@ -540,12 +543,13 @@ export const enviarResetSenha = createServerFn({ method: "POST" })
     });
     if (!genRes.ok) {
       // Não revela se o e-mail existe; responde ok mesmo assim.
-      return { ok: true };
+      return { ok: true, sent: true };
     }
     const gen = (await genRes.json()) as any;
     const actionLink: string | undefined =
       gen?.action_link ?? gen?.properties?.action_link;
-    if (!actionLink) return { ok: true };
+    if (!actionLink) return { ok: true, sent: true };
+
 
     const nodemailer = (await import("nodemailer")).default;
     const transporter = nodemailer.createTransport({
@@ -572,8 +576,9 @@ export const enviarResetSenha = createServerFn({ method: "POST" })
       text: `Redefina sua senha acessando: ${actionLink}`,
     });
 
-    return { ok: true };
+    return { ok: true, sent: true };
   });
+
 
 
 

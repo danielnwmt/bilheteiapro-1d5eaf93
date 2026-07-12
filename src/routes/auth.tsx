@@ -187,20 +187,31 @@ function AuthPage() {
       return;
     }
     setLoading(true);
+    const redirectTo = `${window.location.origin}/reset-password`;
     try {
-      await doResetSenha({
-        data: {
-          email,
-          redirectTo: `${window.location.origin}/reset-password`,
-        },
-      });
+      // 1) Tenta pelo SMTP próprio (self-host / e-mail configurado em Admin > Backup).
+      const res = await doResetSenha({ data: { email, redirectTo } });
+      // Se o SMTP não estiver configurado, cai no envio nativo (Supabase Auth),
+      // que funciona por padrão na nuvem — assim o reset nunca fica travado.
+      if (res && (res as { sent?: boolean }).sent === false) {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+        if (error) throw error;
+      }
       toast.success("Enviamos um link de redefinição para seu e-mail.");
     } catch {
-      toast.error("Não foi possível enviar o e-mail de redefinição.");
+      // Última tentativa: envio nativo direto.
+      try {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+        if (error) throw error;
+        toast.success("Enviamos um link de redefinição para seu e-mail.");
+      } catch {
+        toast.error("Não foi possível enviar o e-mail de redefinição.");
+      }
     } finally {
       setLoading(false);
     }
   }
+
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
