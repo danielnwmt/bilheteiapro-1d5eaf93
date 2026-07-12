@@ -34,6 +34,7 @@ import { usePlanos } from "@/hooks/usePlanos";
 import { createAsaasCheckout, cancelarAssinatura } from "@/lib/payments.functions";
 import { useAccess } from "@/hooks/useAccess";
 import { CartaoPagamento } from "@/components/CartaoPagamento";
+import { PixPagamento, type PixData } from "@/components/PixPagamento";
 
 export const Route = createFileRoute("/_authenticated/planos")({
   head: () => ({
