@@ -154,6 +154,7 @@ const CAMPEONATOS = [
   "Europa League",
   "Conference League",
   "Copa do Mundo",
+  "Eurocopa",
   "Eredivisie",
   "Primeira Liga (Portugal)",
   "MLS",
