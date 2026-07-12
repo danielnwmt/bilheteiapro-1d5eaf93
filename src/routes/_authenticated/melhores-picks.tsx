@@ -3,10 +3,13 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { getMelhoresPicks, type MelhorPick } from "@/lib/melhores-picks.functions";
 import { addFavorito } from "@/lib/favoritos.functions";
+import { useAccess } from "@/hooks/useAccess";
+import { usePlanos } from "@/hooks/usePlanos";
+import { recursoLiberado } from "@/lib/planos";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Loader2, Flame, Star, TrendingUp, RefreshCw, Trophy, CalendarDays, Target } from "lucide-react";
+import { ArrowLeft, Loader2, Flame, Star, TrendingUp, RefreshCw, Trophy, CalendarDays, Target, Crown } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/melhores-picks")({
@@ -37,9 +40,15 @@ function MelhoresPicksPage() {
   const router = useRouter();
   const [limite] = useState(12);
 
+  const { data: access } = useAccess();
+  const { byPlano } = usePlanos();
+  const planoCfg = access?.plano ? byPlano?.[access.plano] : null;
+  const liberado = !!access?.isStaff || recursoLiberado(planoCfg, "melhoresPicks");
+
   const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: ["melhores-picks", limite],
     queryFn: () => getMelhoresPicks({ data: { limite, minConfianca: 70 } }),
+    enabled: liberado,
   });
 
   const mFav = useMutation({
@@ -57,6 +66,23 @@ function MelhoresPicksPage() {
   });
 
   const picks = data?.picks ?? [];
+
+  if (!liberado) {
+    return (
+      <div className="mx-auto max-w-xl px-4 py-16">
+        <Card className="flex flex-col items-center gap-3 py-12 text-center">
+          <Crown className="h-8 w-8 text-primary" />
+          <h2 className="text-lg font-bold">Melhores Picks bloqueado no seu plano</h2>
+          <p className="max-w-sm text-sm text-muted-foreground">
+            Os Melhores Picks do dia estão disponíveis a partir do plano Pro. Faça upgrade para desbloquear.
+          </p>
+          <Button className="mt-2" onClick={() => router.navigate({ to: "/planos" })}>
+            <Crown className="mr-2 h-4 w-4" /> Ver planos
+          </Button>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6">

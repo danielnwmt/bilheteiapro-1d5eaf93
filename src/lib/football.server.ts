@@ -55,6 +55,11 @@ const LEAGUE_ID_TO_NAME: Record<number, string> = {
   262: "Liga MX",
   128: "Campeonato Argentino",
   98: "J1 League",
+  292: "K League 1",
+  307: "Saudi Pro League",
+  169: "Chinese Super League",
+  188: "A-League",
+  296: "Thai League 1",
   // Estaduais brasileiros (1ª divisão de cada estado)
   475: "Campeonato Paulista",
   624: "Campeonato Carioca",

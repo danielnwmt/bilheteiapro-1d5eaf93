@@ -135,11 +135,16 @@ export const getMelhoresPicks = createServerFn({ method: "POST" })
       }
       const { data: cfg } = await supabaseAdmin
         .from("plano_config")
-        .select("ligas")
+        .select("ligas, recursos")
         .eq("plano", plano)
         .maybeSingle();
+      const recursos = (cfg?.recursos ?? {}) as Record<string, boolean>;
+      if (!recursos.melhoresPicks) {
+        throw new Error("Os Melhores Picks estão disponíveis a partir do plano Pro.");
+      }
       ligasLiberadas = Array.isArray(cfg?.ligas) ? (cfg!.ligas as string[]) : [];
     }
+
 
     const now = new Date();
     const from = now.getTime();

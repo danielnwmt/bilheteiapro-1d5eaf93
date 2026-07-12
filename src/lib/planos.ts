@@ -15,17 +15,19 @@ export type Recurso =
   | "estatisticasAvancadas"
   | "tempoReal"
   | "alertasInteligentes"
+  | "melhoresPicks"
   | "suportePrioritario";
 
 // Lista-mestra de recursos (rótulos para a tela de configurações e o comparativo).
 export const RECURSO_LABELS: { key: Recurso; label: string }[] = [
   { key: "bilhetesIlimitados", label: "Bilhetes ilimitados" },
   { key: "oddPersonalizada", label: "Odd personalizada" },
-  { key: "planilhaBanca", label: "Planilha de Gestão de Banca" },
+  { key: "planilhaBanca", label: "Gestão de banca completa" },
   { key: "favoritos", label: "Favoritos" },
   { key: "estatisticasAvancadas", label: "Estatísticas avançadas" },
   { key: "tempoReal", label: "Atualização em tempo real" },
   { key: "alertasInteligentes", label: "Alertas inteligentes" },
+  { key: "melhoresPicks", label: "Melhores Picks" },
   { key: "suportePrioritario", label: "Suporte prioritário" },
 ];
 
@@ -53,6 +55,12 @@ export const TODAS_LIGAS: string[] = [
   "Liga MX",
   "Campeonato Argentino",
   "J1 League",
+  "K League 1",
+  "Saudi Pro League",
+  "Chinese Super League",
+  "A-League",
+  "Thai League 1",
+
   "Campeonato Paulista",
   "Campeonato Carioca",
   "Campeonato Mineiro",
