@@ -182,7 +182,7 @@ function PlanosPage() {
           <CartaoPagamento
             plano={checkout}
             ciclo={ciclo}
-            cpf={cpfDigits}
+            
             precoCentavos={precoCicloCentavos(checkoutCfg, ciclo)}
             precoLabel={formatarReais(precoCicloCentavos(checkoutCfg, ciclo))}
             onSucesso={() => router.navigate({ to: "/" })}
