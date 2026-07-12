@@ -524,9 +524,12 @@ export const enviarResetSenha = createServerFn({ method: "POST" })
     const pass = await cfgGet(base, CFG_SMTP_PASS);
     const from = (await cfgGet(base, CFG_MAIL_FROM)) || user || "";
     const port = Number((await cfgGet(base, CFG_SMTP_PORT)) ?? "587");
+    // SMTP próprio não configurado: não é erro. Sinaliza para o cliente cair no
+    // envio nativo (Supabase Auth), que funciona por padrão na Lovable Cloud.
     if (!host || !user || !pass) {
-      throw new Error("SMTP não configurado. Configure o e-mail em Admin > Backup.");
+      return { ok: true, sent: false, reason: "sem_smtp" as const };
     }
+
 
     // Gera o link de recuperação usando a API admin (service role).
     const genRes = await fetch(`${base.url}/auth/v1/admin/generate_link`, {
