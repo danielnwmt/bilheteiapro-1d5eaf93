@@ -40,9 +40,15 @@ function MelhoresPicksPage() {
   const router = useRouter();
   const [limite] = useState(12);
 
+  const { data: access } = useAccess();
+  const { byPlano } = usePlanos();
+  const planoCfg = access?.plano ? byPlano?.[access.plano] : null;
+  const liberado = !!access?.isStaff || recursoLiberado(planoCfg, "melhoresPicks");
+
   const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: ["melhores-picks", limite],
     queryFn: () => getMelhoresPicks({ data: { limite, minConfianca: 70 } }),
+    enabled: liberado,
   });
 
   const mFav = useMutation({
