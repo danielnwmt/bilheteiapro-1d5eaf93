@@ -103,6 +103,10 @@ function PlanosPage() {
         toast.error(result.error);
         return;
       }
+      if ("pix" in result) {
+        setPixData(result.pix);
+        return;
+      }
       window.location.href = result.url;
     } catch (e: any) {
       toast.error(e?.message ?? "Não foi possível iniciar o pagamento");
