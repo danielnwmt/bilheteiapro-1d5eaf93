@@ -67,6 +67,23 @@ function MelhoresPicksPage() {
 
   const picks = data?.picks ?? [];
 
+  if (!liberado) {
+    return (
+      <div className="mx-auto max-w-xl px-4 py-16">
+        <Card className="flex flex-col items-center gap-3 py-12 text-center">
+          <Crown className="h-8 w-8 text-primary" />
+          <h2 className="text-lg font-bold">Melhores Picks bloqueado no seu plano</h2>
+          <p className="max-w-sm text-sm text-muted-foreground">
+            Os Melhores Picks do dia estão disponíveis a partir do plano Pro. Faça upgrade para desbloquear.
+          </p>
+          <Button className="mt-2" onClick={() => router.navigate({ to: "/planos" })}>
+            <Crown className="mr-2 h-4 w-4" /> Ver planos
+          </Button>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-6">
       <div className="mb-6 flex items-center justify-between gap-3">
