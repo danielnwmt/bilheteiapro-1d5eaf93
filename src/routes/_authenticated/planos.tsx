@@ -4,8 +4,6 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
@@ -65,9 +63,6 @@ function PlanosPage() {
   const [carregando, setCarregando] = useState(false);
   const [ciclo, setCiclo] = useState<Ciclo>("mensal");
   const [telaCartao, setTelaCartao] = useState(false);
-  const [cpf, setCpf] = useState("");
-  const cpfDigits = cpf.replace(/\D/g, "");
-  const cpfValido = cpfDigits.length === 11 || cpfDigits.length === 14;
 
   const asaasCheckout = useServerFn(createAsaasCheckout);
   const cancelar = useServerFn(cancelarAssinatura);
@@ -99,14 +94,10 @@ function PlanosPage() {
 
   async function pagar(metodo: "pix" | "cartao") {
     if (!checkout) return;
-    if (!cpfValido) {
-      toast.error("Informe um CPF ou CNPJ válido.");
-      return;
-    }
     setCarregando(true);
     try {
       const returnUrl = `${window.location.origin}/?checkout=success`;
-      const result = await asaasCheckout({ data: { plano: checkout, ciclo, returnUrl, metodo, cpf: cpfDigits } });
+      const result = await asaasCheckout({ data: { plano: checkout, ciclo, returnUrl, metodo } });
       if ("error" in result) {
         toast.error(result.error);
         return;
@@ -189,7 +180,7 @@ function PlanosPage() {
           <CartaoPagamento
             plano={checkout}
             ciclo={ciclo}
-            cpf={cpfDigits}
+            
             precoCentavos={precoCicloCentavos(checkoutCfg, ciclo)}
             precoLabel={formatarReais(precoCicloCentavos(checkoutCfg, ciclo))}
             onSucesso={() => router.navigate({ to: "/" })}
@@ -220,26 +211,14 @@ function PlanosPage() {
                 )}
               </p>
             )}
-            <div className="mt-4 mb-3 space-y-1.5">
-              <Label htmlFor="cpf-checkout" className="text-sm text-muted-foreground">
-                CPF ou CNPJ do titular
-              </Label>
-              <Input
-                id="cpf-checkout"
-                inputMode="numeric"
-                placeholder="000.000.000-00"
-                value={cpf}
-                onChange={(e) => setCpf(e.target.value)}
-              />
-            </div>
-            <p className="mb-3 text-sm text-muted-foreground">
+            <p className="mb-3 mt-4 text-sm text-muted-foreground">
               Escolha a forma de pagamento.
             </p>
             <div className="space-y-3">
 
               <Button
                 className="w-full font-semibold"
-                disabled={carregando || !cpfValido}
+                disabled={carregando}
                 onClick={() => pagar("pix")}
               >
                 {carregando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -248,7 +227,7 @@ function PlanosPage() {
               <Button
                 variant="outline"
                 className="w-full font-semibold"
-                disabled={carregando || !cpfValido}
+                disabled={carregando}
                 onClick={() => setTelaCartao(true)}
               >
                 Crédito / Débito
