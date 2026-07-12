@@ -579,6 +579,7 @@ export const getMyAccess = createServerFn({ method: "GET" })
       isStaff,
       plano,
       status: isStaff ? "ativo" : sub?.status ?? null,
+      periodoFim: isStaff ? null : sub?.periodo_fim ?? null,
     };
   });
 
