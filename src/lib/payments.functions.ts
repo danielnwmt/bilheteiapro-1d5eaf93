@@ -293,10 +293,34 @@ export const cancelarAssinatura = createServerFn({ method: "POST" })
   .handler(async ({ context }): Promise<CancelarResult> => {
     try {
       const { userId } = context;
+      const patch = { status: "cancelado", updated_at: new Date().toISOString() };
+
+      // Grava via REST direto (service role) para funcionar no self-host,
+      // onde o supabase-js pode falhar. Fallback para supabase-js no Cloud.
+      const url = process.env.SUPABASE_URL?.replace(/\/$/, "");
+      const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (url && key) {
+        const res = await fetch(
+          `${url}/rest/v1/subscriptions?user_id=eq.${userId}`,
+          {
+            method: "PATCH",
+            headers: {
+              apikey: key,
+              Authorization: `Bearer ${key}`,
+              "Content-Type": "application/json",
+              Prefer: "return=minimal",
+            },
+            body: JSON.stringify(patch),
+          },
+        );
+        if (res.ok) return { ok: true };
+        console.error("cancelarAssinatura REST falhou:", res.status, await res.text().catch(() => ""));
+      }
+
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { error } = await supabaseAdmin
         .from("subscriptions")
-        .update({ status: "cancelado", updated_at: new Date().toISOString() })
+        .update(patch)
         .eq("user_id", userId);
       if (error) throw error;
       return { ok: true };

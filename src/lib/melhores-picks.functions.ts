@@ -127,7 +127,7 @@ export const getMelhoresPicks = createServerFn({ method: "POST" })
         .limit(1)
         .maybeSingle();
       const ativo =
-        (sub?.status === "ativo" || sub?.status === "cortesia") &&
+        (sub?.status === "ativo" || sub?.status === "cortesia" || sub?.status === "cancelado") &&
         (!sub?.periodo_fim || new Date(sub.periodo_fim) > new Date());
       const plano: Plano | null = ativo ? (sub!.plano as Plano) : null;
       if (!plano) {
