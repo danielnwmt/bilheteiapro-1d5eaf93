@@ -204,6 +204,24 @@ export const pagarComCartao = createServerFn({ method: "POST" })
   });
 
 
+// ============ CHECAR STATUS DO PIX ============
+type StatusResult = { paid: boolean; status: string } | { error: string };
+
+export const checarStatusPix = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { paymentId: string }) => {
+    if (!data?.paymentId) throw new Error("Cobrança inválida");
+    return { paymentId: data.paymentId };
+  })
+  .handler(async ({ data }): Promise<StatusResult> => {
+    try {
+      const { paid, status } = await consultarPagamento(data.paymentId);
+      return { paid, status };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Falha ao consultar" };
+    }
+  });
+
 
 // ============ CANCELAR ASSINATURA ============
 type CancelarResult = { ok: true } | { ok: false; error: string };
