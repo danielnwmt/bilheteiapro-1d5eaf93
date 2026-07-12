@@ -543,12 +543,13 @@ export const enviarResetSenha = createServerFn({ method: "POST" })
     });
     if (!genRes.ok) {
       // Não revela se o e-mail existe; responde ok mesmo assim.
-      return { ok: true };
+      return { ok: true, sent: true };
     }
     const gen = (await genRes.json()) as any;
     const actionLink: string | undefined =
       gen?.action_link ?? gen?.properties?.action_link;
-    if (!actionLink) return { ok: true };
+    if (!actionLink) return { ok: true, sent: true };
+
 
     const nodemailer = (await import("nodemailer")).default;
     const transporter = nodemailer.createTransport({
