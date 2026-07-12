@@ -10,6 +10,8 @@ import { toast } from "sonner";
 import logo from "@/assets/bilheteia-logo.png";
 import { checkEmailExists } from "@/lib/auth-check.functions";
 import { bootstrapDefaultAdmin, ensureAdmin } from "@/lib/admin-bootstrap.functions";
+import { enviarResetSenha } from "@/lib/backup.functions";
+import { useServerFn } from "@tanstack/react-start";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
