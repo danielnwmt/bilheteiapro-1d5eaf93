@@ -97,6 +97,15 @@ function UsuariosPage() {
     staleTime: 60_000,
   });
 
+  const { data: metrics } = useQuery({
+    queryKey: ["clientes-metrics"],
+    queryFn: () => fetchMetrics().catch(() => ({})),
+    placeholderData: {},
+    staleTime: 60_000,
+  });
+
+
+
   useEffect(() => {
     let active = true;
     supabase.auth.getSession().then(({ data }) => {
