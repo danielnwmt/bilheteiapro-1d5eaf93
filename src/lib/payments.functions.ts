@@ -271,24 +271,11 @@ export const checarStatusPix = createServerFn({ method: "POST" })
         const [refUserId, plano, cicloRaw] = String(externalReference).split("|");
         // Só libera se a cobrança for do próprio usuário autenticado.
         if (refUserId === userId && plano) {
-          const ciclo = ["mensal", "semestral", "anual"].includes(cicloRaw) ? cicloRaw : "mensal";
-          const mesesPorCiclo: Record<string, number> = { mensal: 1, semestral: 6, anual: 12 };
-          const periodoFim = new Date();
-          periodoFim.setMonth(periodoFim.getMonth() + (mesesPorCiclo[ciclo] ?? 1));
-          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-          await supabaseAdmin.from("subscriptions").upsert(
-            {
-              user_id: userId,
-              plano: plano as "start" | "pro" | "elite",
-              status: "ativo",
-              external_subscription_id: `asaas_${data.paymentId}`,
-              periodo_fim: periodoFim.toISOString(),
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: "user_id" },
-          );
+          const ciclo = (["mensal", "semestral", "anual"].includes(cicloRaw) ? cicloRaw : "mensal") as Ciclo;
+          await ativarPlano(userId, plano as Plano, ciclo, `asaas_${data.paymentId}`);
         }
       }
+
 
       return { paid, status };
     } catch (error) {
