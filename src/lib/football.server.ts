@@ -153,8 +153,10 @@ async function throttleFootball(): Promise<void> {
 export const DAILY_LIMIT_REACHED = "API-Football: limite diário atingido";
 
 // Fetch da API-Football com throttle global + backoff exponencial quando o
-// plano responde "Too many requests" (status 429 ou erro no corpo).
-async function apiFootballFetch(url: string, key: string, tentativas = 4): Promise<Response> {
+// plano responde "Too many requests" (status 429, cabeçalho Retry-After ou
+// erro de rate limit no corpo — inclusive o formato {rateLimit: "..."} que a
+// API devolve com status 200).
+async function apiFootballFetch(url: string, key: string, tentativas = 6): Promise<Response> {
   for (let i = 0; i < tentativas; i++) {
     await throttleFootball();
     await registrarChamada("API_FOOTBALL_KEY");
@@ -164,9 +166,20 @@ async function apiFootballFetch(url: string, key: string, tentativas = 4): Promi
     if (/daily|per day|requests allowed for your/i.test(corpo)) {
       throw new Error(DAILY_LIMIT_REACHED);
     }
-    const rateLimited = res.status === 429 || /too many requests|rate ?limit/i.test(corpo);
+    // Rate limit por minuto: status 429, cabeçalho Retry-After, ou o corpo
+    // contendo "too many requests" / "rateLimit" (a API costuma responder 200
+    // com {"errors":{"rateLimit":"Too many requests..."}}).
+    const rateLimited =
+      res.status === 429 ||
+      Boolean(res.headers.get("retry-after")) ||
+      /too many requests|rate ?limit/i.test(corpo);
     if (rateLimited && i < tentativas - 1) {
-      const backoff = 6000 * (i + 1);
+      // Respeita Retry-After (segundos) quando presente; senão backoff
+      // exponencial começando em ~8s (8s, 16s, 24s...).
+      const retryAfter = Number(res.headers.get("retry-after"));
+      const backoff = Number.isFinite(retryAfter) && retryAfter > 0
+        ? retryAfter * 1000
+        : 8000 * (i + 1);
       console.warn(`API-Football rate limit. Aguardando ${backoff}ms antes de tentar novamente...`);
       await sleep(backoff);
       continue;
@@ -175,6 +188,7 @@ async function apiFootballFetch(url: string, key: string, tentativas = 4): Promi
   }
   throw new Error("API-Football: limite de requisições excedido após múltiplas tentativas");
 }
+
 
 const STATUS_MAP: Record<string, string> = {
   NS: "agendado",
