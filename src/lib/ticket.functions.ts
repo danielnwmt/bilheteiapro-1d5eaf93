@@ -739,6 +739,32 @@ export const gerarBilhete = createServerFn({ method: "POST" })
           deep_link: p.deepLink ?? null,
         }));
       if (toInsert.length) await supabaseAdmin.from("palpites").insert(toInsert);
+
+      // Também registra no histórico do cliente (best-effort).
+      try {
+        const jogos = picks.map((p) => p.jogo).join(" | ");
+        const mercados = picks.map((p) => `${p.mercado}: ${p.selecao}`).join(" | ");
+        await supabaseAdmin.from("historico_bilhetes").insert({
+          user_id: context.userId,
+          jogos,
+          mercados,
+          odds_detalhe: picks.map((p) => ({
+            jogo: p.jogo,
+            mercado: p.mercado,
+            selecao: p.selecao,
+            odd: p.oddEstimada,
+          })),
+          odd_total: oddTotal,
+          tipo: "padrao",
+          stake: 0,
+          retorno: 0,
+          resultado: "pendente",
+          observacoes,
+          bilhete_id: bilheteRow!.id,
+        });
+      } catch (e) {
+        console.error("Falha ao salvar no histórico", e);
+      }
     } catch (e) {
       console.error("Falha ao salvar bilhete", e);
     }
