@@ -558,9 +558,14 @@ export const getMyAccess = createServerFn({ method: "GET" })
     const isStaff = isAdmin || roles.includes("operador");
     if (isAdmin && !roles.includes("admin")) roles = [...roles, "admin"];
 
+    // "cancelado" mantém o acesso até o fim do período já pago (ex.: 30 dias).
+    // O bloqueio só acontece quando periodo_fim vence.
+    const dentroDoPeriodo = !sub?.periodo_fim || new Date(sub.periodo_fim) > new Date();
     const ativo =
-      (sub?.status === "ativo" || sub?.status === "cortesia") &&
-      (!sub?.periodo_fim || new Date(sub.periodo_fim) > new Date());
+      (sub?.status === "ativo" ||
+        sub?.status === "cortesia" ||
+        sub?.status === "cancelado") &&
+      dentroDoPeriodo;
 
     const plano: "start" | "pro" | "elite" | null = isStaff
       ? "elite"
