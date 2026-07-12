@@ -49,6 +49,7 @@ const LEAGUE_ID_TO_NAME: Record<number, string> = {
   3: "Europa League",
   848: "Conference League",
   1: "Copa do Mundo",
+  4: "Eurocopa",
   88: "Eredivisie",
   94: "Primeira Liga (Portugal)",
   253: "MLS",
@@ -1031,6 +1032,7 @@ const LEAGUE_NAME_TO_ODDS_SPORT: Record<string, string> = {
   Libertadores: "soccer_conmebol_copa_libertadores",
   "Sul-Americana": "soccer_conmebol_copa_sudamericana",
   "Copa do Mundo": "soccer_fifa_world_cup",
+  Eurocopa: "soccer_uefa_european_championship",
 };
 
 // Casas exibidas no app. A The Odds API usa keys/títulos próprios (ex.:
