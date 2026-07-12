@@ -222,9 +222,9 @@ export async function cobrarCartao(
 // Consulta o status de uma cobrança no Asaas.
 export async function consultarPagamento(
   paymentId: string,
-): Promise<{ paid: boolean; status: string }> {
+): Promise<{ paid: boolean; status: string; externalReference: string }> {
   const payment = await asaasFetch(`/payments/${paymentId}`, { method: "GET" });
   const status: string = payment?.status ?? "";
   const paid = ["RECEIVED", "CONFIRMED", "RECEIVED_IN_CASH"].includes(status);
-  return { paid, status };
+  return { paid, status, externalReference: payment?.externalReference ?? "" };
 }
