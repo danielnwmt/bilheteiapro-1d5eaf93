@@ -239,21 +239,11 @@ export const pagarComCartao = createServerFn({ method: "POST" })
       }
 
       // Aprovado: libera o plano imediatamente (o webhook confirma depois também).
-      const mesesPorCiclo: Record<string, number> = { mensal: 1, semestral: 6, anual: 12 };
-      const periodoFim = new Date();
-      periodoFim.setMonth(periodoFim.getMonth() + (mesesPorCiclo[data.ciclo] ?? 1));
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      await supabaseAdmin.from("subscriptions").upsert(
-        {
-          user_id: userId,
-          plano: data.plano as "start" | "pro" | "elite",
-          status: "ativo",
-          external_subscription_id: `asaas_card_${Date.now()}`,
-          periodo_fim: periodoFim.toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id" },
-      );
+      const liberado = await ativarPlano(userId, data.plano, data.ciclo, `asaas_card_${Date.now()}`);
+      if (!liberado) {
+        return { ok: false, error: "Pagamento aprovado, mas houve falha ao liberar o plano. Contate o suporte." };
+      }
+
 
       return { ok: true, status };
     } catch (error) {
