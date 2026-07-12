@@ -24,8 +24,12 @@ function emailFromClaims(claims: unknown): string {
 function planoAtivo(
   sub: { status?: string | null; periodo_fim?: string | null } | null | undefined,
 ) {
+  // "cancelado" continua liberado até o fim do período já pago (ex.: 30 dias);
+  // o bloqueio só ocorre quando periodo_fim vence.
   return (
-    (sub?.status === "ativo" || sub?.status === "cortesia") &&
+    (sub?.status === "ativo" ||
+      sub?.status === "cortesia" ||
+      sub?.status === "cancelado") &&
     (!sub?.periodo_fim || new Date(sub.periodo_fim) > new Date())
   );
 }
