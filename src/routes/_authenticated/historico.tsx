@@ -28,7 +28,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowLeft, Loader2, Search, Download, Copy, Trash2, History as HistoryIcon } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ArrowLeft, Loader2, Search, Download, Copy, Trash2, Eye, History as HistoryIcon } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/historico")({
@@ -59,6 +65,7 @@ function HistoricoPage() {
   const qc = useQueryClient();
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState<ResultadoHistorico | "todos">("todos");
+  const [detalhe, setDetalhe] = useState<HistoricoBilhete | null>(null);
 
   const { data, isLoading } = useQuery({ queryKey: ["historico"], queryFn: () => listHistorico() });
 
@@ -224,6 +231,9 @@ function HistoricoPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDetalhe(h)} title="Visualizar">
+                        <Eye className="h-4 w-4" />
+                      </Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => mDuplicar.mutate(h.id)} title="Duplicar">
                         <Copy className="h-4 w-4" />
                       </Button>
@@ -238,6 +248,64 @@ function HistoricoPage() {
           </Table>
         </Card>
       )}
+
+      <Dialog open={!!detalhe} onOpenChange={(o) => !o && setDetalhe(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Detalhes do bilhete</DialogTitle>
+          </DialogHeader>
+          {detalhe && (
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <span className="text-muted-foreground">{detalhe.data_evento}</span>
+                {badge(detalhe.resultado)}
+                <Badge variant="outline" className="capitalize">{detalhe.tipo}</Badge>
+                {detalhe.casa && <Badge variant="secondary">{detalhe.casa}</Badge>}
+              </div>
+
+              {detalhe.odds_detalhe.length > 0 ? (
+                <div className="divide-y rounded-lg border">
+                  {detalhe.odds_detalhe.map((p, i) => (
+                    <div key={i} className="flex items-start justify-between gap-3 p-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{p.jogo}</p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {p.mercado} — {p.selecao}
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-sm font-semibold">{Number(p.odd).toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-lg border p-3 text-sm">
+                  <p className="font-medium">{detalhe.jogos || "—"}</p>
+                  <p className="text-xs text-muted-foreground">{detalhe.mercados}</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="rounded-lg bg-muted/50 p-2">
+                  <p className="text-xs text-muted-foreground">Odd total</p>
+                  <p className="text-sm font-bold">{detalhe.odd_total.toFixed(2)}</p>
+                </div>
+                <div className="rounded-lg bg-muted/50 p-2">
+                  <p className="text-xs text-muted-foreground">Stake</p>
+                  <p className="text-sm font-bold">{brl(detalhe.stake)}</p>
+                </div>
+                <div className="rounded-lg bg-muted/50 p-2">
+                  <p className="text-xs text-muted-foreground">Retorno</p>
+                  <p className="text-sm font-bold">{brl(detalhe.retorno)}</p>
+                </div>
+              </div>
+
+              {detalhe.observacoes && (
+                <p className="rounded-lg border p-3 text-sm text-muted-foreground">{detalhe.observacoes}</p>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
