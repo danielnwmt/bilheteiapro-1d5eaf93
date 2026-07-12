@@ -699,8 +699,8 @@ function UsuariosPage() {
                                           {m ? `R$ ${m.banca.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : <span className="text-muted-foreground">—</span>}
                                         </td>
                                         <td className="px-4 py-3">
-                                          {m && m.bilhetes > 0 ? (
-                                            <span className={cn(m.roi > 0 ? "text-emerald-500" : m.roi < 0 ? "text-red-500" : "")}>
+                                          {m && m.roi !== 0 ? (
+                                            <span className={cn(m.roi > 0 ? "text-emerald-500" : "text-red-500")}>
                                               {m.roi > 0 ? "+" : ""}{m.roi.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
                                             </span>
                                           ) : (
