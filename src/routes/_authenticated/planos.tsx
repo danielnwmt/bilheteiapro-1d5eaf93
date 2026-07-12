@@ -63,6 +63,7 @@ function PlanosPage() {
   const [carregando, setCarregando] = useState(false);
   const [ciclo, setCiclo] = useState<Ciclo>("mensal");
   const [telaCartao, setTelaCartao] = useState(false);
+  const [pixData, setPixData] = useState<PixData | null>(null);
 
   const asaasCheckout = useServerFn(createAsaasCheckout);
   const cancelar = useServerFn(cancelarAssinatura);
