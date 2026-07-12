@@ -129,6 +129,7 @@ function UsuariosPage() {
       toast.success("Cliente atualizado");
       setOpenId(null);
       qc.invalidateQueries({ queryKey: ["clientes"] });
+      qc.invalidateQueries({ queryKey: ["clientes-metrics"] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar"),
   });
@@ -145,6 +146,7 @@ function UsuariosPage() {
     onSuccess: () => {
       toast.success("Cadastro atualizado");
       qc.invalidateQueries({ queryKey: ["clientes"] });
+      qc.invalidateQueries({ queryKey: ["clientes-metrics"] });
     },
     onError: (e: any) => toast.error(e?.message ?? "Erro ao salvar cadastro"),
   });
@@ -178,6 +180,7 @@ function UsuariosPage() {
       setShowNovo(false);
       setNovo({ nome: "", email: "", senha: "", cpf: "", telefone: "", data_nascimento: "", plano: "start", status: "ativo" });
       qc.invalidateQueries({ queryKey: ["clientes"] });
+      qc.invalidateQueries({ queryKey: ["clientes-metrics"] });
     },
     onError: (e: any) => toast.error(traduzErro(e, "Erro ao criar usuário")),
   });
