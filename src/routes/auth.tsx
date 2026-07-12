@@ -188,10 +188,12 @@ function AuthPage() {
     }
     setLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+      await doResetSenha({
+        data: {
+          email,
+          redirectTo: `${window.location.origin}/reset-password`,
+        },
       });
-      if (error) throw error;
       toast.success("Enviamos um link de redefinição para seu e-mail.");
     } catch {
       toast.error("Não foi possível enviar o e-mail de redefinição.");
