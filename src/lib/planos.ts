@@ -47,6 +47,12 @@ export const TODAS_LIGAS: string[] = [
   "Europa League",
   "Conference League",
   "Copa do Mundo",
+  "Eredivisie",
+  "Primeira Liga (Portugal)",
+  "MLS",
+  "Liga MX",
+  "Campeonato Argentino",
+  "J1 League",
 ];
 
 export type PlanoConfig = {
