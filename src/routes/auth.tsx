@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import logo from "@/assets/bilheteia-logo.png";
 import { checkEmailExists } from "@/lib/auth-check.functions";
@@ -32,6 +32,7 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showSenha, setShowSenha] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -277,14 +278,24 @@ function AuthPage() {
             </div>
             <div>
               <Label htmlFor="senha" className="mb-2 block text-sm">Senha</Label>
-              <Input
-                id="senha"
-                type="password"
-                autoComplete={mode === "login" ? "current-password" : "new-password"}
-                value={senha}
-                onChange={(e) => setSenha(e.target.value)}
-                className="bg-input/40"
-              />
+              <div className="relative">
+                <Input
+                  id="senha"
+                  type={showSenha ? "text" : "password"}
+                  autoComplete={mode === "login" ? "current-password" : "new-password"}
+                  value={senha}
+                  onChange={(e) => setSenha(e.target.value)}
+                  className="bg-input/40 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowSenha((v) => !v)}
+                  aria-label={showSenha ? "Ocultar senha" : "Mostrar senha"}
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground"
+                >
+                  {showSenha ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
             <Button type="submit" disabled={loading} size="lg" className="w-full font-semibold">
               {loading ? (
