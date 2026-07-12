@@ -30,6 +30,7 @@ function UsuariosPage() {
   const salvarPerfil = useServerFn(updateClienteProfile);
   const salvarSenha = useServerFn(setClientePassword);
   const criarCliente = useServerFn(createCliente);
+  const fetchMetrics = useServerFn(getClientesMetrics);
   const [edit, setEdit] = useState<Record<string, { plano: Plano; status: "ativo" | "inativo" | "cortesia"; periodo_fim: string }>>({});
   const [perfil, setPerfil] = useState<
     Record<string, { nome: string; email: string; cpf: string; telefone: string; data_nascimento: string }>
