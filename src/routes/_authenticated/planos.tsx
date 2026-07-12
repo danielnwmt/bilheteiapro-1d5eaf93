@@ -65,9 +65,6 @@ function PlanosPage() {
   const [carregando, setCarregando] = useState(false);
   const [ciclo, setCiclo] = useState<Ciclo>("mensal");
   const [telaCartao, setTelaCartao] = useState(false);
-  const [cpf, setCpf] = useState("");
-  const cpfDigits = cpf.replace(/\D/g, "");
-  const cpfValido = cpfDigits.length === 11 || cpfDigits.length === 14;
 
   const asaasCheckout = useServerFn(createAsaasCheckout);
   const cancelar = useServerFn(cancelarAssinatura);
