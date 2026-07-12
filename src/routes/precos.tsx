@@ -39,9 +39,10 @@ type PlanoView = {
 
 const PLANOS: PlanoView[] = [
   {
-    nome: "Start",
+    nome: "BilheteIA Start",
     preco: "R$ 29,90",
-    descricao: "Para começar a apostar com estatística.",
+    descricao:
+      "Os principais campeonatos brasileiros com análises estatísticas e bilhetes inteligentes.",
     recursos: [
       "Bilhetes inteligentes",
       "Principais campeonatos nacionais",
@@ -50,10 +51,11 @@ const PLANOS: PlanoView[] = [
     ],
   },
   {
-    nome: "Pro",
+    nome: "BilheteIA Pro",
     preco: "R$ 49,90",
     destaque: true,
-    descricao: "O mais escolhido por quem aposta com frequência.",
+    descricao:
+      "Acesso às principais ligas do mundo, Melhores Picks e recursos completos de gestão.",
     recursos: [
       "Tudo do Start",
       "Mais campeonatos (internacionais)",
@@ -63,9 +65,10 @@ const PLANOS: PlanoView[] = [
     ],
   },
   {
-    nome: "Elite",
+    nome: "BilheteIA Elite",
     preco: "R$ 79,90",
-    descricao: "Para quem quer o máximo de recursos e cobertura.",
+    descricao:
+      "Todos os campeonatos disponíveis, recursos exclusivos e suporte prioritário.",
     recursos: [
       "Tudo do Pro",
       "Todos os campeonatos",
