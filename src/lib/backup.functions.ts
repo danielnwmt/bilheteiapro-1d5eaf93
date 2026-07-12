@@ -507,6 +507,77 @@ export const backupToEmail = createServerFn({ method: "POST" })
     return performEmailBackup(base);
   });
 
+// ============================================================================
+// Redefinição de senha via SMTP configurado (usa o mesmo e-mail do backup).
+// Público: chamado pela tela de login quando o cliente clica "Esqueci a senha".
+// Gera o link de recuperação (admin) e envia pelo servidor SMTP cadastrado.
+// ============================================================================
+export const enviarResetSenha = createServerFn({ method: "POST" })
+  .inputValidator((d: { email: string; redirectTo: string }) => d)
+  .handler(async ({ data }) => {
+    const email = normalizeEmail(data.email);
+    if (!email) throw new Error("Informe um e-mail válido.");
+    const base = restBase();
+
+    const host = await cfgGet(base, CFG_SMTP_HOST);
+    const user = await cfgGet(base, CFG_SMTP_USER);
+    const pass = await cfgGet(base, CFG_SMTP_PASS);
+    const from = (await cfgGet(base, CFG_MAIL_FROM)) || user || "";
+    const port = Number((await cfgGet(base, CFG_SMTP_PORT)) ?? "587");
+    if (!host || !user || !pass) {
+      throw new Error("SMTP não configurado. Configure o e-mail em Admin > Backup.");
+    }
+
+    // Gera o link de recuperação usando a API admin (service role).
+    const genRes = await fetch(`${base.url}/auth/v1/admin/generate_link`, {
+      method: "POST",
+      headers: { ...authHeaders(base.key), "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "recovery",
+        email,
+        options: { redirect_to: data.redirectTo },
+      }),
+    });
+    if (!genRes.ok) {
+      // Não revela se o e-mail existe; responde ok mesmo assim.
+      return { ok: true };
+    }
+    const gen = (await genRes.json()) as any;
+    const actionLink: string | undefined =
+      gen?.action_link ?? gen?.properties?.action_link;
+    if (!actionLink) return { ok: true };
+
+    const nodemailer = (await import("nodemailer")).default;
+    const transporter = nodemailer.createTransport({
+      host,
+      port,
+      secure: port === 465,
+      auth: { user, pass },
+    });
+
+    await transporter.sendMail({
+      from,
+      to: email,
+      subject: "Redefinição de senha — BilheteIA PRO",
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;color:#111">
+          <h2>Redefinir sua senha</h2>
+          <p>Recebemos um pedido para redefinir a senha da sua conta BilheteIA PRO.</p>
+          <p>Clique no botão abaixo para criar uma nova senha:</p>
+          <p style="text-align:center;margin:28px 0">
+            <a href="${actionLink}" style="background:#22c55e;color:#000;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold">Redefinir senha</a>
+          </p>
+          <p style="font-size:12px;color:#666">Se você não solicitou, ignore este e-mail.</p>
+        </div>`,
+      text: `Redefina sua senha acessando: ${actionLink}`,
+    });
+
+    return { ok: true };
+  });
+
+
+
+
 
 
 // ============================================================================
