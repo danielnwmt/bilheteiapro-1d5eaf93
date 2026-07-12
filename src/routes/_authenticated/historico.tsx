@@ -231,6 +231,9 @@ function HistoricoPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDetalhe(h)} title="Visualizar">
+                        <Eye className="h-4 w-4" />
+                      </Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => mDuplicar.mutate(h.id)} title="Duplicar">
                         <Copy className="h-4 w-4" />
                       </Button>
