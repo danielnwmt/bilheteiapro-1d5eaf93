@@ -278,14 +278,24 @@ function AuthPage() {
             </div>
             <div>
               <Label htmlFor="senha" className="mb-2 block text-sm">Senha</Label>
-              <Input
-                id="senha"
-                type="password"
-                autoComplete={mode === "login" ? "current-password" : "new-password"}
-                value={senha}
-                onChange={(e) => setSenha(e.target.value)}
-                className="bg-input/40"
-              />
+              <div className="relative">
+                <Input
+                  id="senha"
+                  type={showSenha ? "text" : "password"}
+                  autoComplete={mode === "login" ? "current-password" : "new-password"}
+                  value={senha}
+                  onChange={(e) => setSenha(e.target.value)}
+                  className="bg-input/40 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowSenha((v) => !v)}
+                  aria-label={showSenha ? "Ocultar senha" : "Mostrar senha"}
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground"
+                >
+                  {showSenha ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
             <Button type="submit" disabled={loading} size="lg" className="w-full font-semibold">
               {loading ? (
