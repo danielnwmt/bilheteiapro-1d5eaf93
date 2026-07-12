@@ -3,10 +3,13 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { getMelhoresPicks, type MelhorPick } from "@/lib/melhores-picks.functions";
 import { addFavorito } from "@/lib/favoritos.functions";
+import { useAccess } from "@/hooks/useAccess";
+import { usePlanos } from "@/hooks/usePlanos";
+import { recursoLiberado } from "@/lib/planos";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Loader2, Flame, Star, TrendingUp, RefreshCw, Trophy, CalendarDays, Target } from "lucide-react";
+import { ArrowLeft, Loader2, Flame, Star, TrendingUp, RefreshCw, Trophy, CalendarDays, Target, Crown } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/melhores-picks")({
