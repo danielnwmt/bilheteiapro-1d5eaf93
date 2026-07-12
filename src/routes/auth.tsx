@@ -26,6 +26,7 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const router = useRouter();
+  const doResetSenha = useServerFn(enviarResetSenha);
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [nome, setNome] = useState("");
   const [cpf, setCpf] = useState("");
