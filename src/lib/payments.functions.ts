@@ -83,7 +83,7 @@ export const createAsaasCheckout = createServerFn({ method: "POST" })
       // externalReference carrega userId|plano|ciclo para liberar o acesso no webhook.
       const externalReference = `${userId}|${data.plano}|${data.ciclo}`;
 
-      const { url } = await criarCobranca({
+      const { url, paymentId } = await criarCobranca({
         descricao: `BilheteIA PRO — ${cfg.nome} (${CICLO_LABEL[data.ciclo]})`,
         valorReais: precoCentavos / 100,
         externalReference,
@@ -94,6 +94,21 @@ export const createAsaasCheckout = createServerFn({ method: "POST" })
           cpfCnpj: cpf,
         },
       });
+
+      // Pix: retorna os dados do QR Code para exibir numa tela própria no app.
+      if (data.metodo === "pix") {
+        const qr = await obterPixQrCode(paymentId);
+        return {
+          pix: {
+            paymentId,
+            encodedImage: qr.encodedImage,
+            payload: qr.payload,
+            expirationDate: qr.expirationDate,
+            valorCentavos: precoCentavos,
+          },
+        };
+      }
+
       return { url };
 
     } catch (error) {
