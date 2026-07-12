@@ -34,6 +34,7 @@ import { usePlanos } from "@/hooks/usePlanos";
 import { createAsaasCheckout, cancelarAssinatura } from "@/lib/payments.functions";
 import { useAccess } from "@/hooks/useAccess";
 import { CartaoPagamento } from "@/components/CartaoPagamento";
+import { PixPagamento, type PixData } from "@/components/PixPagamento";
 
 export const Route = createFileRoute("/_authenticated/planos")({
   head: () => ({
@@ -63,6 +64,7 @@ function PlanosPage() {
   const [carregando, setCarregando] = useState(false);
   const [ciclo, setCiclo] = useState<Ciclo>("mensal");
   const [telaCartao, setTelaCartao] = useState(false);
+  const [pixData, setPixData] = useState<PixData | null>(null);
 
   const asaasCheckout = useServerFn(createAsaasCheckout);
   const cancelar = useServerFn(cancelarAssinatura);
@@ -100,6 +102,10 @@ function PlanosPage() {
       const result = await asaasCheckout({ data: { plano: checkout, ciclo, returnUrl, metodo } });
       if ("error" in result) {
         toast.error(result.error);
+        return;
+      }
+      if ("pix" in result) {
+        setPixData(result.pix);
         return;
       }
       window.location.href = result.url;
@@ -176,6 +182,16 @@ function PlanosPage() {
           <div className="flex justify-center py-16">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
+        ) : pixData ? (
+          <PixPagamento
+            pix={pixData}
+            nomePlano={checkoutCfg?.nome ?? "Plano"}
+            onSucesso={async () => {
+              await queryClient.invalidateQueries({ queryKey: ["my-access"] });
+              router.navigate({ to: "/" });
+            }}
+            onCancelar={() => setPixData(null)}
+          />
         ) : checkout && checkoutCfg && telaCartao ? (
           <CartaoPagamento
             plano={checkout}

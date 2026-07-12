@@ -129,6 +129,25 @@ export async function criarCobranca(
   return { url, paymentId: payment.id as string };
 }
 
+// Busca o QR Code Pix (imagem + copia-e-cola) de uma cobrança já criada.
+export async function obterPixQrCode(paymentId: string): Promise<{
+  encodedImage: string; // base64 (sem prefixo data:)
+  payload: string; // código copia-e-cola
+  expirationDate?: string;
+}> {
+  const data = await asaasFetch(`/payments/${paymentId}/pixQrCode`, {
+    method: "GET",
+  });
+  if (!data?.payload || !data?.encodedImage) {
+    throw new Error("Asaas não retornou o QR Code Pix desta cobrança");
+  }
+  return {
+    encodedImage: data.encodedImage,
+    payload: data.payload,
+    expirationDate: data.expirationDate,
+  };
+}
+
 type CartaoParams = {
   descricao: string;
   valorReais: number;

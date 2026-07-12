@@ -1,6 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { criarCobranca, cobrarCartao } from "@/lib/asaas.server";
+import {
+  criarCobranca,
+  cobrarCartao,
+  obterPixQrCode,
+  consultarPagamento,
+} from "@/lib/asaas.server";
 import {
   CICLO_LABEL,
   precoCicloCentavos,
@@ -9,7 +14,18 @@ import {
   type PlanoConfig,
 } from "@/lib/planos";
 
-type CheckoutResult = { url: string } | { error: string };
+type CheckoutResult =
+  | { url: string }
+  | {
+      pix: {
+        paymentId: string;
+        encodedImage: string;
+        payload: string;
+        expirationDate?: string;
+        valorCentavos: number;
+      };
+    }
+  | { error: string };
 
 const CICLOS: Ciclo[] = ["mensal", "semestral", "anual"];
 
@@ -67,7 +83,7 @@ export const createAsaasCheckout = createServerFn({ method: "POST" })
       // externalReference carrega userId|plano|ciclo para liberar o acesso no webhook.
       const externalReference = `${userId}|${data.plano}|${data.ciclo}`;
 
-      const { url } = await criarCobranca({
+      const { url, paymentId } = await criarCobranca({
         descricao: `BilheteIA PRO — ${cfg.nome} (${CICLO_LABEL[data.ciclo]})`,
         valorReais: precoCentavos / 100,
         externalReference,
@@ -78,6 +94,21 @@ export const createAsaasCheckout = createServerFn({ method: "POST" })
           cpfCnpj: cpf,
         },
       });
+
+      // Pix: retorna os dados do QR Code para exibir numa tela própria no app.
+      if (data.metodo === "pix") {
+        const qr = await obterPixQrCode(paymentId);
+        return {
+          pix: {
+            paymentId,
+            encodedImage: qr.encodedImage,
+            payload: qr.payload,
+            expirationDate: qr.expirationDate,
+            valorCentavos: precoCentavos,
+          },
+        };
+      }
+
       return { url };
 
     } catch (error) {
@@ -172,6 +203,24 @@ export const pagarComCartao = createServerFn({ method: "POST" })
     }
   });
 
+
+// ============ CHECAR STATUS DO PIX ============
+type StatusResult = { paid: boolean; status: string } | { error: string };
+
+export const checarStatusPix = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { paymentId: string }) => {
+    if (!data?.paymentId) throw new Error("Cobrança inválida");
+    return { paymentId: data.paymentId };
+  })
+  .handler(async ({ data }): Promise<StatusResult> => {
+    try {
+      const { paid, status } = await consultarPagamento(data.paymentId);
+      return { paid, status };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "Falha ao consultar" };
+    }
+  });
 
 
 // ============ CANCELAR ASSINATURA ============
