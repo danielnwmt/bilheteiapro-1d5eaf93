@@ -55,6 +55,12 @@ export const TODAS_LIGAS: string[] = [
   "Liga MX",
   "Campeonato Argentino",
   "J1 League",
+  "K League 1",
+  "Saudi Pro League",
+  "Chinese Super League",
+  "A-League",
+  "Thai League 1",
+
   "Campeonato Paulista",
   "Campeonato Carioca",
   "Campeonato Mineiro",
