@@ -10,6 +10,8 @@ import { toast } from "sonner";
 import logo from "@/assets/bilheteia-logo.png";
 import { checkEmailExists } from "@/lib/auth-check.functions";
 import { bootstrapDefaultAdmin, ensureAdmin } from "@/lib/admin-bootstrap.functions";
+import { enviarResetSenha } from "@/lib/backup.functions";
+import { useServerFn } from "@tanstack/react-start";
 
 export const Route = createFileRoute("/auth")({
   ssr: false,
@@ -24,6 +26,7 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const router = useRouter();
+  const doResetSenha = useServerFn(enviarResetSenha);
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [nome, setNome] = useState("");
   const [cpf, setCpf] = useState("");
@@ -185,10 +188,12 @@ function AuthPage() {
     }
     setLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+      await doResetSenha({
+        data: {
+          email,
+          redirectTo: `${window.location.origin}/reset-password`,
+        },
       });
-      if (error) throw error;
       toast.success("Enviamos um link de redefinição para seu e-mail.");
     } catch {
       toast.error("Não foi possível enviar o e-mail de redefinição.");
