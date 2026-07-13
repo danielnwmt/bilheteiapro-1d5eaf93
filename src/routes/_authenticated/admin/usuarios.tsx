@@ -24,6 +24,13 @@ function UsuariosPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const { list: planos, byPlano } = usePlanos();
+  // Nome do plano com fallback: se o mapa de planos não carregou (ex.: schema
+  // diferente no self-host), ainda mostramos o plano do cliente capitalizado
+  // em vez de "Sem plano".
+  const nomePlano = (plano?: string | null) => {
+    if (!plano) return "Sem plano";
+    return byPlano[plano as Plano]?.nome ?? plano.charAt(0).toUpperCase() + plano.slice(1);
+  };
   const fetchClientes = useServerFn(listClientes);
   const fetchClientesLocal = useServerFn(listClientesLocalFallback);
   const salvar = useServerFn(setClientePlano);
