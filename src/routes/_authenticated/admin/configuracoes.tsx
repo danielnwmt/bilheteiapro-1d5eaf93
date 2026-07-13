@@ -459,6 +459,19 @@ function ConfiguracoesPage() {
                 />
               </div>
               <div>
+                <Label className="mb-1 block text-sm">Desconto mensal (%)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={novo.descontoMensal}
+                  onChange={(e) =>
+                    setNovo((s) => ({ ...s, descontoMensal: Number(e.target.value) || 0 }))
+                  }
+                  className="bg-input/40"
+                />
+              </div>
+              <div>
                 <Label className="mb-1 block text-sm">Desconto semestral (%)</Label>
                 <Input
                   type="number"
