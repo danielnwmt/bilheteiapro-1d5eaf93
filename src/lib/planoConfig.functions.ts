@@ -106,6 +106,41 @@ async function restRequest(
   return res;
 }
 
+// Escreve tolerando colunas ausentes no banco (self-host desatualizado).
+// Se o PostgREST responder que uma coluna não existe (PGRST204), removemos
+// essa coluna do corpo e tentamos novamente, até conseguir ou esgotar tentativas.
+async function restWriteTolerant(
+  base: { url: string; key: string },
+  path: string,
+  init: { method: string; query?: Record<string, string>; body: Record<string, unknown> },
+) {
+  let body = { ...init.body };
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const endpoint = new URL(`${base.url}/rest/v1/${path}`);
+    for (const [k, v] of Object.entries(init.query ?? {})) endpoint.searchParams.set(k, v);
+    const res = await fetch(endpoint, {
+      method: init.method,
+      headers: {
+        ...authHeaders(base.key),
+        "Content-Type": "application/json",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify(body),
+    });
+    if (res.ok) return res;
+
+    const text = await res.text().catch(() => "");
+    // PGRST204: "Could not find the 'coluna' column of 'tabela' in the schema cache"
+    const match = text.match(/Could not find the '([^']+)' column/i);
+    if (match && match[1] in body) {
+      delete body[match[1]];
+      continue;
+    }
+    throw new Error(text || `Erro ${res.status}`);
+  }
+  throw new Error("Não foi possível salvar o plano (colunas incompatíveis).");
+}
+
 export const updatePlanoConfig = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => UpdateSchema.parse(d))
