@@ -24,6 +24,7 @@ BEGIN
     ALTER TABLE public.plano_config ADD COLUMN IF NOT EXISTS desconto_semestral integer NOT NULL DEFAULT 0;
     ALTER TABLE public.plano_config ADD COLUMN IF NOT EXISTS desconto_anual integer NOT NULL DEFAULT 0;
     GRANT SELECT (desconto_mensal) ON public.plano_config TO authenticated, anon;
+    PERFORM pg_notify('pgrst', 'reload schema');
   END IF;
   IF to_regclass('public.subscriptions') IS NOT NULL THEN
     -- Remove tudo relacionado a Stripe das assinaturas
@@ -417,8 +418,9 @@ BEGIN
   IF to_regclass('public.plano_config') IS NOT NULL THEN
     REVOKE SELECT ON public.plano_config FROM anon;
     REVOKE SELECT ON public.plano_config FROM authenticated;
-    GRANT SELECT (plano, nome, preco, descricao, nivel, historico_dias, ligas, recursos, desconto_semestral, desconto_anual, created_at, updated_at) ON public.plano_config TO anon, authenticated;
+    GRANT SELECT (plano, nome, preco, descricao, nivel, historico_dias, ligas, recursos, desconto_mensal, desconto_semestral, desconto_anual, created_at, updated_at) ON public.plano_config TO anon, authenticated;
     GRANT ALL ON public.plano_config TO service_role;
+    PERFORM pg_notify('pgrst', 'reload schema');
   END IF;
 
   IF to_regclass('public.profiles') IS NOT NULL THEN
