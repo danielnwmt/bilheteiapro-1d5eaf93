@@ -1,7 +1,7 @@
 // Autenticação simples para os endpoints de cron/hooks públicos.
 // O cron (docker-compose / pg_cron) envia o cabeçalho `x-cron-secret` com o
 // valor de CRON_SECRET. Sem o segredo configurado OU sem o cabeçalho correto,
-// a chamada é rejeitada (401) — evita que qualquer pessoa dispare IA, backups
+// a chamada é rejeitada (401) — evita que qualquer pessoa dispare análises, backups
 // e sincronizações à vontade.
 export function verificarCronSecret(request: Request): Response | null {
   const secret = process.env.CRON_SECRET;

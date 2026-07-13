@@ -121,8 +121,8 @@ function normalizarAnaliseCache(payload: AnalisePartida): AnalisePartida {
 }
 
 // Monta as estatísticas do jogo (escanteios, gols, chutes, cartões) a partir
-// dos números REAIS da API-Football (tabela estatisticas). É usado quando a IA
-// não está disponível (limite atingido) e para preencher o que a IA deixar vazio.
+// dos números REAIS da API-Football (tabela estatisticas). É usado quando os dados externos
+// estão incompletos e para preencher campos ausentes de forma determinística.
 export function analiseDeEstatisticas(partida: PartidaRow): AnaliseJogoStats {
   const est = partida.estatisticas;
   const casa = partida.time_casa;

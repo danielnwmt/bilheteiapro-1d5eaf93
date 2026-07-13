@@ -1,6 +1,6 @@
 // Reanálise sob demanda de UM jogo (usado quando a escalação é confirmada).
-// Limpa o cache de análise daquele jogo e força a IA a reanalisar com os dados
-// mais recentes. Restrito a staff (admin/operador) para evitar abuso da IA.
+// Limpa o cache de análise daquele jogo e força o motor estatístico a reanalisar com os dados
+// mais recentes. Restrito a staff (admin/operador) para evitar abuso do processamento.
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";

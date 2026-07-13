@@ -659,7 +659,7 @@ export const gerarBilhete = createServerFn({ method: "POST" })
         if (!r || !a) return null;
         const est = statsMap.get(pid);
         // Se há estatísticas reais salvas, recalcula os números; senão usa o
-        // que veio do cache da IA.
+        // que veio do cache do motor estatístico.
         const analise = est
           ? analiseDeEstatisticas({
               ...(r as unknown as AnalisePartidaRow),
@@ -702,7 +702,7 @@ export const gerarBilhete = createServerFn({ method: "POST" })
     const parsed = TicketSchema.safeParse(ticket);
     if (!parsed.success) {
       console.error("Bilhete inválido", parsed.error.flatten());
-      throw new Error("A IA não retornou um bilhete válido. Tente novamente.");
+      throw new Error("O motor estatístico não encontrou um bilhete válido com os filtros atuais. Ajuste a odd-alvo ou os mercados e tente novamente.");
     }
 
     // Persiste o bilhete + palpites (best-effort) via service role

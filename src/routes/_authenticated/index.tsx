@@ -66,13 +66,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
     meta: [
-      { title: "BilheteIA PRO — Análise de futebol e múltiplas com IA" },
+      { title: "BilheteIA PRO — Análises estatísticas e bilhetes inteligentes" },
       {
         name: "description",
         content:
-          "Cole os jogos, defina a odd alvo e a IA monta a múltipla ideal com análise jogo a jogo.",
+          "Escolha os jogos, defina a odd-alvo e o motor estatístico monta a múltipla com análise jogo a jogo.",
       },
-      { property: "og:title", content: "BilheteIA PRO — Múltiplas analisadas por IA" },
+      { property: "og:title", content: "BilheteIA PRO — Múltiplas com análise estatística" },
       {
         property: "og:description",
         content: "Análise de jogos de futebol e montagem automática de bilhetes.",
@@ -537,7 +537,7 @@ function Index() {
     return faltaMin > 0 && faltaMin <= 60;
   }
 
-  // Limpa o cache e força a IA a reanalisar aquele jogo com base na escalação.
+  // Limpa o cache e força o motor estatístico a reanalisar aquele jogo com base na escalação.
   async function handleReanalisar(j: JogoDia) {
     setReanalisandoId(j.id);
     toast.info(
@@ -832,11 +832,11 @@ function Index() {
         setEntradas(lista);
         if (lista.length > 0) {
           toast.success(
-            `A IA terminou de analisar os jogos — ${lista.length} entradas encontradas.`,
+            `O motor estatístico terminou de analisar os jogos — ${lista.length} entradas encontradas.`,
           );
           setAvisoOperacao((prev) => ({
             tipo: "ok",
-            texto: `A IA terminou de analisar os jogos. ${lista.length} melhores entradas disponíveis abaixo.`,
+            texto: `O motor estatístico terminou de analisar os jogos. ${lista.length} melhores entradas disponíveis abaixo.`,
             etapas: prev?.etapas,
           }));
         }
@@ -1037,7 +1037,7 @@ function Index() {
                     : "Jogos do dia"}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Análises geradas por IA · probabilidades, gols esperados e mercados com valor.
+              Análises estatísticas · probabilidades, gols esperados e mercados com valor.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -1190,7 +1190,7 @@ function Index() {
                                   : "border-amber-500/30 bg-amber-500/15 text-amber-500"
                               }`}
                             >
-                              <Sparkles className="h-3 w-3" /> {confAlta ? "IA Alta" : "IA Média"}
+                              <Sparkles className="h-3 w-3" /> {confAlta ? "Confiança alta" : "Confiança média"}
                             </Badge>
                           ) : (
                             <Badge variant="outline" className="text-[11px] text-muted-foreground">
@@ -1223,7 +1223,7 @@ function Index() {
                 <Zap className="h-5 w-5 text-primary" /> Criador de Bilhetes
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                A IA seleciona mercados com valor esperado positivo.
+                O motor estatístico seleciona mercados com valor esperado positivo.
               </p>
 
               <div className="mt-4 grid grid-cols-3 gap-1 rounded-lg bg-muted p-1 text-xs font-semibold">
@@ -1386,7 +1386,7 @@ function Index() {
                   </button>
                 )}
                 <p className="mt-2 text-[11px] text-muted-foreground">
-                  Escolha os jogos que quer na múltipla. Deixe vazio para a IA montar
+                  Escolha os jogos que quer na múltipla. Deixe vazio para o motor montar
                   automaticamente.
                 </p>
               </details>
@@ -1415,7 +1415,7 @@ function Index() {
                   })}
                 </div>
                 <p className="mt-2 text-[11px] text-muted-foreground">
-                  Deixe vazio para a IA usar qualquer mercado.
+                  Deixe vazio para o motor usar qualquer mercado.
                 </p>
               </details>
 
@@ -1447,7 +1447,7 @@ function Index() {
             </Card>
           </div>
 
-          {/* Melhores entradas analisadas pela IA */}
+          {/* Melhores entradas analisadas pelo motor estatístico */}
           {temAcesso && (
             <Card className="border-primary/30 bg-card p-6 md:p-8">
               <div className="mb-4 flex items-center justify-between gap-3">
@@ -1496,7 +1496,7 @@ function Index() {
                 </div>
               ) : entradasFiltradas.length === 0 ? (
                 <p className="py-8 text-center text-sm text-muted-foreground">
-                  As melhores entradas analisadas pela IA aparecem aqui. Aguarde a análise
+                  As melhores entradas analisadas pelo motor estatístico aparecem aqui. Aguarde a análise
                   automática.
                 </p>
               ) : (

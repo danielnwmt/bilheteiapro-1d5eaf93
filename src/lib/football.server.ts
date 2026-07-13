@@ -634,7 +634,7 @@ interface ApiPredResponse {
   teams?: { home?: ApiPredTeam | null; away?: ApiPredTeam | null } | null;
 }
 
-// Resumo compacto das estatísticas reais salvo em estatisticas.payload e enviado à IA.
+// Resumo compacto das estatísticas reais salvo em estatisticas.payload e usado pelo motor local.
 export interface EstatisticasResumo {
   advice: string | null;
   underOver: string | null;

@@ -500,7 +500,7 @@ function ConfiguracoesPage() {
               <div className="md:col-span-2">
                 <Label className="mb-1 block text-sm">Descrição</Label>
                 <Input
-                  placeholder="ex: Para quem busca múltiplas inteligentes com IA."
+                  placeholder="ex: Os principais campeonatos brasileiros com análises estatísticas e bilhetes inteligentes."
                   value={novo.descricao}
                   onChange={(e) => setNovo((s) => ({ ...s, descricao: e.target.value }))}
                   className="bg-input/40"
