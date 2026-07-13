@@ -509,6 +509,7 @@ CREATE TABLE public.plano_config (
   historico_dias integer NOT NULL DEFAULT 15,
   ligas jsonb NOT NULL DEFAULT '[]'::jsonb,
   recursos jsonb NOT NULL DEFAULT '{}'::jsonb,
+  desconto_mensal integer NOT NULL DEFAULT 0,
   desconto_semestral integer NOT NULL DEFAULT 0,
   desconto_anual integer NOT NULL DEFAULT 0,
   created_at timestamptz NOT NULL DEFAULT now(),
