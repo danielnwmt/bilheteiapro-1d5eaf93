@@ -98,6 +98,7 @@ function ConfiguracoesPage() {
           historicoDias: cfg.historicoDias,
           ligas: cfg.ligas,
           recursos: cfg.recursos,
+          descontoMensal: cfg.descontoMensal ?? 0,
           descontoSemestral: cfg.descontoSemestral ?? 0,
           descontoAnual: cfg.descontoAnual ?? 0,
         },
