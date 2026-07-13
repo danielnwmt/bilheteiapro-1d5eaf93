@@ -24,6 +24,13 @@ function UsuariosPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const { list: planos, byPlano } = usePlanos();
+  // Nome do plano com fallback: se o mapa de planos não carregou (ex.: schema
+  // diferente no self-host), ainda mostramos o plano do cliente capitalizado
+  // em vez de "Sem plano".
+  const nomePlano = (plano?: string | null) => {
+    if (!plano) return "Sem plano";
+    return byPlano[plano as Plano]?.nome ?? plano.charAt(0).toUpperCase() + plano.slice(1);
+  };
   const fetchClientes = useServerFn(listClientes);
   const fetchClientesLocal = useServerFn(listClientesLocalFallback);
   const salvar = useServerFn(setClientePlano);
@@ -403,7 +410,7 @@ function UsuariosPage() {
                       ) : (
                         <>
                           <div className="flex flex-col items-end gap-1 text-right text-sm">
-                            <p className="font-medium">{byPlano[(c.plano as Plano)]?.nome ?? "Sem plano"}</p>
+                            <p className="font-medium">{nomePlano(c.plano)}</p>
                             <div className="flex flex-wrap items-center justify-end gap-1">
                               {c.status === "cortesia" ? (
                                 <Badge className="bg-emerald-600 text-[10px] text-white hover:bg-emerald-600">
@@ -681,7 +688,7 @@ function UsuariosPage() {
                                           <p className="font-medium">{c.nome || c.email || c.id}</p>
                                           <p className="text-xs text-muted-foreground">{c.email}</p>
                                         </td>
-                                        <td className="px-4 py-3">{byPlano[c.plano as Plano]?.nome ?? "Sem plano"}</td>
+                                        <td className="px-4 py-3">{nomePlano(c.plano)}</td>
                                         <td className="px-4 py-3">
                                           <div className="flex flex-wrap items-center gap-1">
                                             {c.status === "cortesia" ? (

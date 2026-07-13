@@ -29,11 +29,12 @@ export function usePlanos() {
   const query = useQuery({
     queryKey: ["plano_config"],
     queryFn: async () => {
+      // Usa "*" para ser tolerante a diferenças de schema (ex.: self-host sem
+      // a coluna desconto_mensal). Um select com coluna inexistente retorna erro
+      // e deixaria o mapa de planos vazio (planos apareceriam como "Sem plano").
       const { data, error } = await supabase
         .from("plano_config")
-        .select(
-          "plano, nome, preco, descricao, nivel, historico_dias, ligas, recursos, created_at, updated_at, desconto_mensal, desconto_semestral, desconto_anual",
-        )
+        .select("*")
         .order("nivel", { ascending: true });
       if (error) throw error;
       return (data ?? []).map(mapRow);
