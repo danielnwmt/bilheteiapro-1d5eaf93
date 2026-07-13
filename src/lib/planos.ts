@@ -101,6 +101,7 @@ export type PlanoConfig = {
   historicoDias: number;
   ligas: string[];
   recursos: Record<Recurso, boolean>;
+  descontoMensal: number; // % de desconto na contratação mensal
   descontoSemestral: number; // % de desconto na contratação de 6 meses
   descontoAnual: number; // % de desconto na contratação de 12 meses
 };
@@ -137,7 +138,7 @@ export function formatarReais(centavos: number): string {
 export function descontoDoCiclo(cfg: PlanoConfig, ciclo: Ciclo): number {
   if (ciclo === "semestral") return Math.max(0, Math.min(100, cfg.descontoSemestral || 0));
   if (ciclo === "anual") return Math.max(0, Math.min(100, cfg.descontoAnual || 0));
-  return 0;
+  return Math.max(0, Math.min(100, cfg.descontoMensal || 0));
 }
 
 // Preço TOTAL do ciclo (em centavos), já com desconto aplicado.

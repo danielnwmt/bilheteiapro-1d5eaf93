@@ -1,0 +1,1 @@
+ALTER TABLE public.plano_config ADD COLUMN IF NOT EXISTS desconto_mensal numeric NOT NULL DEFAULT 0;

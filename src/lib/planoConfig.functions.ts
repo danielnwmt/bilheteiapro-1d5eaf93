@@ -16,6 +16,7 @@ const UpdateSchema = z.object({
   historicoDias: z.number().int().min(1).max(365),
   ligas: z.array(z.string()).max(100),
   recursos: RecursosSchema,
+  descontoMensal: z.number().int().min(0).max(100).optional(),
   descontoSemestral: z.number().int().min(0).max(100).optional(),
   descontoAnual: z.number().int().min(0).max(100).optional(),
 });
@@ -28,6 +29,7 @@ const CreateSchema = z.object({
   historicoDias: z.number().int().min(1).max(365).optional(),
   ligas: z.array(z.string()).max(100).optional(),
   recursos: RecursosSchema.optional(),
+  descontoMensal: z.number().int().min(0).max(100).optional(),
   descontoSemestral: z.number().int().min(0).max(100).optional(),
   descontoAnual: z.number().int().min(0).max(100).optional(),
 });
@@ -119,6 +121,7 @@ export const updatePlanoConfig = createServerFn({ method: "POST" })
         historico_dias: data.historicoDias,
         ligas: data.ligas,
         recursos: data.recursos,
+        desconto_mensal: data.descontoMensal ?? 0,
         desconto_semestral: data.descontoSemestral ?? 0,
         desconto_anual: data.descontoAnual ?? 0,
       }),
@@ -161,6 +164,7 @@ export const createPlanoConfig = createServerFn({ method: "POST" })
         historico_dias: data.historicoDias ?? 15,
         ligas: data.ligas ?? [],
         recursos: data.recursos ?? {},
+        desconto_mensal: data.descontoMensal ?? 0,
         desconto_semestral: data.descontoSemestral ?? 0,
         desconto_anual: data.descontoAnual ?? 0,
       }),

@@ -98,6 +98,7 @@ function ConfiguracoesPage() {
           historicoDias: cfg.historicoDias,
           ligas: cfg.ligas,
           recursos: cfg.recursos,
+          descontoMensal: cfg.descontoMensal ?? 0,
           descontoSemestral: cfg.descontoSemestral ?? 0,
           descontoAnual: cfg.descontoAnual ?? 0,
         },
@@ -118,6 +119,7 @@ function ConfiguracoesPage() {
     historicoDias: 15,
     ligas: [] as string[],
     recursos: recursosVazios() as Record<string, boolean>,
+    descontoMensal: 0,
     descontoSemestral: 0,
     descontoAnual: 0,
   });
@@ -134,6 +136,7 @@ function ConfiguracoesPage() {
           historicoDias: Number(novo.historicoDias) || 15,
           ligas: novo.ligas,
           recursos: novo.recursos,
+          descontoMensal: Number(novo.descontoMensal) || 0,
           descontoSemestral: Number(novo.descontoSemestral) || 0,
           descontoAnual: Number(novo.descontoAnual) || 0,
         },
@@ -306,10 +309,21 @@ function ConfiguracoesPage() {
                   <div className="mt-5">
                     <Label className="mb-2 block text-sm font-semibold">Descontos por período</Label>
                     <div className="grid gap-4 md:grid-cols-3">
-                      <div className="rounded-lg border border-border/60 bg-input/20 p-3">
-                        <p className="text-xs font-semibold text-muted-foreground">Mensal</p>
-                        <p className="mt-1 text-sm font-semibold">{formatarReais(precoCicloCentavos(cfg, "mensal"))}/mês</p>
-                        <p className="mt-1 text-[11px] text-muted-foreground">Preço cheio (sem desconto)</p>
+                      <div>
+                        <Label className="mb-1 block text-sm">Desconto mensal (%)</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={cfg.descontoMensal ?? 0}
+                          onChange={(e) =>
+                            update(base.plano, { descontoMensal: Number(e.target.value) || 0 })
+                          }
+                          className="bg-input/40"
+                        />
+                        <p className="mt-1 text-[11px] text-muted-foreground">
+                          Mensal: {formatarReais(precoCicloCentavos(cfg, "mensal"))}/mês
+                        </p>
                       </div>
                       <div>
                         <Label className="mb-1 block text-sm">Desconto semestral (%)</Label>
@@ -440,6 +454,19 @@ function ConfiguracoesPage() {
                   value={novo.historicoDias}
                   onChange={(e) =>
                     setNovo((s) => ({ ...s, historicoDias: Number(e.target.value) || 0 }))
+                  }
+                  className="bg-input/40"
+                />
+              </div>
+              <div>
+                <Label className="mb-1 block text-sm">Desconto mensal (%)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={novo.descontoMensal}
+                  onChange={(e) =>
+                    setNovo((s) => ({ ...s, descontoMensal: Number(e.target.value) || 0 }))
                   }
                   className="bg-input/40"
                 />

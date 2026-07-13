@@ -104,6 +104,7 @@ async function getPlanoConfig(plano: Plano): Promise<PlanoConfig> {
     historicoDias: data.historico_dias ?? 15,
     ligas: Array.isArray(data.ligas) ? (data.ligas as string[]) : [],
     recursos: (data.recursos ?? {}) as PlanoConfig["recursos"],
+    descontoMensal: Number((data as any).desconto_mensal ?? 0),
     descontoSemestral: Number((data as any).desconto_semestral ?? 0),
     descontoAnual: Number((data as any).desconto_anual ?? 0),
   };
