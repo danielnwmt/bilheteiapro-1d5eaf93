@@ -1739,10 +1739,25 @@ export const chamarApiManual = createServerFn({ method: "POST" })
 
     try {
       if (data.chave === "API_FOOTBALL_KEY") {
-        const { syncFixtures, syncOddsByLeagueDias } = await import("./football.server");
-        const n = await syncFixtures("semana");
-        const r = await syncOddsByLeagueDias("betano", 8);
-        return { ok: true, info: `API-Football chamada. ${n} jogos (semana) e ${r.odds} odds atualizados.` };
+        const { hasApiFootballKey, syncFixtures, syncOddsByLeagueDias } = await import("./football.server");
+        if (!(await hasApiFootballKey())) {
+          return { ok: false, error: "API-Football não configurada. Salve a chave e clique em Ativar e testar." };
+        }
+        // Dispara o trabalho pesado em segundo plano e responde na hora.
+        // Assim o nginx não estoura o tempo limite (504) esperando dezenas de
+        // chamadas à API-Football (jogos da semana + odds de 8 dias).
+        void (async () => {
+          try {
+            await syncFixtures("semana");
+            await syncOddsByLeagueDias("betano", 8);
+          } catch (e) {
+            console.error("chamarApiManual (segundo plano) falhou:", e);
+          }
+        })();
+        return {
+          ok: true,
+          info: "Sincronização iniciada em segundo plano. Os jogos e odds serão atualizados em instantes.",
+        };
       }
 
       if (data.chave === "GEMINI_API_KEY") {
