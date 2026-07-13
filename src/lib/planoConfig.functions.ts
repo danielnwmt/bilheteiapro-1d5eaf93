@@ -115,7 +115,7 @@ async function restWriteTolerant(
   init: { method: string; query?: Record<string, string>; body: Record<string, unknown> },
 ) {
   let body = { ...init.body };
-  for (let attempt = 0; attempt < 6; attempt++) {
+  for (let attempt = 0; attempt < Object.keys(init.body).length + 2; attempt++) {
     const endpoint = new URL(`${base.url}/rest/v1/${path}`);
     for (const [k, v] of Object.entries(init.query ?? {})) endpoint.searchParams.set(k, v);
     const res = await fetch(endpoint, {
@@ -130,10 +130,19 @@ async function restWriteTolerant(
     if (res.ok) return res;
 
     const text = await res.text().catch(() => "");
+    let message = text;
+    try {
+      const parsed = JSON.parse(text);
+      message = String(parsed?.message ?? parsed?.details ?? text);
+    } catch {
+      // resposta não-JSON
+    }
+
     // PGRST204: "Could not find the 'coluna' column of 'tabela' in the schema cache"
-    const match = text.match(/Could not find the '([^']+)' column/i);
-    if (match && match[1] in body) {
-      delete body[match[1]];
+    const match = message.match(/Could not find the '([^']+)' column/i);
+    const missingColumn = match?.[1];
+    if (missingColumn && Object.prototype.hasOwnProperty.call(body, missingColumn)) {
+      delete body[missingColumn];
       continue;
     }
     throw new Error(text || `Erro ${res.status}`);
