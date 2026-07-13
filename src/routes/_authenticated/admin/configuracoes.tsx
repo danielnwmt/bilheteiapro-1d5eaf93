@@ -136,6 +136,7 @@ function ConfiguracoesPage() {
           historicoDias: Number(novo.historicoDias) || 15,
           ligas: novo.ligas,
           recursos: novo.recursos,
+          descontoMensal: Number(novo.descontoMensal) || 0,
           descontoSemestral: Number(novo.descontoSemestral) || 0,
           descontoAnual: Number(novo.descontoAnual) || 0,
         },
