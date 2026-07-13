@@ -19,6 +19,7 @@ function mapRow(row: any): PlanoConfig {
     historicoDias: row.historico_dias,
     ligas: Array.isArray(row.ligas) ? (row.ligas as string[]) : [],
     recursos,
+    descontoMensal: Number(row.desconto_mensal ?? 0),
     descontoSemestral: Number(row.desconto_semestral ?? 0),
     descontoAnual: Number(row.desconto_anual ?? 0),
   };
