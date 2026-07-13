@@ -188,9 +188,9 @@ export const createPlanoConfig = createServerFn({ method: "POST" })
     const maxRows = maxRes.ok ? await maxRes.json() : [];
     const nivel = (Array.isArray(maxRows) && maxRows[0]?.nivel ? Number(maxRows[0].nivel) : 0) + 1;
 
-    await restRequest(base, "plano_config", {
+    await restWriteTolerant(base, "plano_config", {
       method: "POST",
-      body: JSON.stringify({
+      body: {
         plano: data.plano,
         nome: data.nome,
         preco: data.preco,
@@ -202,7 +202,7 @@ export const createPlanoConfig = createServerFn({ method: "POST" })
         desconto_mensal: data.descontoMensal ?? 0,
         desconto_semestral: data.descontoSemestral ?? 0,
         desconto_anual: data.descontoAnual ?? 0,
-      }),
+      },
     });
     return { ok: true };
   });
