@@ -146,10 +146,10 @@ export const updatePlanoConfig = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => UpdateSchema.parse(d))
   .handler(async ({ data, context }) => {
     const base = await assertAdmin(context.userId, context.claims);
-    await restRequest(base, "plano_config", {
+    await restWriteTolerant(base, "plano_config", {
       method: "PATCH",
       query: { plano: `eq.${data.plano}` },
-      body: JSON.stringify({
+      body: {
         nome: data.nome,
         preco: data.preco,
         descricao: data.descricao,
@@ -159,7 +159,7 @@ export const updatePlanoConfig = createServerFn({ method: "POST" })
         desconto_mensal: data.descontoMensal ?? 0,
         desconto_semestral: data.descontoSemestral ?? 0,
         desconto_anual: data.descontoAnual ?? 0,
-      }),
+      },
     });
     return { ok: true };
   });
