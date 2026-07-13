@@ -410,7 +410,7 @@ function UsuariosPage() {
                       ) : (
                         <>
                           <div className="flex flex-col items-end gap-1 text-right text-sm">
-                            <p className="font-medium">{byPlano[(c.plano as Plano)]?.nome ?? "Sem plano"}</p>
+                            <p className="font-medium">{nomePlano(c.plano)}</p>
                             <div className="flex flex-wrap items-center justify-end gap-1">
                               {c.status === "cortesia" ? (
                                 <Badge className="bg-emerald-600 text-[10px] text-white hover:bg-emerald-600">
