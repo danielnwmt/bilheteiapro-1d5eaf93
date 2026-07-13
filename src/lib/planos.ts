@@ -101,6 +101,7 @@ export type PlanoConfig = {
   historicoDias: number;
   ligas: string[];
   recursos: Record<Recurso, boolean>;
+  descontoMensal: number; // % de desconto na contratação mensal
   descontoSemestral: number; // % de desconto na contratação de 6 meses
   descontoAnual: number; // % de desconto na contratação de 12 meses
 };
