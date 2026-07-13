@@ -157,7 +157,7 @@ export async function preAnalisarTodos(): Promise<PreAnaliseResult> {
     }
   }
 
-  // Anexa as estatísticas reais a cada jogo (usadas no prompt da IA).
+  // Anexa as estatísticas reais a cada jogo (usadas pelo motor estatístico local).
   for (const c of candidatos) {
     c.partida.estatisticas = statsMap.get(c.partida.id) ?? null;
   }

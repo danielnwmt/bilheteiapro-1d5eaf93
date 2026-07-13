@@ -1789,7 +1789,7 @@ function limparErro(raw: unknown, fallback: string): string {
 }
 
 // Inicia a operação manualmente: busca jogos, busca odds e roda a pré-análise
-// da IA — bypassando os intervalos do cron. Retorna um diagnóstico claro de
+// do motor estatístico — bypassando os intervalos do cron. Retorna um diagnóstico claro de
 // cada etapa para mostrar exatamente onde está a falha.
 export const iniciarOperacao = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -1837,19 +1837,19 @@ export const iniciarOperacao = createServerFn({ method: "POST" })
     }
 
 
-    // 3) Pré-análise da IA (preenche analise_cache)
+    // 3) Pré-análise do motor estatístico (preenche analise_cache)
     let analisados = 0;
     try {
       const { preAnalisarTodos } = await import("./pre-analise.server");
       const r = await preAnalisarTodos();
       analisados = r.analisados;
       etapas.push({
-        etapa: "Análise IA",
+        etapa: "Análise estatística",
         ok: r.analisados > 0 || r.jaEmCache > 0,
         info: `${r.analisados} novas análises, ${r.jaEmCache} já em cache (de ${r.jogos} jogos).`,
       });
     } catch (e: any) {
-      etapas.push({ etapa: "Análise IA", ok: false, info: limparErro(e, "Falha na análise da IA.") });
+      etapas.push({ etapa: "Análise estatística", ok: false, info: limparErro(e, "Falha na análise estatística.") });
     }
 
     const ok = etapas.every((e) => e.ok);
