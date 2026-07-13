@@ -119,6 +119,7 @@ function ConfiguracoesPage() {
     historicoDias: 15,
     ligas: [] as string[],
     recursos: recursosVazios() as Record<string, boolean>,
+    descontoMensal: 0,
     descontoSemestral: 0,
     descontoAnual: 0,
   });
