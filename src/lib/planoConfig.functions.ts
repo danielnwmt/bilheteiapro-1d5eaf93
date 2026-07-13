@@ -106,15 +106,50 @@ async function restRequest(
   return res;
 }
 
+// Escreve tolerando colunas ausentes no banco (self-host desatualizado).
+// Se o PostgREST responder que uma coluna não existe (PGRST204), removemos
+// essa coluna do corpo e tentamos novamente, até conseguir ou esgotar tentativas.
+async function restWriteTolerant(
+  base: { url: string; key: string },
+  path: string,
+  init: { method: string; query?: Record<string, string>; body: Record<string, unknown> },
+) {
+  let body = { ...init.body };
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const endpoint = new URL(`${base.url}/rest/v1/${path}`);
+    for (const [k, v] of Object.entries(init.query ?? {})) endpoint.searchParams.set(k, v);
+    const res = await fetch(endpoint, {
+      method: init.method,
+      headers: {
+        ...authHeaders(base.key),
+        "Content-Type": "application/json",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify(body),
+    });
+    if (res.ok) return res;
+
+    const text = await res.text().catch(() => "");
+    // PGRST204: "Could not find the 'coluna' column of 'tabela' in the schema cache"
+    const match = text.match(/Could not find the '([^']+)' column/i);
+    if (match && match[1] in body) {
+      delete body[match[1]];
+      continue;
+    }
+    throw new Error(text || `Erro ${res.status}`);
+  }
+  throw new Error("Não foi possível salvar o plano (colunas incompatíveis).");
+}
+
 export const updatePlanoConfig = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => UpdateSchema.parse(d))
   .handler(async ({ data, context }) => {
     const base = await assertAdmin(context.userId, context.claims);
-    await restRequest(base, "plano_config", {
+    await restWriteTolerant(base, "plano_config", {
       method: "PATCH",
       query: { plano: `eq.${data.plano}` },
-      body: JSON.stringify({
+      body: {
         nome: data.nome,
         preco: data.preco,
         descricao: data.descricao,
@@ -124,7 +159,7 @@ export const updatePlanoConfig = createServerFn({ method: "POST" })
         desconto_mensal: data.descontoMensal ?? 0,
         desconto_semestral: data.descontoSemestral ?? 0,
         desconto_anual: data.descontoAnual ?? 0,
-      }),
+      },
     });
     return { ok: true };
   });
@@ -153,9 +188,9 @@ export const createPlanoConfig = createServerFn({ method: "POST" })
     const maxRows = maxRes.ok ? await maxRes.json() : [];
     const nivel = (Array.isArray(maxRows) && maxRows[0]?.nivel ? Number(maxRows[0].nivel) : 0) + 1;
 
-    await restRequest(base, "plano_config", {
+    await restWriteTolerant(base, "plano_config", {
       method: "POST",
-      body: JSON.stringify({
+      body: {
         plano: data.plano,
         nome: data.nome,
         preco: data.preco,
@@ -167,7 +202,7 @@ export const createPlanoConfig = createServerFn({ method: "POST" })
         desconto_mensal: data.descontoMensal ?? 0,
         desconto_semestral: data.descontoSemestral ?? 0,
         desconto_anual: data.descontoAnual ?? 0,
-      }),
+      },
     });
     return { ok: true };
   });

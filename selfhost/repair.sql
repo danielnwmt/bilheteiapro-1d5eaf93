@@ -20,8 +20,10 @@ BEGIN
   IF to_regclass('public.plano_config') IS NOT NULL THEN
     ALTER TABLE public.plano_config ALTER COLUMN plano TYPE text USING plano::text;
     ALTER TABLE public.plano_config DROP COLUMN IF EXISTS price_id;
+    ALTER TABLE public.plano_config ADD COLUMN IF NOT EXISTS desconto_mensal integer NOT NULL DEFAULT 0;
     ALTER TABLE public.plano_config ADD COLUMN IF NOT EXISTS desconto_semestral integer NOT NULL DEFAULT 0;
     ALTER TABLE public.plano_config ADD COLUMN IF NOT EXISTS desconto_anual integer NOT NULL DEFAULT 0;
+    GRANT SELECT (desconto_mensal) ON public.plano_config TO authenticated, anon;
   END IF;
   IF to_regclass('public.subscriptions') IS NOT NULL THEN
     -- Remove tudo relacionado a Stripe das assinaturas

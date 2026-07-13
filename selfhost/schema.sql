@@ -509,13 +509,14 @@ CREATE TABLE public.plano_config (
   historico_dias integer NOT NULL DEFAULT 15,
   ligas jsonb NOT NULL DEFAULT '[]'::jsonb,
   recursos jsonb NOT NULL DEFAULT '{}'::jsonb,
+  desconto_mensal integer NOT NULL DEFAULT 0,
   desconto_semestral integer NOT NULL DEFAULT 0,
   desconto_anual integer NOT NULL DEFAULT 0,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
-GRANT SELECT (plano, nome, preco, descricao, nivel, historico_dias, ligas, recursos, desconto_semestral, desconto_anual, created_at, updated_at) ON public.plano_config TO authenticated, anon;
+GRANT SELECT (plano, nome, preco, descricao, nivel, historico_dias, ligas, recursos, desconto_mensal, desconto_semestral, desconto_anual, created_at, updated_at) ON public.plano_config TO authenticated, anon;
 GRANT INSERT, UPDATE, DELETE ON public.plano_config TO authenticated;
 GRANT ALL ON public.plano_config TO service_role;
 
