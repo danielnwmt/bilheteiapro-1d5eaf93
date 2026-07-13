@@ -688,7 +688,7 @@ function UsuariosPage() {
                                           <p className="font-medium">{c.nome || c.email || c.id}</p>
                                           <p className="text-xs text-muted-foreground">{c.email}</p>
                                         </td>
-                                        <td className="px-4 py-3">{byPlano[c.plano as Plano]?.nome ?? "Sem plano"}</td>
+                                        <td className="px-4 py-3">{nomePlano(c.plano)}</td>
                                         <td className="px-4 py-3">
                                           <div className="flex flex-wrap items-center gap-1">
                                             {c.status === "cortesia" ? (
