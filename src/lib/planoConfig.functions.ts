@@ -16,6 +16,7 @@ const UpdateSchema = z.object({
   historicoDias: z.number().int().min(1).max(365),
   ligas: z.array(z.string()).max(100),
   recursos: RecursosSchema,
+  descontoMensal: z.number().int().min(0).max(100).optional(),
   descontoSemestral: z.number().int().min(0).max(100).optional(),
   descontoAnual: z.number().int().min(0).max(100).optional(),
 });
