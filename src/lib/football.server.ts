@@ -821,7 +821,7 @@ export async function syncOddsByLeagueDias(
     deep_link: string | null;
   }> = [];
 
-  const totalDias = Math.min(3, Math.max(1, dias));
+  const totalDias = Math.min(8, Math.max(1, dias));
   const dates = Array.from({ length: totalDias }, (_, i) => spDateString(i));
 
   let chamadas = 0;
