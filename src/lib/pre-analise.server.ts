@@ -120,10 +120,10 @@ export async function preAnalisarTodos(): Promise<PreAnaliseResult> {
     .eq("dia", dia);
   const cacheSet = new Set((jaCache ?? []).map((c: any) => String(c.partida_id)));
 
-  // Não regrava tudo a cada cron: isso causava upserts em massa no analise_cache
-  // e deixava o painel lento. Analisa primeiro o que ainda não tem cache hoje.
+  // Reanalisa TODOS os candidatos (não só os sem cache): garante que odds novas
+  // e correções do motor sejam refletidas nos bilhetes durante o dia.
   const MAX_ANALISES_POR_RUN = 40;
-  const pendentes = candidatos.filter((c) => !cacheSet.has(c.partida.id)).slice(0, MAX_ANALISES_POR_RUN);
+  const pendentes = candidatos.slice(0, MAX_ANALISES_POR_RUN);
 
   // Coleta estatísticas reais (API-Football /predictions) dos jogos que serão
   // analisados e ainda não têm estatísticas salvas. 1 chamada por jogo.
