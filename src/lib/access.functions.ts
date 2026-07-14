@@ -1816,59 +1816,39 @@ export const iniciarOperacao = createServerFn({ method: "POST" })
       throw new Error("Acesso restrito");
     }
 
-    const etapas: Array<{ etapa: string; ok: boolean; info: string }> = [];
-
-    // 1) Jogos (API-Football)
-    let jogosHoje = 0;
-    try {
-      const { syncFixtures } = await import("./football.server");
-      jogosHoje = await syncFixtures("semana");
+    // Não segura a requisição aguardando API-Football + análise. Em instalação
+    // local isso era o principal gerador de 504 e travava o painel admin.
+    void (async () => {
       try {
-        jogosHoje += await syncFixtures("aovivo");
-      } catch {
-        /* ao vivo é opcional */
+        const { syncFixtures, syncOddsByLeagueDias } = await import("./football.server");
+        const { preAnalisarTodos } = await import("./pre-analise.server");
+        await syncFixtures("semana");
+        try {
+          await syncFixtures("aovivo");
+        } catch {
+          /* ao vivo é opcional */
+        }
+        await syncOddsByLeagueDias("betano", 3);
+        await preAnalisarTodos();
+      } catch (e) {
+        console.error("iniciarOperacao (segundo plano) falhou:", e);
       }
-      etapas.push({ etapa: "Jogos", ok: true, info: `${jogosHoje} jogos atualizados (semana).` });
-    } catch (e: any) {
-      etapas.push({ etapa: "Jogos", ok: false, info: limparErro(e, "Falha ao buscar jogos.") });
-    }
+    })();
 
-    // 2) Odds (API-Football)
-    let oddsCount = 0;
-    try {
-      const { syncOddsByLeagueDias } = await import("./football.server");
-      const r = await syncOddsByLeagueDias("betano", 8);
-      oddsCount = r.odds;
-      etapas.push({
-        etapa: "Odds",
-        ok: oddsCount > 0,
-        info:
-          oddsCount > 0
-            ? `${oddsCount} odds salvas (${r.ligas} ligas / ${r.chamadas} chamadas).`
-            : `Nenhuma odd encontrada (${r.ligas} ligas, ${r.chamadas} chamadas). Verifique se há jogos do dia com odds na API.`,
-      });
-    } catch (e: any) {
-      etapas.push({ etapa: "Odds", ok: false, info: limparErro(e, "Falha ao buscar odds.") });
-    }
-
-
-    // 3) Pré-análise do motor estatístico (preenche analise_cache)
-    let analisados = 0;
-    try {
-      const { preAnalisarTodos } = await import("./pre-analise.server");
-      const r = await preAnalisarTodos();
-      analisados = r.analisados;
-      etapas.push({
-        etapa: "Análise estatística",
-        ok: r.analisados > 0 || r.jaEmCache > 0,
-        info: `${r.analisados} novas análises, ${r.jaEmCache} já em cache (de ${r.jogos} jogos).`,
-      });
-    } catch (e: any) {
-      etapas.push({ etapa: "Análise estatística", ok: false, info: limparErro(e, "Falha na análise estatística.") });
-    }
-
-    const ok = etapas.every((e) => e.ok);
-    return { ok, jogosHoje, oddsCount, analisados, etapas };
+    return {
+      ok: true,
+      emSegundoPlano: true,
+      jogosHoje: 0,
+      oddsCount: 0,
+      analisados: 0,
+      etapas: [
+        {
+          etapa: "Operação",
+          ok: true,
+          info: "Sincronização e análises iniciadas em segundo plano. Aguarde alguns minutos e atualize a tela.",
+        },
+      ],
+    };
   });
 
 

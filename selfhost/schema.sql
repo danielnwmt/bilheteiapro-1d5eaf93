@@ -64,6 +64,11 @@ GRANT ALL ON public.odds TO service_role;
 ALTER TABLE public.odds ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Odds sao publicas" ON public.odds FOR SELECT USING (true);
 CREATE INDEX idx_odds_partida ON public.odds(partida_id);
+CREATE INDEX IF NOT EXISTS idx_partidas_inicio_status ON public.partidas (inicio, status);
+CREATE INDEX IF NOT EXISTS idx_partidas_status_inicio ON public.partidas (status, inicio);
+CREATE INDEX IF NOT EXISTS idx_partidas_ativas_inicio ON public.partidas (inicio) WHERE status <> 'encerrado';
+CREATE INDEX IF NOT EXISTS idx_partidas_liga_inicio ON public.partidas (liga, inicio);
+CREATE INDEX IF NOT EXISTS idx_odds_partida_casa_mercado ON public.odds (partida_id, casa, mercado);
 
 -- ===== Deep links (tabela de traducao) =====
 CREATE TABLE public.deep_links (
@@ -645,6 +650,7 @@ ON public.analise_cache FOR SELECT
 USING (true);
 
 CREATE INDEX IF NOT EXISTS idx_analise_cache_dia ON public.analise_cache (dia, casa);
+CREATE INDEX IF NOT EXISTS idx_analise_cache_partida_dia ON public.analise_cache (partida_id, dia DESC);
 
 
 INSERT INTO public.user_roles (user_id, role)

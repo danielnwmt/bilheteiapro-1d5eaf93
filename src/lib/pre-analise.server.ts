@@ -58,7 +58,10 @@ export async function preAnalisarTodos(): Promise<PreAnaliseResult> {
 
   const { data: partidas, error } = await supabase
     .from("partidas")
-    .select("id, external_id, liga, time_casa, time_fora, inicio, status, odds(casa, mercado, selecao, valor, external_odd_id)")
+    // Evita o select aninhado `odds(...)`: no PostgREST ele vira LATERAL JOIN
+    // e foi a query mais lenta do sistema. Lemos partidas e odds em 2 consultas
+    // simples, ambas cobertas por índice.
+    .select("id, external_id, liga, time_casa, time_fora, inicio, status")
     .neq("status", "encerrado")
     .or(`status.eq.ao_vivo,and(inicio.gte.${liveFrom},inicio.lte.${to})`)
     .order("inicio", { ascending: true })
@@ -69,7 +72,34 @@ export async function preAnalisarTodos(): Promise<PreAnaliseResult> {
     throw new Error("Não foi possível ler os jogos para pré-análise.");
   }
 
-  const rows = (partidas ?? []) as PartidaRow[];
+  const baseRows = (partidas ?? []) as Array<Omit<PartidaRow, "odds">>;
+  const partidaIdsParaOdds = baseRows.map((p) => p.id);
+  const oddsByPartida = new Map<string, PartidaRow["odds"]>();
+  if (partidaIdsParaOdds.length) {
+    const { data: odds, error: oddsErr } = await supabase
+      .from("odds")
+      .select("partida_id, casa, mercado, selecao, valor, external_odd_id")
+      .in("partida_id", partidaIdsParaOdds);
+    if (oddsErr) {
+      console.error("pre-analise: erro ao ler odds", oddsErr);
+      throw new Error("Não foi possível ler as odds para pré-análise.");
+    }
+    for (const o of odds ?? []) {
+      const partidaId = String((o as any).partida_id ?? "");
+      if (!partidaId) continue;
+      const list = oddsByPartida.get(partidaId) ?? [];
+      list.push({
+        casa: String((o as any).casa ?? ""),
+        mercado: String((o as any).mercado ?? ""),
+        selecao: String((o as any).selecao ?? ""),
+        valor: Number((o as any).valor ?? 0),
+        external_odd_id: (o as any).external_odd_id ?? null,
+      });
+      oddsByPartida.set(partidaId, list);
+    }
+  }
+
+  const rows = baseRows.map((p) => ({ ...p, odds: oddsByPartida.get(p.id) ?? [] })) as PartidaRow[];
 
   // Como as odds são consenso (compartilhadas entre as casas), basta analisar
   // CADA JOGO UMA VEZ, usando a primeira casa do app que tenha odds. O cliente
@@ -94,10 +124,10 @@ export async function preAnalisarTodos(): Promise<PreAnaliseResult> {
     .eq("dia", dia);
   const cacheSet = new Set((jaCache ?? []).map((c: any) => String(c.partida_id)));
 
-  // Reanalisa TODOS os candidatos e sobrescreve o cache do dia. Como a análise
-  // é 100% local (grátis e instantânea), regravar garante que odds/estatísticas
-  // novas — e correções do motor — sejam sempre refletidas nos bilhetes.
-  const pendentes = candidatos;
+  // Não regrava tudo a cada cron: isso causava upserts em massa no analise_cache
+  // e deixava o painel lento. Analisa primeiro o que ainda não tem cache hoje.
+  const MAX_ANALISES_POR_RUN = 40;
+  const pendentes = candidatos.filter((c) => !cacheSet.has(c.partida.id)).slice(0, MAX_ANALISES_POR_RUN);
 
   // Coleta estatísticas reais (API-Football /predictions) dos jogos que serão
   // analisados e ainda não têm estatísticas salvas. 1 chamada por jogo.
@@ -115,12 +145,9 @@ export async function preAnalisarTodos(): Promise<PreAnaliseResult> {
   }
 
   let estatisticas = 0;
-  // Cada estatística é 1 chamada à API-Football com pausa (~2s). Buscar todas
-  // de uma vez num único request faz a análise ultrapassar 60s e tomar 504 no
-  // proxy (nginx) — o cache nunca é gravado. Limitamos por execução; como o
-  // cron roda a cada 5 min, os jogos restantes recebem estatísticas nas
-  // próximas passadas. A análise LOCAL roda sempre, mesmo sem estatísticas.
-  const MAX_STATS_POR_RUN = 10;
+  // Cada estatística passa pelo throttle da API-Football. Mantemos baixo para
+  // nenhum ciclo do cron monopolizar CPU/rede nem estourar timeout.
+  const MAX_STATS_POR_RUN = 3;
   const semStats = candidatos
     .filter((c) => c.partida.external_id && !statsMap.has(c.partida.id))
     .slice(0, MAX_STATS_POR_RUN)

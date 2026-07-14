@@ -134,6 +134,10 @@ function AdminDashboard() {
   const mutOperacao = useMutation({
     mutationFn: () => iniciar(),
     onSuccess: (r: any) => {
+      if (r?.emSegundoPlano) {
+        toast.success("Operação iniciada em segundo plano. Aguarde alguns minutos e atualize os dados.", { duration: 8000 });
+        return;
+      }
       const falhas = (r?.etapas ?? []).filter((e: any) => !e.ok);
       if (falhas.length === 0) {
         toast.success("Operação concluída! Jogos, odds e análises atualizados.", { duration: 6000 });

@@ -793,30 +793,8 @@ export async function syncEstatisticas(
       if (!entry) continue;
       const payload = resumirPredicao(entry);
 
-      // Lesões / suspensões / desfalques, divididos por time.
-      try {
-        const injuries = await apiGetInjuries(String(f.external_id), key);
-        const kc = nkeyTime(f.time_casa ?? "");
-        const kf = nkeyTime(f.time_fora ?? "");
-        const vistos = new Set<string>();
-        for (const inj of injuries) {
-          const nome = (inj.player?.name ?? "").trim();
-          if (!nome) continue;
-          const t = nkeyTime(inj.team?.name ?? "");
-          const chave = `${t}|${nome}`;
-          if (vistos.has(chave)) continue;
-          vistos.add(chave);
-          if (kc && (t.includes(kc) || kc.includes(t))) payload.lesoesCasa.push(nome);
-          else if (kf && (t.includes(kf) || kf.includes(t))) payload.lesoesFora.push(nome);
-        }
-      } catch (e) {
-        console.error("Falha ao buscar lesões da partida", f.external_id, e);
-      }
-
-      // Escalação oficial confirmada.
-      try {
-        payload.escalacaoConfirmada = (await apiGetLineupsCount(String(f.external_id), key)) > 0;
-      } catch { /* sem escalação ainda */ }
+      // Mantemos a coleta rápida: /injuries e /lineups triplicavam as chamadas
+      // por jogo e faziam o robô bater timeout. O motor segue usando /predictions.
 
       rows.push({ partida_id: f.id, tipo: "predicoes", payload });
     } catch (e) {
@@ -885,7 +863,7 @@ export async function syncOddsByLeagueDias(
     deep_link: string | null;
   }> = [];
 
-  const totalDias = Math.max(1, dias);
+  const totalDias = Math.min(3, Math.max(1, dias));
   const dates = Array.from({ length: totalDias }, (_, i) => spDateString(i));
 
   let chamadas = 0;
