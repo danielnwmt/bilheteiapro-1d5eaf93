@@ -656,48 +656,6 @@ export interface EstatisticasResumo {
   escalacaoConfirmada: boolean;
 }
 
-// Normaliza nome de time para casar lesões com o lado certo do confronto.
-function nkeyTime(s: string): string {
-  return (s || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-}
-
-interface ApiInjuryResponse {
-  player?: { id?: number | null; name?: string | null } | null;
-  team?: { id?: number | null; name?: string | null } | null;
-  type?: string | null;
-  reason?: string | null;
-}
-
-// Lesões / suspensões de um jogo. Não lança erro — sem dados retorna [].
-async function apiGetInjuries(fixtureId: string, key: string): Promise<ApiInjuryResponse[]> {
-  try {
-    const res = await apiFootballFetch(`${API_BASE}/injuries?fixture=${fixtureId}`, key);
-    if (!res.ok) return [];
-    const json = (await res.json()) as { response?: ApiInjuryResponse[] };
-    return json.response ?? [];
-  } catch {
-    return [];
-  }
-}
-
-// Escalação oficial: > 0 quando os times já divulgaram a escalação confirmada.
-async function apiGetLineupsCount(fixtureId: string, key: string): Promise<number> {
-  try {
-    const res = await apiFootballFetch(`${API_BASE}/fixtures/lineups?fixture=${fixtureId}`, key);
-    if (!res.ok) return 0;
-    const json = (await res.json()) as { response?: unknown[] };
-    return json.response?.length ?? 0;
-  } catch {
-    return 0;
-  }
-}
-
-
 async function apiGetPredictions(fixtureId: string, key: string): Promise<ApiPredResponse[]> {
   const res = await apiFootballFetch(`${API_BASE}/predictions?fixture=${fixtureId}`, key);
   if (!res.ok) throw new Error(`API-Football predictions ${res.status}`);
