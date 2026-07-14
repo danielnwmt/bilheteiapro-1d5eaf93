@@ -656,48 +656,6 @@ export interface EstatisticasResumo {
   escalacaoConfirmada: boolean;
 }
 
-// Normaliza nome de time para casar lesões com o lado certo do confronto.
-function nkeyTime(s: string): string {
-  return (s || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-}
-
-interface ApiInjuryResponse {
-  player?: { id?: number | null; name?: string | null } | null;
-  team?: { id?: number | null; name?: string | null } | null;
-  type?: string | null;
-  reason?: string | null;
-}
-
-// Lesões / suspensões de um jogo. Não lança erro — sem dados retorna [].
-async function apiGetInjuries(fixtureId: string, key: string): Promise<ApiInjuryResponse[]> {
-  try {
-    const res = await apiFootballFetch(`${API_BASE}/injuries?fixture=${fixtureId}`, key);
-    if (!res.ok) return [];
-    const json = (await res.json()) as { response?: ApiInjuryResponse[] };
-    return json.response ?? [];
-  } catch {
-    return [];
-  }
-}
-
-// Escalação oficial: > 0 quando os times já divulgaram a escalação confirmada.
-async function apiGetLineupsCount(fixtureId: string, key: string): Promise<number> {
-  try {
-    const res = await apiFootballFetch(`${API_BASE}/fixtures/lineups?fixture=${fixtureId}`, key);
-    if (!res.ok) return 0;
-    const json = (await res.json()) as { response?: unknown[] };
-    return json.response?.length ?? 0;
-  } catch {
-    return 0;
-  }
-}
-
-
 async function apiGetPredictions(fixtureId: string, key: string): Promise<ApiPredResponse[]> {
   const res = await apiFootballFetch(`${API_BASE}/predictions?fixture=${fixtureId}`, key);
   if (!res.ok) throw new Error(`API-Football predictions ${res.status}`);
@@ -793,30 +751,8 @@ export async function syncEstatisticas(
       if (!entry) continue;
       const payload = resumirPredicao(entry);
 
-      // Lesões / suspensões / desfalques, divididos por time.
-      try {
-        const injuries = await apiGetInjuries(String(f.external_id), key);
-        const kc = nkeyTime(f.time_casa ?? "");
-        const kf = nkeyTime(f.time_fora ?? "");
-        const vistos = new Set<string>();
-        for (const inj of injuries) {
-          const nome = (inj.player?.name ?? "").trim();
-          if (!nome) continue;
-          const t = nkeyTime(inj.team?.name ?? "");
-          const chave = `${t}|${nome}`;
-          if (vistos.has(chave)) continue;
-          vistos.add(chave);
-          if (kc && (t.includes(kc) || kc.includes(t))) payload.lesoesCasa.push(nome);
-          else if (kf && (t.includes(kf) || kf.includes(t))) payload.lesoesFora.push(nome);
-        }
-      } catch (e) {
-        console.error("Falha ao buscar lesões da partida", f.external_id, e);
-      }
-
-      // Escalação oficial confirmada.
-      try {
-        payload.escalacaoConfirmada = (await apiGetLineupsCount(String(f.external_id), key)) > 0;
-      } catch { /* sem escalação ainda */ }
+      // Mantemos a coleta rápida: /injuries e /lineups triplicavam as chamadas
+      // por jogo e faziam o robô bater timeout. O motor segue usando /predictions.
 
       rows.push({ partida_id: f.id, tipo: "predicoes", payload });
     } catch (e) {
@@ -885,7 +821,7 @@ export async function syncOddsByLeagueDias(
     deep_link: string | null;
   }> = [];
 
-  const totalDias = Math.max(1, dias);
+  const totalDias = Math.min(3, Math.max(1, dias));
   const dates = Array.from({ length: totalDias }, (_, i) => spDateString(i));
 
   let chamadas = 0;

@@ -473,6 +473,13 @@ CREATE POLICY "Analises legiveis" ON public.analise_cache FOR SELECT USING (true
 DROP POLICY IF EXISTS "Service role full access" ON public.analise_cache;
 CREATE POLICY "Service role full access" ON public.analise_cache FOR ALL TO service_role USING (true) WITH CHECK (true);
 CREATE INDEX IF NOT EXISTS idx_analise_cache_dia ON public.analise_cache (dia, casa);
+CREATE INDEX IF NOT EXISTS idx_partidas_inicio_status ON public.partidas (inicio, status);
+CREATE INDEX IF NOT EXISTS idx_partidas_status_inicio ON public.partidas (status, inicio);
+CREATE INDEX IF NOT EXISTS idx_partidas_ativas_inicio ON public.partidas (inicio) WHERE status <> 'encerrado';
+CREATE INDEX IF NOT EXISTS idx_partidas_liga_inicio ON public.partidas (liga, inicio);
+CREATE INDEX IF NOT EXISTS idx_odds_partida_casa_mercado ON public.odds (partida_id, casa, mercado);
+CREATE INDEX IF NOT EXISTS idx_estatisticas_partida_tipo ON public.estatisticas (partida_id, tipo);
+CREATE INDEX IF NOT EXISTS idx_analise_cache_partida_dia ON public.analise_cache (partida_id, dia DESC);
 
 NOTIFY pgrst, 'reload schema';
 
