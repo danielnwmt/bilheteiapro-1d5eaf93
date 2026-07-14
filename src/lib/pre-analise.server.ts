@@ -18,10 +18,6 @@ function normKey(v: string) {
   return v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
-function sleep(ms: number) {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
 function admin() {
   return createClient<Database>(
     process.env.SUPABASE_URL!,
