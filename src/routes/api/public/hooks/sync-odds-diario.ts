@@ -57,14 +57,15 @@ export const Route = createFileRoute("/api/public/hooks/sync-odds-diario")({
       POST: async ({ request }) => {
         const unauthorized = verificarCronSecret(request);
         if (unauthorized) return unauthorized;
+        const reservados: string[] = [];
+        let supabaseAdmin: any = null;
         try {
-          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          ({ supabaseAdmin } = await import("@/integrations/supabase/client.server"));
           const url = new URL(request.url);
           const casa = url.searchParams.get("casa") ?? CASA_PADRAO;
           const now = Date.now();
           const footballSync = await podeSincronizar(supabaseAdmin, "football_semana", "API_FOOTBALL_KEY", now);
           const skipped: Record<string, string> = {};
-          const reservados: string[] = [];
 
           if (!(await hasApiFootballKey())) {
             return Response.json({
@@ -100,7 +101,7 @@ export const Route = createFileRoute("/api/public/hooks/sync-odds-diario")({
         } catch (e) {
           const msg = String(e);
           if (msg.includes(MISSING_API_FOOTBALL_KEY)) {
-            await liberarSyncReservado(supabaseAdmin, reservados);
+            if (supabaseAdmin) await liberarSyncReservado(supabaseAdmin, reservados);
             return Response.json({
               ok: true,
               skipped: { API_FOOTBALL_KEY: "chave não configurada em Configurações → APIs" },
@@ -114,7 +115,7 @@ export const Route = createFileRoute("/api/public/hooks/sync-odds-diario")({
               dailyLimit: true,
             });
           }
-          await liberarSyncReservado(supabaseAdmin, reservados);
+          if (supabaseAdmin) await liberarSyncReservado(supabaseAdmin, reservados);
           console.error("Erro no robô diário de odds:", e);
           return Response.json({ ok: false, error: msg }, { status: 500 });
         }
