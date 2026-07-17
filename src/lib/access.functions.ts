@@ -1673,7 +1673,11 @@ export const testApiKey = createServerFn({ method: "POST" })
         const errs = json?.errors;
         const hasErr = Array.isArray(errs) ? errs.length > 0 : errs && Object.keys(errs).length > 0;
         if (!res.ok || hasErr) {
-          return { ok: false, error: `API-Football: ${JSON.stringify(errs ?? res.statusText)}` };
+          const raw = JSON.stringify(errs ?? res.statusText);
+          if (/missing application key|invalid application key|api key|token/i.test(raw)) {
+            return { ok: false, error: "API-Football rejeitou a chave. Salve uma chave válida e teste novamente." };
+          }
+          return { ok: false, error: `API-Football: ${raw}` };
         }
         const sub = json?.response?.requests;
         return {
@@ -1808,6 +1812,9 @@ function limparErro(raw: unknown, fallback: string): string {
   if (/Missing API_FOOTBALL_KEY/i.test(msg)) {
     return "API-Football não configurada. Abra Configurações → APIs, salve a API_FOOTBALL_KEY e clique em Ativar e testar.";
   }
+  if (/API_FOOTBALL_KEY_INVALID|missing application key|invalid application key|api key|token/i.test(msg)) {
+    return "A API-Football rejeitou a chave configurada. Salve uma chave válida em Configurações → APIs e clique em Ativar e testar.";
+  }
   // Respostas de gateway/proxy costumam vir como página HTML.
   if (/<html|<!doctype|<head|<body/i.test(msg) || /gateway time-?out/i.test(msg)) {
     if (/504|gateway time-?out/i.test(msg)) {
@@ -1867,12 +1874,14 @@ export const iniciarOperacao = createServerFn({ method: "POST" })
     const { preAnalisarTodos } = await import("./pre-analise.server");
 
     const rFix = await cron("Sync jogos (semana)", () => syncFixturesSemanaIncremental());
-    if (rFix?.processed != null) jogosHoje = rFix.processed;
+    if (typeof rFix === "number") jogosHoje = rFix;
+    else if (rFix?.processed != null) jogosHoje = rFix.processed;
     await cron("Sync ao vivo", () => syncFixtures("aovivo"));
     const rOdds = await cron("Sync odds", () =>
-      syncOddsByLeagueDias("betano", 3, { maxLigas: 2, cursorKey: "odds_cursor_operacao" }),
+      syncOddsByLeagueDias("Bet365", 8, { maxLigas: 2, cursorKey: "odds_cursor_operacao" }),
     );
-    if (rOdds?.oddsCount != null) oddsCount = rOdds.oddsCount;
+    if (rOdds?.odds != null) oddsCount = rOdds.odds;
+    else if (rOdds?.oddsCount != null) oddsCount = rOdds.oddsCount;
     const rAn = await cron("Pré-análise", () => preAnalisarTodos({ coletarEstatisticas: true }));
     if (rAn?.analisados != null) analisados = rAn.analisados;
 

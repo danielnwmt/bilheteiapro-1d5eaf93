@@ -51,11 +51,14 @@ export type MelhorEntrada = {
   selecao: string;
   odd: number;
   confianca: number;
+  qualidade?: "estatistica" | "mercado";
 };
 
-function normalizarConfianca(_odd: number, confianca: number) {
-  // Bloco 1: nunca infla confiança do fallback. picks "market_only" já vêm
-  // capadas em 55% do motor; aqui apenas arredondamos.
+function normalizarConfianca(odd: number, confianca: number, marketOnly = false) {
+  if (marketOnly) {
+    const implicita = odd ? Math.round((1 / odd) * 100) : Math.round(confianca || 0);
+    return Math.max(60, Math.min(90, Math.round(60 + implicita * 0.35)));
+  }
   return Math.round(confianca || 0);
 }
 
@@ -122,22 +125,30 @@ export const getMelhoresEntradas = createServerFn({ method: "GET" })
       const payload = porPartida.get(r.id);
       const picks = Array.isArray(payload?.picks) ? payload.picks : [];
       if (!picks.length) continue;
-      // Bloco 1: Melhores Entradas exclui picks "market_only" (sem estatísticas).
+      // Preferência: entradas com estatísticas. Se ainda não houver estatísticas
+      // porque a API está indisponível/sem chave válida, mostra leitura de mercado
+      // para a tela não ficar vazia.
       const analisadas = picks.filter((p: any) => {
         const q = p?.analysisQuality;
         return q !== "market_only" && q !== "unavailable";
       });
-      if (!analisadas.length) continue;
-      const best = [...analisadas].sort((a: any, b: any) => (b.confianca ?? 0) - (a.confianca ?? 0))[0];
+      const usarFallbackMercado = analisadas.length === 0;
+      const base = usarFallbackMercado
+        ? picks.filter((p: any) => p?.analysisQuality !== "unavailable")
+        : analisadas;
+      if (!base.length) continue;
+      const best = [...base].sort((a: any, b: any) => (b.confianca ?? 0) - (a.confianca ?? 0))[0];
       if (!best) continue;
+      const odd = Number(best.odd) || 0;
       entradas.push({
         jogo: `${r.time_casa} x ${r.time_fora}`,
         liga: r.liga,
         inicio: r.inicio,
         mercado: best.mercado,
         selecao: traduzSelecao(best.selecao),
-        odd: Number(best.odd) || 0,
-        confianca: normalizarConfianca(Number(best.odd) || 0, Number(best.confianca) || 0),
+        odd,
+        confianca: normalizarConfianca(odd, Number(best.confianca) || 0, usarFallbackMercado),
+        qualidade: usarFallbackMercado ? "mercado" : "estatistica",
       });
     }
 

@@ -7,6 +7,7 @@ import { registrarChamada } from "./api-usage.server";
 
 const API_BASE = "https://v3.football.api-sports.io";
 export const MISSING_API_FOOTBALL_KEY = "Missing API_FOOTBALL_KEY";
+export const INVALID_API_FOOTBALL_KEY = "API_FOOTBALL_KEY_INVALID";
 
 export async function hasApiFootballKey(): Promise<boolean> {
   return Boolean(await getConfigKey("API_FOOTBALL_KEY"));
@@ -16,6 +17,25 @@ async function getApiFootballKey(): Promise<string> {
   const key = await getConfigKey("API_FOOTBALL_KEY");
   if (!key) throw new Error(MISSING_API_FOOTBALL_KEY);
   return key;
+}
+
+function hasApiFootballErrors(errors: unknown): boolean {
+  if (!errors) return false;
+  if (Array.isArray(errors)) return errors.length > 0;
+  if (typeof errors === "object") return Object.keys(errors as Record<string, unknown>).length > 0;
+  return true;
+}
+
+function isApiFootballTokenError(raw: string): boolean {
+  return /missing application key|invalid application key|invalid api key|api key|token/i.test(raw);
+}
+
+function formatApiFootballErrors(errors: unknown): string {
+  const raw = typeof errors === "string" ? errors : JSON.stringify(errors ?? {});
+  if (isApiFootballTokenError(raw)) {
+    return `${INVALID_API_FOOTBALL_KEY}: a API-Football rejeitou a chave configurada. Salve uma chave válida em Configurações → APIs.`;
+  }
+  return `API-Football erro: ${raw}`;
 }
 
 // Remove odds duplicadas no MESMO lote pela chave de conflito do upsert.
@@ -125,8 +145,8 @@ async function apiGet(path: string, key: string): Promise<ApiFixture[]> {
     throw new Error(`API-Football ${res.status}: ${await res.text()}`);
   }
   const json = (await res.json()) as { errors?: unknown; response?: ApiFixture[] };
-  if (json.errors && Array.isArray(json.errors) ? json.errors.length : json.errors && Object.keys(json.errors).length) {
-    throw new Error(`API-Football erro: ${JSON.stringify(json.errors)}`);
+  if (hasApiFootballErrors(json.errors)) {
+    throw new Error(formatApiFootballErrors(json.errors));
   }
   return json.response ?? [];
 }
@@ -169,6 +189,9 @@ async function apiFootballFetch(url: string, key: string, tentativas = 6): Promi
     await registrarChamada("API_FOOTBALL_KEY");
     const res = await fetch(url, { headers: { "x-apisports-key": key } });
     const corpo = await res.clone().text().catch(() => "");
+    if (isApiFootballTokenError(corpo)) {
+      throw new Error(`${INVALID_API_FOOTBALL_KEY}: a API-Football rejeitou a chave configurada. Salve uma chave válida em Configurações → APIs.`);
+    }
     // Limite DIÁRIO: não adianta tentar de novo — falha rápido e para o ciclo.
     if (/daily|per day|requests allowed for your/i.test(corpo)) {
       throw new Error(DAILY_LIMIT_REACHED);
@@ -424,8 +447,7 @@ async function apiGetOdds(path: string, key: string): Promise<ApiOddResponse[]> 
   const res = await apiFootballFetch(`${API_BASE}${path}`, key);
   if (!res.ok) throw new Error(`API-Football odds ${res.status}: ${await res.text()}`);
   const json = (await res.json()) as { errors?: unknown; response?: ApiOddResponse[] };
-  const hasErr = json.errors && (Array.isArray(json.errors) ? json.errors.length : Object.keys(json.errors).length);
-  if (hasErr) throw new Error(`API-Football odds erro: ${JSON.stringify(json.errors)}`);
+  if (hasApiFootballErrors(json.errors)) throw new Error(formatApiFootballErrors(json.errors));
   return json.response ?? [];
 }
 
@@ -943,9 +965,7 @@ export async function syncOddsByLeagueDias(
             response?: ApiOddResponse[];
             paging?: { current: number; total: number };
           };
-          const hasErr =
-            json.errors && (Array.isArray(json.errors) ? json.errors.length : Object.keys(json.errors).length);
-          if (hasErr) throw new Error(`API-Football odds erro: ${JSON.stringify(json.errors)}`);
+          if (hasApiFootballErrors(json.errors)) throw new Error(formatApiFootballErrors(json.errors));
           resp = json.response ?? [];
           raw = json;
         } catch (e) {
