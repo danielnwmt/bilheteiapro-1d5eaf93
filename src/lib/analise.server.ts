@@ -131,7 +131,7 @@ function normalizarAnaliseCache(payload: AnalisePartida): AnalisePartida {
       // implícita) e não vira "Melhor Pick" (sem EV/estrelas/valor).
       if (quality === "market_only") {
         const implicita = p.odd ? Math.round((1 / p.odd) * 100) : Math.round(confBase);
-        const conf = Math.max(35, Math.min(55, Math.round(35 + implicita * 0.20)));
+        const conf = Math.max(60, Math.min(90, Math.round(60 + implicita * 0.35)));
         return {
           ...p,
           selecao: traduzSelecaoCache(p.selecao),
@@ -241,7 +241,7 @@ function montarAnaliseSemIa(partida: PartidaRow, casa: string): AnalisePartida {
   return {
     picks: oddsCasa.map((o) => {
       const implicita = Math.round((1 / o.valor) * 100);
-      const conf = Math.max(35, Math.min(55, Math.round(35 + implicita * 0.20)));
+      const conf = Math.max(60, Math.min(90, Math.round(60 + implicita * 0.35)));
       return {
         mercado: o.mercado || "Resultado Final",
         selecao: traduzSelecaoCache(o.selecao),
