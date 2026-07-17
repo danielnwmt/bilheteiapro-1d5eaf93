@@ -91,13 +91,14 @@ function extrairLinha(texto: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-function linhaRelevante(isOver: boolean, linha: number, lambda: number, mercado: "gols" | "1t" | "escanteios" | "cartoes") {
+function linhaRelevante(isOver: boolean, linha: number, lambda: number, mercado: "gols" | "1t" | "escanteios" | "cartoes" | "chutes") {
   // Mantém linhas relevantes e corta armadilhas triviais/absurdas.
   const cfg = {
     gols: { minOver: 0.5, minUnder: 1.5, margem: 2.2 },
     "1t": { minOver: 0.5, minUnder: 0.5, margem: 1.7 },
     escanteios: { minOver: 6.5, minUnder: 6.5, margem: 3.2 },
     cartoes: { minOver: 2.5, minUnder: 2.5, margem: 2.6 },
+    chutes: { minOver: 2.5, minUnder: 2.5, margem: 3.5 },
   }[mercado];
   if (isOver && linha < cfg.minOver) return false;
   if (!isOver && linha < cfg.minUnder) return false;
@@ -204,6 +205,7 @@ interface Contexto {
   lambda1t: number;
   lambdaEscanteios: number;
   lambdaCartoes: number;
+  lambdaChutes: number;
   formaCasa: number | null;
   formaFora: number | null;
   nLesCasa: number;
@@ -344,6 +346,10 @@ function montarContexto(partida: PartidaRow): Contexto | null {
   const fatorEquilibrioCartoes = 0.92 + equilibrio * 0.14;
   const lambdaCartoes = clamp(baseCartoes * cal.intensidade * importancia.peso * fatorArbitro * fatorEquilibrioCartoes, 2.1, 9.2);
 
+  // Chutes ao gol (total no jogo): correlaciona com volume ofensivo.
+  // Aproximação: ~3.6 chutes ao gol por gol esperado, com piso/teto realistas.
+  const lambdaChutes = clamp(lambdaTotal * 3.6 * (0.94 + equilibrio * 0.08) * formaVolume, 5.5, 14.5);
+
   let qualidadeDados = 0.35;
   if (dadosGols >= 4) qualidadeDados += 0.22;
   else if (dadosGols >= 2) qualidadeDados += 0.12;
@@ -367,6 +373,7 @@ function montarContexto(partida: PartidaRow): Contexto | null {
     lambda1t: clamp(lambdaTotal * 0.44, 0.2, 3.0),
     lambdaEscanteios,
     lambdaCartoes,
+    lambdaChutes,
     formaCasa,
     formaFora,
     nLesCasa,
@@ -387,7 +394,7 @@ function montarContexto(partida: PartidaRow): Contexto | null {
 // ------------------------------------------------------------
 // Interpretação de mercado/seleção
 // ------------------------------------------------------------
-type MercadoTipo = "resultado" | "dupla" | "dnb" | "btts" | "time_gol" | "gols" | "gols_1t" | "escanteios" | "cartoes" | "desconhecido";
+type MercadoTipo = "resultado" | "dupla" | "dnb" | "btts" | "time_gol" | "gols" | "gols_1t" | "escanteios" | "cartoes" | "chutes" | "handicap" | "placar" | "desconhecido";
 
 function tipoMercado(mercado: string, selecao: string): MercadoTipo {
   const m = normKey(mercado);
@@ -398,6 +405,9 @@ function tipoMercado(mercado: string, selecao: string): MercadoTipo {
   if (m.includes("marca gol") || m.includes("team to score") || m.includes("time marca")) return "time_gol";
   if (m.includes("escanteio") || m.includes("corner")) return "escanteios";
   if (m.includes("cart") || m.includes("card")) return "cartoes";
+  if (m.includes("chute") || m.includes("shot")) return "chutes";
+  if (m.includes("placar exato") || m.includes("correct score") || m.includes("resultado exato")) return "placar";
+  if (m.includes("handicap") || m.includes("asian") || m.includes("asiatico")) return "handicap";
   if ((m.includes("1") && m.includes("tempo")) || m.includes("1st half") || m.includes("first half")) return "gols_1t";
   if (m.includes("total de gols") || m.includes("over under") || (m.includes("gols") && (s.includes("mais de") || s.includes("menos de") || s.includes("over") || s.includes("under")))) return "gols";
   if (m.includes("resultado") || m.includes("match winner") || m.includes("winner") || m.includes("1x2")) return "resultado";
@@ -503,16 +513,67 @@ function probDaSelecao(mercado: string, selecao: string, ctx: Contexto, casa: st
     if (isUnder && linhaRelevante(false, linha, ctx.lambdaCartoes, "cartoes")) return { prob: probUnder(ctx.lambdaCartoes, linha), tipo };
     return null;
   }
+  if (tipo === "chutes") {
+    // Se seleção menciona um dos times, usa metade do lambda; caso contrário total.
+    let lam = ctx.lambdaChutes;
+    if (temCasa && !temFora) lam = ctx.lambdaChutes * (ctx.lambdaCasa / Math.max(0.01, ctx.lambdaTotal));
+    else if (temFora && !temCasa) lam = ctx.lambdaChutes * (ctx.lambdaFora / Math.max(0.01, ctx.lambdaTotal));
+    if (isOver && linhaRelevante(true, linha, lam, "chutes")) return { prob: probOver(lam, linha), tipo };
+    if (isUnder && linhaRelevante(false, linha, lam, "chutes")) return { prob: probUnder(lam, linha), tipo };
+    return null;
+  }
+  if (tipo === "handicap") {
+    // Suporta apenas linhas de meio ponto (sem push) para evitar aproximações de ½ vitória.
+    const hMatch = String(selecao).match(/([+-]?\s*\d+(?:[.,]\d+)?)/);
+    if (!hMatch) return null;
+    const handicap = Number(hMatch[1].replace(/\s+/g, "").replace(",", "."));
+    if (!Number.isFinite(handicap)) return null;
+    // Só linhas .5 (evita push do handicap inteiro/quarto).
+    if (Math.abs(handicap * 2 - Math.round(handicap * 2)) > 0.01) return null;
+    if (Math.abs(handicap - Math.round(handicap)) < 0.01) return null;
+    const lado: "casa" | "fora" | null = temCasa ? "casa" : temFora ? "fora" : null;
+    if (!lado) return null;
+    // Prob(diferença casa - fora > -handicap) para lado casa; simétrico para fora.
+    const p = probHandicap(ctx.lambdaCasa, ctx.lambdaFora, lado, handicap);
+    return { prob: p, tipo };
+  }
+  if (tipo === "placar") {
+    const pm = String(selecao).match(/(\d+)\s*(?:x|:|-)\s*(\d+)/i);
+    if (!pm) return null;
+    const gc = Number(pm[1]);
+    const gf = Number(pm[2]);
+    if (!Number.isFinite(gc) || !Number.isFinite(gf) || gc > 7 || gf > 7) return null;
+    const p = poissonPmf(ctx.lambdaCasa, gc) * poissonPmf(ctx.lambdaFora, gf);
+    return { prob: clamp(p, 0.001, 0.6), tipo };
+  }
 
   return null;
+}
+
+// Handicap asiático (linhas .5): probabilidade de o lado cobrir.
+function probHandicap(lamCasa: number, lamFora: number, lado: "casa" | "fora", handicap: number): number {
+  // Enumera placares até 8x8 (>99.9% da massa para lambdas típicos).
+  const MAX = 8;
+  let p = 0;
+  for (let i = 0; i <= MAX; i++) {
+    const pi = poissonPmf(lamCasa, i);
+    for (let j = 0; j <= MAX; j++) {
+      const pj = poissonPmf(lamFora, j);
+      const diff = lado === "casa" ? i - j + handicap : j - i + handicap;
+      if (diff > 0) p += pi * pj;
+    }
+  }
+  return clamp(p, 0.01, 0.99);
 }
 
 function bucketMercado(mercado: string, selecao: string, tipo: MercadoTipo) {
   // Agrupa mercados equivalentes para não trazer picks correlatas demais no mesmo jogo.
   const linha = extrairLinha(selecao);
-  if (tipo === "gols" || tipo === "gols_1t" || tipo === "escanteios" || tipo === "cartoes") {
+  if (tipo === "gols" || tipo === "gols_1t" || tipo === "escanteios" || tipo === "cartoes" || tipo === "chutes") {
     return `${tipo}:${linha ?? "linha"}`;
   }
+  if (tipo === "handicap") return `handicap:${normKey(selecao)}`;
+  if (tipo === "placar") return `placar:${normKey(selecao)}`;
   return tipo === "desconhecido" ? normKey(mercado) : tipo;
 }
 
@@ -537,8 +598,10 @@ function estrelasDaPick(score: number, ev: number, qualidadeDados: number) {
 function riscoMercado(tipo: MercadoTipo, odd: number) {
   let risco = 0;
   if (tipo === "resultado") risco += 4;
-  if (tipo === "cartoes" || tipo === "escanteios") risco += 3;
+  if (tipo === "cartoes" || tipo === "escanteios" || tipo === "chutes") risco += 3;
   if (tipo === "gols_1t") risco += 5;
+  if (tipo === "placar") risco += 8; // placar exato é volátil
+  if (tipo === "handicap") risco += 2;
   if (tipo === "dupla" || tipo === "dnb") risco -= 2;
   if (odd >= 3) risco += 5;
   else if (odd >= 2.4) risco += 3;
@@ -591,11 +654,12 @@ function probCalibradaComMercado(probModelo: number, odd: number, qualidadeDados
 function passaFiltroRigoroso(args: { prob: number; probCalibrada: number; ev: number; odd: number; score: number; tipo: MercadoTipo; qualidadeDados: number }) {
   const { prob, probCalibrada, ev, odd, score, tipo, qualidadeDados } = args;
   if (ev <= 0.005) return false;
-  if (odd < 1.22 || odd > 6.5) return false;
-  if (prob < 0.18 || probCalibrada < 0.18) return false;
+  if (odd < 1.22 || odd > (tipo === "placar" ? 15 : 6.5)) return false;
+  if (prob < (tipo === "placar" ? 0.06 : 0.18) || probCalibrada < (tipo === "placar" ? 0.06 : 0.18)) return false;
   if (score < 56) return false;
   if (qualidadeDados < 0.45 && tipo !== "dupla" && tipo !== "dnb") return false;
-  if ((tipo === "escanteios" || tipo === "cartoes" || tipo === "gols_1t") && score < 62) return false;
+  if ((tipo === "escanteios" || tipo === "cartoes" || tipo === "gols_1t" || tipo === "chutes") && score < 62) return false;
+  if ((tipo === "placar" || tipo === "handicap") && score < 64) return false;
   return true;
 }
 
@@ -677,6 +741,9 @@ function montarMotivos(args: {
   if (tipo === "escanteios") motivos.push(`Modelo de escanteios projeta ~${round1(ctx.lambdaEscanteios)} cantos`);
   if (tipo === "cartoes") motivos.push(`Modelo de cartões projeta ~${round1(ctx.lambdaCartoes)} cartões`);
   if (tipo === "gols_1t") motivos.push(`1º tempo projetado em ~${round1(ctx.lambda1t)} gol(s)`);
+  if (tipo === "chutes") motivos.push(`Modelo projeta ~${round1(ctx.lambdaChutes)} chutes ao gol no total`);
+  if (tipo === "handicap") motivos.push(`Diferença esperada de gols: ${round1(ctx.lambdaCasa - ctx.lambdaFora)} (${casa} x ${fora})`);
+  if (tipo === "placar") motivos.push(`Distribuição Poisson ${round1(ctx.lambdaCasa)} x ${round1(ctx.lambdaFora)}`);
 
   if (lado === "casa" && ctx.formaCasa != null) motivos.push(`${casa}: forma recente ponderada ${percent(ctx.formaCasa)}`);
   if (lado === "fora" && ctx.formaFora != null) motivos.push(`${fora}: forma recente ponderada ${percent(ctx.formaFora)}`);
