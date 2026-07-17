@@ -569,9 +569,11 @@ function probHandicap(lamCasa: number, lamFora: number, lado: "casa" | "fora", h
 function bucketMercado(mercado: string, selecao: string, tipo: MercadoTipo) {
   // Agrupa mercados equivalentes para não trazer picks correlatas demais no mesmo jogo.
   const linha = extrairLinha(selecao);
-  if (tipo === "gols" || tipo === "gols_1t" || tipo === "escanteios" || tipo === "cartoes") {
+  if (tipo === "gols" || tipo === "gols_1t" || tipo === "escanteios" || tipo === "cartoes" || tipo === "chutes") {
     return `${tipo}:${linha ?? "linha"}`;
   }
+  if (tipo === "handicap") return `handicap:${normKey(selecao)}`;
+  if (tipo === "placar") return `placar:${normKey(selecao)}`;
   return tipo === "desconhecido" ? normKey(mercado) : tipo;
 }
 
