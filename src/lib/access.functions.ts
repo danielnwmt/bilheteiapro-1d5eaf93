@@ -1547,20 +1547,22 @@ export const getSystemConfig = createServerFn({ method: "GET" })
       "system_config",
     );
 
-    const byKey = new Map(rows.map((row: any) => [String(row.chave), row]));
-    const { getConfigKey } = await import("./system-config.server");
-    for (const item of [
-      { chave: "API_FOOTBALL_KEY", descricao: "Chave da API-Football (jogos e odds)" },
-      { chave: "ODDS_API_KEY", descricao: "Chave da The Odds API" },
-      { chave: "ASAAS_API_KEY", descricao: "Chave de API da sua conta Asaas (Configurações → Integrações → API)." },
-      { chave: "ASAAS_ENV", descricao: "Ambiente Asaas: producao ou sandbox." },
-    ]) {
-      const current = byKey.get(item.chave) as any;
-      if (current?.valor) continue;
-      const value = await getConfigKey(item.chave);
-      if (!value) continue;
-      if (current) current.valor = value;
-      else rows.push({ chave: item.chave, valor: value, descricao: item.descricao });
+    if (process.env.SUPABASE_PROJECT_ID === "local") {
+      const byKey = new Map(rows.map((row: any) => [String(row.chave), row]));
+      const { getConfigKey } = await import("./system-config.server");
+      for (const item of [
+        { chave: "API_FOOTBALL_KEY", descricao: "Chave da API-Football (jogos e odds)" },
+        { chave: "ODDS_API_KEY", descricao: "Chave da The Odds API" },
+        { chave: "ASAAS_API_KEY", descricao: "Chave de API da sua conta Asaas (Configurações → Integrações → API)." },
+        { chave: "ASAAS_ENV", descricao: "Ambiente Asaas: producao ou sandbox." },
+      ]) {
+        const current = byKey.get(item.chave) as any;
+        if (current?.valor) continue;
+        const value = await getConfigKey(item.chave);
+        if (!value) continue;
+        if (current) current.valor = value;
+        else rows.push({ chave: item.chave, valor: value, descricao: item.descricao });
+      }
     }
 
     return rows.sort((a: any, b: any) => String(a.chave).localeCompare(String(b.chave)));
