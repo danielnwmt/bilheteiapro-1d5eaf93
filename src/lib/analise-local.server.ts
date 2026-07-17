@@ -205,6 +205,7 @@ interface Contexto {
   lambda1t: number;
   lambdaEscanteios: number;
   lambdaCartoes: number;
+  lambdaChutes: number;
   formaCasa: number | null;
   formaFora: number | null;
   nLesCasa: number;
