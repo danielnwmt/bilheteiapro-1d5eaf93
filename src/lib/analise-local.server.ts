@@ -15,8 +15,9 @@ import type {
   PartidaRow,
   PickAnalise,
   ValorLabel,
+  AnalysisQuality,
 } from "./analise.server";
-import { analiseDeEstatisticas } from "./analise.server";
+import { analiseDeEstatisticas, CALCULATION_VERSION } from "./analise.server";
 
 // ------------------------------------------------------------
 // Utilidades
