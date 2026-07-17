@@ -857,12 +857,6 @@ export async function syncOddsByLeagueDias(
     if (pErr) throw new Error(`Erro ao ler partidas: ${pErr.message}`);
     if (!partidas?.length) continue;
 
-    // Indexa partidas por external_id (fixture id da API).
-    const byFixture = new Map<string, (typeof partidas)[number]>();
-    for (const p of partidas) {
-      if (p.external_id) byFixture.set(String(p.external_id), p);
-    }
-
     // Descobre as ligas com jogos nesse dia (que estão mapeadas para um id).
     const ligaIds = new Set<number>();
     for (const p of partidas) {
@@ -875,7 +869,8 @@ export async function syncOddsByLeagueDias(
     }
   }
 
-  const maxLigas = Math.max(1, Math.min(scope.maxLigas ?? tarefas.length || 1, tarefas.length || 1));
+  const totalTarefas = tarefas.length || 1;
+  const maxLigas = Math.max(1, Math.min(scope.maxLigas ?? totalTarefas, totalTarefas));
   const selecionadas = tarefas.length
     ? Array.from({ length: Math.min(maxLigas, tarefas.length) }, (_, i) => tarefas[(cursorIndex + i) % tarefas.length])
     : [];
