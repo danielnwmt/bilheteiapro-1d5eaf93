@@ -109,7 +109,10 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
             if (await reservarSync(supabaseAdmin, "football_semana", now)) {
               reservados.push("football_semana");
               fixturesHoje = await syncFixtures("semana");
-              const result = await syncOddsByLeagueDias(CASA_PADRAO, 8);
+              const result = await syncOddsByLeagueDias(CASA_PADRAO, 8, {
+                maxLigas: 2,
+                cursorKey: "odds_cursor_semana",
+              });
               oddsCount = result.odds;
             } else {
               skipped.semana = "controle de intervalo indisponível";
@@ -125,7 +128,10 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
               if (hasLive) {
                 fixturesAoVivo = await syncFixtures("aovivo");
               }
-              const result = await syncOddsByLeagueDias(CASA_PADRAO, 1);
+              const result = await syncOddsByLeagueDias(CASA_PADRAO, 1, {
+                maxLigas: 2,
+                cursorKey: "odds_cursor_hoje",
+              });
               oddsCount += result.odds;
             } else {
               skipped.rapido = "controle de intervalo indisponível";
