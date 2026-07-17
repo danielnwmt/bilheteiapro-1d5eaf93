@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { DAILY_LIMIT_REACHED, hasApiFootballKey, MISSING_API_FOOTBALL_KEY, syncFixtures, syncOddsByLeagueDias } from "@/lib/football.server";
+import { DAILY_LIMIT_REACHED, hasApiFootballKey, MISSING_API_FOOTBALL_KEY, syncFixturesSemanaIncremental, syncOddsByLeagueDias } from "@/lib/football.server";
 import { verificarCronSecret } from "@/lib/cron-auth";
 
 
@@ -88,8 +88,11 @@ export const Route = createFileRoute("/api/public/hooks/sync-odds-diario")({
               reservados.push("football_semana");
               // Garante as partidas da SEMANA inteira (hoje + próximos 7 dias)
               // e coleta as odds de todos esses dias.
-              fixturesHoje = await syncFixtures("semana");
-              result = await syncOddsByLeagueDias(casa, 8);
+              fixturesHoje = await syncFixturesSemanaIncremental();
+              result = await syncOddsByLeagueDias(casa, 8, {
+                maxLigas: 2,
+                cursorKey: "odds_cursor_diario",
+              });
             } else {
               skipped.API_FOOTBALL_KEY = "controle de intervalo indisponível";
             }
