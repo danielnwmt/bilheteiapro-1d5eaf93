@@ -623,7 +623,7 @@ function picksSoOdds(partida: PartidaRow, casa: string): PickAnalise[] {
     if (vistos.has(chave)) continue;
     vistos.add(chave);
     const implicita = Math.round((1 / o.valor) * 100);
-    const conf = Math.max(60, Math.min(90, Math.round(60 + implicita * 0.35)));
+    const conf = Math.max(35, Math.min(55, Math.round(35 + implicita * 0.20)));
     picks.push({
       mercado,
       selecao,

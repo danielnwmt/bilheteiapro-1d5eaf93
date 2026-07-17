@@ -57,7 +57,7 @@ export type MelhorEntrada = {
 function normalizarConfianca(odd: number, confianca: number, marketOnly = false) {
   if (marketOnly) {
     const implicita = odd ? Math.round((1 / odd) * 100) : Math.round(confianca || 0);
-    return Math.max(60, Math.min(90, Math.round(60 + implicita * 0.35)));
+    return Math.max(35, Math.min(55, Math.round(35 + implicita * 0.20)));
   }
   return Math.round(confianca || 0);
 }
