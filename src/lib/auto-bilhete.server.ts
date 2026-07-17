@@ -207,6 +207,12 @@ async function montarBilhete(cfg: BilheteConfig): Promise<AutoResult> {
     const analise = analisarLocal(partida, CASA);
     const melhor = analise.picks
       .filter((p) => pickElegivel(cfg, p))
+      // Bloco 1: bilhetes automáticos e Super Múltipla NUNCA aceitam
+      // picks "market_only" (sem estatísticas) nem "unavailable".
+      .filter((p) => {
+        const q = (p as any).analysisQuality as string | undefined;
+        return q !== "market_only" && q !== "unavailable";
+      })
       .sort((a, b) =>
         (b.estrelas ?? 0) - (a.estrelas ?? 0) ||
         b.confianca - a.confianca ||
@@ -227,6 +233,7 @@ async function montarBilhete(cfg: BilheteConfig): Promise<AutoResult> {
       evPct: melhor.evPct ?? 0,
     });
   }
+
 
   if (candidatos.length < cfg.minJogos) {
     return {

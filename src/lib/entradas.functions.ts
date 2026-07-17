@@ -53,12 +53,10 @@ export type MelhorEntrada = {
   confianca: number;
 };
 
-function normalizarConfianca(odd: number, confianca: number, justificativa?: string) {
-  if (!/limite tempor[aá]rio|odds reais salvas/i.test(justificativa ?? "")) return Math.round(confianca || 0);
-  if (odd <= 1.35) return 94;
-  if (odd <= 1.6) return 92;
-  if (odd <= 1.9) return 90;
-  return Math.max(88, Math.round(confianca || 0));
+function normalizarConfianca(_odd: number, confianca: number) {
+  // Bloco 1: nunca infla confiança do fallback. picks "market_only" já vêm
+  // capadas em 55% do motor; aqui apenas arredondamos.
+  return Math.round(confianca || 0);
 }
 
 function traduzSelecao(selecao: string) {
@@ -124,8 +122,13 @@ export const getMelhoresEntradas = createServerFn({ method: "GET" })
       const payload = porPartida.get(r.id);
       const picks = Array.isArray(payload?.picks) ? payload.picks : [];
       if (!picks.length) continue;
-      // Melhor seleção (maior confiança) do jogo.
-      const best = [...picks].sort((a: any, b: any) => (b.confianca ?? 0) - (a.confianca ?? 0))[0];
+      // Bloco 1: Melhores Entradas exclui picks "market_only" (sem estatísticas).
+      const analisadas = picks.filter((p: any) => {
+        const q = p?.analysisQuality;
+        return q !== "market_only" && q !== "unavailable";
+      });
+      if (!analisadas.length) continue;
+      const best = [...analisadas].sort((a: any, b: any) => (b.confianca ?? 0) - (a.confianca ?? 0))[0];
       if (!best) continue;
       entradas.push({
         jogo: `${r.time_casa} x ${r.time_fora}`,
@@ -134,7 +137,7 @@ export const getMelhoresEntradas = createServerFn({ method: "GET" })
         mercado: best.mercado,
         selecao: traduzSelecao(best.selecao),
         odd: Number(best.odd) || 0,
-        confianca: normalizarConfianca(Number(best.odd) || 0, Number(best.confianca) || 0, best.justificativa),
+        confianca: normalizarConfianca(Number(best.odd) || 0, Number(best.confianca) || 0),
       });
     }
 

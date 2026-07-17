@@ -25,7 +25,16 @@ export type PartidaRow = {
 };
 
 
-export type ValorLabel = "Excelente Valor" | "Bom Valor" | "Valor Moderado" | "Sem Valor";
+export type ValorLabel = "Excelente Valor" | "Bom Valor" | "Valor Moderado" | "Sem Valor" | "Leitura de mercado";
+
+// Qualidade da análise de uma pick.
+//  - complete    : estatísticas + odds suficientes, filtro rigoroso ok
+//  - partial     : passou pelo motor mas com dados limitados
+//  - market_only : sem estatísticas, apenas leitura das odds (NÃO é recomendação oficial)
+//  - unavailable : sem dados mínimos para análise
+export type AnalysisQuality = "complete" | "partial" | "market_only" | "unavailable";
+
+export const CALCULATION_VERSION = "2026.07.17-b1";
 
 export type PickAnalise = {
   mercado: string;
@@ -35,13 +44,16 @@ export type PickAnalise = {
   justificativa: string;
   external_odd_id: string | null;
   // --- Campos opcionais do motor inteligente (retrocompatíveis) ---
-  // Nenhum consumidor antigo depende deles; leitores novos podem usá-los.
-  estrelas?: number; // 1 a 5 (classificação da pick)
-  probModelo?: number; // 0-100 probabilidade do modelo (Poisson + fatores)
-  oddJusta?: number; // 1 / probModelo
-  evPct?: number; // valor esperado em % (prob*odd - 1) * 100
-  valorLabel?: ValorLabel; // classificação do valor esperado
-  motivos?: string[]; // justificativas geradas automaticamente
+  estrelas?: number;
+  probModelo?: number;
+  oddJusta?: number;
+  evPct?: number;
+  valorLabel?: ValorLabel;
+  motivos?: string[];
+  // --- Qualidade da análise (Bloco 1) ---
+  analysisQuality?: AnalysisQuality;
+  dataQualityScore?: number; // 0-100
+  calculationVersion?: string;
 };
 
 export type AnaliseJogoStats = {
@@ -99,22 +111,33 @@ function traduzSelecaoCache(selecao: string) {
     .replace(/\bNo\b/gi, "Não");
 }
 
-function confiancaPorOddSegura(odd: number) {
-  if (odd <= 1.35) return 94;
-  if (odd <= 1.6) return 92;
-  if (odd <= 1.9) return 90;
-  return 88;
-}
-
 function normalizarAnaliseCache(payload: AnalisePartida): AnalisePartida {
   return {
     ...payload,
     picks: (payload.picks ?? []).map((p) => {
-      const fallbackPorLimite = /limite tempor[aá]rio|odds reais salvas/i.test(p.justificativa ?? "");
+      // Detecta picks antigas do modo "só odds" salvas no cache antes do Bloco 1.
+      const fallbackPorLimite = /limite tempor[aá]rio|odds reais salvas|somente pelas odds|leitura de mercado|estat[ií]sticas insuficientes/i.test(
+        p.justificativa ?? "",
+      );
+      const quality = p.analysisQuality ?? (fallbackPorLimite ? "market_only" : undefined);
+      const confBase = Number(p.confianca ?? 0);
+      // Regra Bloco 1: pick sem estatísticas nunca pode passar de 55% de confiança
+      // e não tem EV / estrelas / valor. Limpa qualquer inflação antiga do cache.
+      if (quality === "market_only") {
+        return {
+          ...p,
+          selecao: traduzSelecaoCache(p.selecao),
+          confianca: Math.min(55, Math.round(confBase || 55)),
+          estrelas: 0,
+          evPct: 0,
+          valorLabel: "Leitura de mercado" as const,
+          analysisQuality: "market_only" as const,
+        };
+      }
       return {
         ...p,
         selecao: traduzSelecaoCache(p.selecao),
-        confianca: fallbackPorLimite ? Math.max(p.confianca ?? 0, confiancaPorOddSegura(Number(p.odd) || 0)) : p.confianca,
+        confianca: Math.round(confBase),
       };
     }),
   };
@@ -193,21 +216,37 @@ export function analiseDeEstatisticas(partida: PartidaRow): AnaliseJogoStats {
   return { escanteios, gols, chutesAoGol, cartoesTimes, cartoesArbitro };
 }
 
+// Fallback quando o motor local não consegue analisar (sem estatísticas / contexto).
+// IMPORTANTE (Bloco 1): não inventa valor, não vira "Melhor Pick", confiança máx. 55%,
+// marcado como analysis_quality = "market_only" para os filtros a jusante excluírem
+// da lista de recomendações premium.
 function montarAnaliseSemIa(partida: PartidaRow, casa: string): AnalisePartida {
   const oddsCasa = partida.odds
     .filter((o) => normKey(o.casa) === normKey(casa) && o.valor >= 1.2 && o.valor <= 4.5)
     .sort((a, b) => a.valor - b.valor)
-    .slice(0, 5);
+    .slice(0, 3);
 
   return {
-    picks: oddsCasa.map((o) => ({
-      mercado: o.mercado || "Resultado Final",
-      selecao: traduzSelecaoCache(o.selecao),
-      odd: o.valor,
-      confianca: confiancaPorOddSegura(o.valor),
-      justificativa: "",
-      external_odd_id: o.external_odd_id,
-    })),
+    picks: oddsCasa.map((o) => {
+      const implicita = Math.round((1 / o.valor) * 100);
+      return {
+        mercado: o.mercado || "Resultado Final",
+        selecao: traduzSelecaoCache(o.selecao),
+        odd: o.valor,
+        confianca: Math.min(55, implicita),
+        justificativa:
+          "Dados estatísticos insuficientes. Esta seleção foi baseada apenas na leitura das odds e não deve ser tratada como recomendação principal.",
+        external_odd_id: o.external_odd_id,
+        estrelas: 0,
+        probModelo: implicita,
+        oddJusta: Number(o.valor.toFixed(2)),
+        evPct: 0,
+        valorLabel: "Leitura de mercado" as const,
+        analysisQuality: "market_only" as const,
+        dataQualityScore: 0,
+        calculationVersion: CALCULATION_VERSION,
+      };
+    }),
     analise: analiseDeEstatisticas(partida),
   };
 }
