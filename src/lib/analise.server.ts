@@ -24,8 +24,8 @@ export type PartidaRow = {
   estatisticas?: EstatisticasResumo | null;
 };
 
-
-export type ValorLabel = "Excelente Valor" | "Bom Valor" | "Valor Moderado" | "Sem Valor" | "Leitura de mercado";
+export type ValorLabel =
+  "Excelente Valor" | "Bom Valor" | "Valor Moderado" | "Sem Valor" | "Leitura de mercado";
 
 // Qualidade da análise de uma pick.
 //  - complete    : estatísticas + odds suficientes, filtro rigoroso ok
@@ -70,7 +70,12 @@ export type AnalisePartida = {
 };
 
 function normKey(value: string) {
-  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
 }
 
 function toText(value: unknown, fallback = "") {
@@ -79,17 +84,17 @@ function toText(value: unknown, fallback = "") {
 
 function toNumber(value: unknown, fallback = 0) {
   if (typeof value === "number" && Number.isFinite(value)) return value;
-  const parsed = Number(String(value ?? "").replace(",", ".").replace(/[^0-9.-]/g, ""));
+  const parsed = Number(
+    String(value ?? "")
+      .replace(",", ".")
+      .replace(/[^0-9.-]/g, ""),
+  );
   return Number.isFinite(parsed) ? parsed : fallback;
 }
-
-
-
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
-
 
 function formatMatchDate(iso: string) {
   return new Intl.DateTimeFormat("pt-BR", {
@@ -116,9 +121,10 @@ function normalizarAnaliseCache(payload: AnalisePartida): AnalisePartida {
     ...payload,
     picks: (payload.picks ?? []).map((p) => {
       // Detecta picks antigas do modo "só odds" salvas no cache antes do Bloco 1.
-      const fallbackPorLimite = /limite tempor[aá]rio|odds reais salvas|somente pelas odds|leitura de mercado|estat[ií]sticas insuficientes/i.test(
-        p.justificativa ?? "",
-      );
+      const fallbackPorLimite =
+        /limite tempor[aá]rio|odds reais salvas|somente pelas odds|leitura de mercado|estat[ií]sticas insuficientes/i.test(
+          p.justificativa ?? "",
+        );
       const quality = p.analysisQuality ?? (fallbackPorLimite ? "market_only" : undefined);
       const confBase = Number(p.confianca ?? 0);
       // Regra: pick sem estatísticas fica em confiança 60-90% (escala pela odd
@@ -135,7 +141,6 @@ function normalizarAnaliseCache(payload: AnalisePartida): AnalisePartida {
           valorLabel: "Leitura de mercado" as const,
           analysisQuality: "market_only" as const,
         };
-
       }
       return {
         ...p,
@@ -172,9 +177,13 @@ export function analiseDeEstatisticas(partida: PartidaRow): AnaliseJogoStats {
 
   const golsPartes: string[] = [];
   if (Number.isFinite(gCasa) || Number.isFinite(sCasa))
-    golsPartes.push(`${casa}: ${Number.isFinite(gCasa) ? gCasa.toFixed(1) : "?"} feitos / ${Number.isFinite(sCasa) ? sCasa.toFixed(1) : "?"} sofridos`);
+    golsPartes.push(
+      `${casa}: ${Number.isFinite(gCasa) ? gCasa.toFixed(1) : "?"} feitos / ${Number.isFinite(sCasa) ? sCasa.toFixed(1) : "?"} sofridos`,
+    );
   if (Number.isFinite(gFora) || Number.isFinite(sFora))
-    golsPartes.push(`${fora}: ${Number.isFinite(gFora) ? gFora.toFixed(1) : "?"} feitos / ${Number.isFinite(sFora) ? sFora.toFixed(1) : "?"} sofridos`);
+    golsPartes.push(
+      `${fora}: ${Number.isFinite(gFora) ? gFora.toFixed(1) : "?"} feitos / ${Number.isFinite(sFora) ? sFora.toFixed(1) : "?"} sofridos`,
+    );
   if (est.underOver) golsPartes.push(`tendência ${est.underOver}`);
   const gols = golsPartes.length ? golsPartes.join(" · ") : "Sem dados de gols.";
 
@@ -296,24 +305,8 @@ export async function obterAnalisePartida(
     }
   }
 
-  // Fallback: como as odds são compartilhadas entre as casas (consenso), uma
-  // análise já feita para QUALQUER casa do mesmo jogo/dia serve para a casa
-  // selecionada. Assim o robô só precisa analisar cada jogo uma vez.
-  if (!forcar) {
-    const { data: outra } = await supabaseAdmin
-      .from("analise_cache")
-      .select("payload")
-      .eq("partida_id", partida.id)
-      .eq("dia", dia)
-      .limit(1)
-      .maybeSingle();
-    if (outra?.payload) {
-      const payload = normalizarAnaliseCache(outra.payload as AnalisePartida);
-      if (Array.isArray(payload.picks) && payload.picks.length) {
-        return payload;
-      }
-    }
-  }
+  // Não reutilize cache de outra casa: a probabilidade do modelo pode ser a mesma,
+  // mas EV, linha e odd precisam corresponder à casa realmente selecionada.
 
   // Fluxo do cliente: não recalcula, apenas usa o que o robô já salvou.
   if (somenteCache) {
@@ -335,7 +328,10 @@ export async function obterAnalisePartida(
     try {
       await supabaseAdmin
         .from("analise_cache")
-        .upsert({ partida_id: partida.id, dia, casa, payload: analise }, { onConflict: "partida_id,dia,casa" });
+        .upsert(
+          { partida_id: partida.id, dia, casa, payload: analise },
+          { onConflict: "partida_id,dia,casa" },
+        );
     } catch (e) {
       console.error("Falha ao salvar análise no cache", e);
     }
@@ -365,7 +361,14 @@ export async function analisarPartidas(
       const partida = partidas[idx];
       try {
         if (idx > 0 && !somenteCache) await sleep(1200);
-        const analise = await obterAnalisePartida(supabaseAdmin, model, partida, casa, dia, somenteCache);
+        const analise = await obterAnalisePartida(
+          supabaseAdmin,
+          model,
+          partida,
+          casa,
+          dia,
+          somenteCache,
+        );
         if (analise.picks.length) resultado.set(partida.id, analise);
       } catch (e) {
         falhas++;

@@ -48,3 +48,32 @@ Nenhuma. Os novos campos vivem dentro do `payload jsonb` de `public.analise_cach
 
 ### Backup lógico
 Nenhuma função foi deletada. Comportamento antigo do fallback continua no histórico do repositório se precisar reverter.
+
+## Bloco 2 — Concorrência de cron, duplicidade de API e cache por bookmaker
+
+### Correções aplicadas
+- Criado `src/lib/sync-lock.server.ts` com aquisição/liberação atômica de locks via Postgres.
+- Criada migration `20260717194500_atomic_sync_locks.sql`:
+  - adiciona `locked_until`, `lock_token`, `last_error` e `last_finished_at` em `sync_state`;
+  - cria as RPCs seguras `acquire_sync_lock` e `release_sync_lock`;
+  - impede que duas instâncias executem o mesmo cron simultaneamente;
+  - locks abandonados expiram automaticamente por TTL.
+- `sync-football` e `sync-odds-diario` agora compartilham o mesmo lock atômico `football_semana`, eliminando a corrida que existia no fluxo `SELECT → UPSERT`.
+- O cron rápido usa lock separado (`football`) com intervalo de 5 minutos e TTL de 8 minutos.
+- A pré-análise ganhou lock `pre_analise`, evitando duas varreduras e duas coletas de estatísticas em paralelo.
+- Erros, chave inválida e limite diário liberam o lock corretamente e registram a falha.
+- O limite de estatísticas por execução passou a ser configurável por `MAX_STATS_PER_RUN` (padrão 6, mínimo 1, máximo 20).
+- A fila de estatísticas remove IDs duplicados antes de consultar/gravar.
+- A pré-análise agora cria candidatos por **partida + bookmaker**, não apenas uma análise por jogo.
+- O cache deixou de reutilizar análise de outra casa. Cada bookmaker mantém sua própria chave `(partida_id, dia, casa)`.
+- Comentários antigos de “odds consenso” foram removidos do caminho de leitura de cache.
+
+### Instalação e validação
+- `package-lock.json` foi regenerado e sincronizado com `package.json` por `npm install`.
+- `npm audit`: 0 vulnerabilidades.
+- `npx tsc --noEmit`: aprovado.
+- `npm run build`: aprovado.
+
+### Avisos restantes
+- O build ainda mostra avisos de depreciação de `createServerFn().inputValidator()`. Eles não quebram a compilação, mas devem ser migrados gradualmente para `.validator()`.
+- A migration de lock precisa ser aplicada no Supabase antes do deploy do novo código.
