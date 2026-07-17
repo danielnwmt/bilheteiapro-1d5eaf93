@@ -207,7 +207,12 @@ export const getMelhoresPicks = createServerFn({ method: "POST" })
       if (!a) continue;
       const jogo = `${r.time_casa} x ${r.time_fora}`;
       for (const p of a.picks) {
+        // Bloco 1: Melhores Picks NUNCA aceita fallback "só odds".
+        // Precisa ter analisado com estatísticas (complete/partial) e EV positivo.
+        const q = (p as any).analysisQuality as string | undefined;
+        if (q === "market_only" || q === "unavailable") continue;
         if (p.confianca < data.minConfianca) continue;
+        if (typeof p.evPct === "number" && p.evPct <= 0) continue;
         candidatos.push({
           partidaId: r.id,
           jogo,
