@@ -26,6 +26,54 @@ function admin() {
   );
 }
 
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) chunks.push(items.slice(i, i + size));
+  return chunks;
+}
+
+function isMissingExternalOddId(error: unknown) {
+  const message = String((error as any)?.message ?? error ?? "");
+  return /external_odd_id/i.test(message);
+}
+
+async function carregarOddsPorPartidas(
+  supabase: ReturnType<typeof admin>,
+  partidaIds: string[],
+  avisos: string[],
+) {
+  const odds: any[] = [];
+  let usarFallbackSemExternalOddId = false;
+
+  // Em instalações locais, uma consulta grande em odds pode voltar 502 pelo
+  // proxy antes do PostgREST responder. Lotes pequenos mantêm a pré-análise
+  // estável mesmo com muitos jogos/mercados no mesmo ciclo.
+  for (const ids of chunkArray(partidaIds, 12)) {
+    const select = usarFallbackSemExternalOddId
+      ? "partida_id, casa, mercado, selecao, valor"
+      : "partida_id, casa, mercado, selecao, valor, external_odd_id";
+
+    const { data, error } = await supabase.from("odds").select(select).in("partida_id", ids);
+
+    if (error && !usarFallbackSemExternalOddId && isMissingExternalOddId(error)) {
+      usarFallbackSemExternalOddId = true;
+      avisos.push("Coluna odds.external_odd_id ausente — rode selfhost/repair.sql para corrigir.");
+      const retry = await supabase
+        .from("odds")
+        .select("partida_id, casa, mercado, selecao, valor")
+        .in("partida_id", ids);
+      if (retry.error) throw retry.error;
+      odds.push(...(retry.data ?? []));
+      continue;
+    }
+
+    if (error) throw error;
+    odds.push(...(data ?? []));
+  }
+
+  return odds;
+}
+
 export interface PreAnaliseResult {
   ok: boolean;
   jogos: number;
@@ -73,29 +121,12 @@ export async function preAnalisarTodos(options: { coletarEstatisticas?: boolean 
   const partidaIdsParaOdds = baseRows.map((p) => p.id);
   const oddsByPartida = new Map<string, PartidaRow["odds"]>();
   if (partidaIdsParaOdds.length) {
-    let odds: any[] | null = null;
-    let oddsErr: any = null;
-    {
-      const r = await supabase
-        .from("odds")
-        .select("partida_id, casa, mercado, selecao, valor, external_odd_id")
-        .in("partida_id", partidaIdsParaOdds);
-      odds = r.data as any[] | null;
-      oddsErr = r.error;
-    }
-    // Fallback para instalações locais antigas sem a coluna external_odd_id.
-    if (oddsErr && /external_odd_id/i.test(String(oddsErr.message ?? ""))) {
-      const r = await supabase
-        .from("odds")
-        .select("partida_id, casa, mercado, selecao, valor")
-        .in("partida_id", partidaIdsParaOdds);
-      odds = r.data as any[] | null;
-      oddsErr = r.error;
-      avisos.push("Coluna odds.external_odd_id ausente — rode selfhost/repair.sql para corrigir.");
-    }
-    if (oddsErr) {
+    let odds: any[] = [];
+    try {
+      odds = await carregarOddsPorPartidas(supabase, partidaIdsParaOdds, avisos);
+    } catch (oddsErr) {
       console.error("pre-analise: erro ao ler odds", oddsErr);
-      throw new Error(`Não foi possível ler as odds para pré-análise: ${oddsErr.message ?? oddsErr}`);
+      throw new Error(`Não foi possível ler as odds para pré-análise: ${(oddsErr as any)?.message ?? oddsErr}`);
     }
     for (const o of odds ?? []) {
       const partidaId = String((o as any).partida_id ?? "");
