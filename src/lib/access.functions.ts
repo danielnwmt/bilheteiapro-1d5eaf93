@@ -1767,7 +1767,7 @@ export const chamarApiManual = createServerFn({ method: "POST" })
         void (async () => {
           try {
             await syncFixtures("semana");
-            await syncOddsByLeagueDias("betano", 8);
+            await syncOddsByLeagueDias("Bet365", 8);
           } catch (e) {
             console.error("chamarApiManual (segundo plano) falhou:", e);
           }
