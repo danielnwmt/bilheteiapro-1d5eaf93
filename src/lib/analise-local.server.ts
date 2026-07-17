@@ -373,6 +373,7 @@ function montarContexto(partida: PartidaRow): Contexto | null {
     lambda1t: clamp(lambdaTotal * 0.44, 0.2, 3.0),
     lambdaEscanteios,
     lambdaCartoes,
+    lambdaChutes,
     formaCasa,
     formaFora,
     nLesCasa,
