@@ -346,6 +346,10 @@ function montarContexto(partida: PartidaRow): Contexto | null {
   const fatorEquilibrioCartoes = 0.92 + equilibrio * 0.14;
   const lambdaCartoes = clamp(baseCartoes * cal.intensidade * importancia.peso * fatorArbitro * fatorEquilibrioCartoes, 2.1, 9.2);
 
+  // Chutes ao gol (total no jogo): correlaciona com volume ofensivo.
+  // Aproximação: ~3.6 chutes ao gol por gol esperado, com piso/teto realistas.
+  const lambdaChutes = clamp(lambdaTotal * 3.6 * (0.94 + equilibrio * 0.08) * formaVolume, 5.5, 14.5);
+
   let qualidadeDados = 0.35;
   if (dadosGols >= 4) qualidadeDados += 0.22;
   else if (dadosGols >= 2) qualidadeDados += 0.12;
