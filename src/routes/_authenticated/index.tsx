@@ -1496,8 +1496,7 @@ function Index() {
                 </div>
               ) : entradasFiltradas.length === 0 ? (
                 <p className="py-8 text-center text-sm text-muted-foreground">
-                  As melhores entradas analisadas pelo motor estatístico aparecem aqui. Aguarde a análise
-                  automática.
+                  Preparando entradas. O robô busca jogos/odds a cada 4 minutos e reprocessa as análises a cada 2 minutos.
                 </p>
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -1535,6 +1534,11 @@ function Index() {
                           {e.confianca}%
                         </Badge>
                       </div>
+                      {e.qualidade === "mercado" && (
+                        <p className="mt-2 text-[10px] text-muted-foreground">
+                          Leitura de mercado enquanto as estatísticas reais são atualizadas.
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>

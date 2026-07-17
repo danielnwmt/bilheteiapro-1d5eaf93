@@ -5,7 +5,7 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { obterAnalisePartida, diaSaoPaulo, type PartidaRow } from "./analise.server";
-import { hasApiFootballKey, syncEstatisticas, type EstatisticasResumo } from "./football.server";
+import { hasApiFootballKey, INVALID_API_FOOTBALL_KEY, syncEstatisticas, type EstatisticasResumo } from "./football.server";
 
 // Casas exibidas no app. A análise é feita por casa porque os picks usam as
 // odds reais daquela casa.
@@ -178,6 +178,8 @@ export async function preAnalisarTodos(options: { coletarEstatisticas?: boolean 
       // segue sem estatísticas (evita poluir os logs dezenas de vezes/hora).
       if (msg.includes("Missing API_FOOTBALL_KEY")) {
         avisos.push("API-Football não configurada; estatísticas reais pausadas.");
+      } else if (msg.includes(INVALID_API_FOOTBALL_KEY)) {
+        avisos.push("API-Football rejeitou a chave; estatísticas reais pausadas até salvar uma chave válida.");
       } else {
         console.error("pre-analise: falha ao coletar estatísticas", e);
       }

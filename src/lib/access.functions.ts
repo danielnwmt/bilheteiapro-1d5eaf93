@@ -1673,7 +1673,11 @@ export const testApiKey = createServerFn({ method: "POST" })
         const errs = json?.errors;
         const hasErr = Array.isArray(errs) ? errs.length > 0 : errs && Object.keys(errs).length > 0;
         if (!res.ok || hasErr) {
-          return { ok: false, error: `API-Football: ${JSON.stringify(errs ?? res.statusText)}` };
+          const raw = JSON.stringify(errs ?? res.statusText);
+          if (/missing application key|invalid application key|api key|token/i.test(raw)) {
+            return { ok: false, error: "API-Football rejeitou a chave. Salve uma chave válida e teste novamente." };
+          }
+          return { ok: false, error: `API-Football: ${raw}` };
         }
         const sub = json?.response?.requests;
         return {
