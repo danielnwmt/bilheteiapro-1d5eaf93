@@ -1,7 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { DAILY_LIMIT_REACHED, hasApiFootballKey, INVALID_API_FOOTBALL_KEY, MISSING_API_FOOTBALL_KEY, syncFixtures, syncFixturesSemanaIncremental, syncOddsByLeagueDias } from "@/lib/football.server";
+import {
+  DAILY_LIMIT_REACHED,
+  hasApiFootballKey,
+  INVALID_API_FOOTBALL_KEY,
+  MISSING_API_FOOTBALL_KEY,
+  syncFixtures,
+  syncFixturesSemanaIncremental,
+  syncOddsByLeagueDias,
+} from "@/lib/football.server";
 import { verificarCronSecret } from "@/lib/cron-auth";
-
+import { acquireSyncLock, releaseSyncLock, type SyncLock } from "@/lib/sync-lock.server";
 
 // Janela (min) para considerar um jogo "acontecendo agora" mesmo sem status ao_vivo.
 const LIVE_WINDOW_MIN = 150; // ~2h30 de duração de jogo
@@ -14,51 +22,6 @@ const INTERVALO_RAPIDO_MIN = 5;
 // multiplica as chamadas e estoura o limite da API.
 const INTERVALO_SEMANA_MIN = 60;
 
-async function podeSincronizar(
-  supabaseAdmin: any,
-  id: string,
-  intervaloMin: number,
-  now: number,
-) {
-  const { data: state, error } = await supabaseAdmin
-    .from("sync_state")
-    .select("last_sync_at")
-    .eq("id", id)
-    .maybeSingle();
-
-  if (error) {
-    console.error(`sync_state ${id} indisponível; bloqueando chamada da API`, error);
-    return { ok: false, intervaloMin, minutesSinceLast: 0 };
-  }
-
-  const last = state?.last_sync_at ? new Date(state.last_sync_at).getTime() : 0;
-  const minutesSinceLast = (now - last) / 60_000;
-  return { ok: minutesSinceLast >= intervaloMin, intervaloMin, minutesSinceLast };
-}
-
-async function reservarSync(supabaseAdmin: any, id: string, now: number): Promise<boolean> {
-  const { error } = await supabaseAdmin
-    .from("sync_state")
-    .upsert(
-      { id, last_sync_at: new Date(now).toISOString() },
-      { onConflict: "id" },
-    );
-  if (error) {
-    console.error(`Não foi possível gravar sync_state ${id}; chamada da API bloqueada`, error);
-    return false;
-  }
-  return true;
-}
-
-async function liberarSyncReservado(supabaseAdmin: any, ids: string[]) {
-  if (!ids.length) return;
-  const { error } = await supabaseAdmin
-    .from("sync_state")
-    .delete()
-    .in("id", ids);
-  if (error) console.error("Não foi possível liberar sync_state após falha", ids, error);
-}
-
 export const Route = createFileRoute("/api/public/hooks/sync-football")({
   server: {
     handlers: {
@@ -66,9 +29,7 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
         const unauthorized = verificarCronSecret(request);
         if (unauthorized) return unauthorized;
 
-        const { supabaseAdmin } = await import(
-          "@/integrations/supabase/client.server"
-        );
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
         const now = Date.now();
         const liveFrom = new Date(now - LIVE_WINDOW_MIN * 60_000).toISOString();
@@ -78,7 +39,9 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
         const { count: liveCount } = await supabaseAdmin
           .from("partidas")
           .select("id", { count: "exact", head: true })
-          .or(`and(status.eq.ao_vivo,inicio.gte.${liveFrom},inicio.lte.${liveTo}),and(inicio.gte.${liveFrom},inicio.lte.${liveTo})`);
+          .or(
+            `and(status.eq.ao_vivo,inicio.gte.${liveFrom},inicio.lte.${liveTo}),and(inicio.gte.${liveFrom},inicio.lte.${liveTo})`,
+          );
 
         const hasLive = (liveCount ?? 0) > 0;
 
@@ -86,7 +49,7 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
         let fixturesHoje = 0;
         let oddsCount = 0;
         const skipped: Record<string, string> = {};
-        const reservados: string[] = [];
+        const reservados: SyncLock[] = [];
 
         if (!(await hasApiFootballKey())) {
           return Response.json({
@@ -100,51 +63,50 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
           });
         }
 
-        const rapidoSync = await podeSincronizar(supabaseAdmin, "football", INTERVALO_RAPIDO_MIN, now);
-        const semanaSync = await podeSincronizar(supabaseAdmin, "football_semana", INTERVALO_SEMANA_MIN, now);
-
         try {
           // Ritmo LENTO (1x/hora): semana inteira de jogos + odds dos próximos dias.
-          if (semanaSync.ok) {
-            if (await reservarSync(supabaseAdmin, "football_semana", now)) {
-              reservados.push("football_semana");
-              fixturesHoje = await syncFixturesSemanaIncremental();
-              const result = await syncOddsByLeagueDias(CASA_PADRAO, 8, {
-                maxLigas: 2,
-                cursorKey: "odds_cursor_semana",
-              });
-              oddsCount = result.odds;
-            } else {
-              skipped.semana = "controle de intervalo indisponível";
-            }
+          const semanaLock = await acquireSyncLock(supabaseAdmin, "football_semana", {
+            intervalMinutes: INTERVALO_SEMANA_MIN,
+            ttlSeconds: 20 * 60,
+          });
+          if (semanaLock) {
+            reservados.push(semanaLock);
+            fixturesHoje = await syncFixturesSemanaIncremental();
+            const result = await syncOddsByLeagueDias(CASA_PADRAO, 8, {
+              maxLigas: 2,
+              cursorKey: "odds_cursor_semana",
+            });
+            oddsCount = result.odds;
           } else {
-            skipped.semana = `dentro do intervalo de ${Math.round(semanaSync.intervaloMin)} min`;
+            skipped.semana = `outra execução ativa ou dentro do intervalo de ${INTERVALO_SEMANA_MIN} min`;
           }
 
           // Ritmo RÁPIDO (a cada 4 min): só jogos ao vivo + odds de HOJE.
-          if (rapidoSync.ok) {
-            if (await reservarSync(supabaseAdmin, "football", now)) {
-              reservados.push("football");
-              if (hasLive) {
-                fixturesAoVivo = await syncFixtures("aovivo");
-              }
-              const result = await syncOddsByLeagueDias(CASA_PADRAO, 1, {
-                maxLigas: 2,
-                cursorKey: "odds_cursor_hoje",
-              });
-              oddsCount += result.odds;
-            } else {
-              skipped.rapido = "controle de intervalo indisponível";
+          const rapidoLock = await acquireSyncLock(supabaseAdmin, "football", {
+            intervalMinutes: INTERVALO_RAPIDO_MIN,
+            ttlSeconds: 8 * 60,
+          });
+          if (rapidoLock) {
+            reservados.push(rapidoLock);
+            if (hasLive) {
+              fixturesAoVivo = await syncFixtures("aovivo");
             }
+            const result = await syncOddsByLeagueDias(CASA_PADRAO, 1, {
+              maxLigas: 2,
+              cursorKey: "odds_cursor_hoje",
+            });
+            oddsCount += result.odds;
           } else {
-            skipped.rapido = `dentro do intervalo de ${Math.round(rapidoSync.intervaloMin)} min`;
+            skipped.rapido = `outra execução ativa ou dentro do intervalo de ${INTERVALO_RAPIDO_MIN} min`;
           }
         } catch (e) {
           const msg = String(e);
           // Chave da API-Football não configurada: não é falha do robô — apenas
           // avisa (evita erro 500 repetido no cron a cada 7 min).
           if (msg.includes(MISSING_API_FOOTBALL_KEY)) {
-            await liberarSyncReservado(supabaseAdmin, reservados);
+            await Promise.all(
+              reservados.map((lock) => releaseSyncLock(supabaseAdmin, lock, false, msg)),
+            );
             return Response.json({
               ok: true,
               hasLive,
@@ -156,7 +118,9 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
             });
           }
           if (msg.includes(INVALID_API_FOOTBALL_KEY)) {
-            await liberarSyncReservado(supabaseAdmin, reservados);
+            await Promise.all(
+              reservados.map((lock) => releaseSyncLock(supabaseAdmin, lock, false, msg)),
+            );
             return Response.json({
               ok: true,
               hasLive,
@@ -170,6 +134,11 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
           // Limite DIÁRIO da API-Football: não é erro do robô — apenas acabou a
           // cota do dia. Evita 500 repetido no cron até o limite resetar.
           if (msg.includes(DAILY_LIMIT_REACHED)) {
+            if (supabaseAdmin) {
+              await Promise.all(
+                reservados.map((lock) => releaseSyncLock(supabaseAdmin, lock, false, msg)),
+              );
+            }
             return Response.json({
               ok: true,
               hasLive,
@@ -180,14 +149,14 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
               oddsCount,
             });
           }
-          await liberarSyncReservado(supabaseAdmin, reservados);
-          console.error("Erro no sync agendado:", e);
-          return Response.json(
-            { ok: false, error: msg },
-            { status: 500 },
+          await Promise.all(
+            reservados.map((lock) => releaseSyncLock(supabaseAdmin, lock, false, msg)),
           );
+          console.error("Erro no sync agendado:", e);
+          return Response.json({ ok: false, error: msg }, { status: 500 });
         }
 
+        await Promise.all(reservados.map((lock) => releaseSyncLock(supabaseAdmin, lock, true)));
         return Response.json({
           ok: true,
           hasLive,
