@@ -8,7 +8,7 @@ const LIVE_WINDOW_MIN = 150; // ~2h30 de duração de jogo
 const CASA_PADRAO = "Bet365";
 
 // Ritmo rápido (a cada 4 min): só o essencial — jogos ao vivo e odds de HOJE.
-const INTERVALO_RAPIDO_MIN = 4;
+const INTERVALO_RAPIDO_MIN = 5;
 // Ritmo lento (a cada 60 min): semana inteira (jogos + odds dos próximos dias).
 // Odds de jogos daqui a vários dias quase não mudam; puxá-las a cada 4 min
 // multiplica as chamadas e estoura o limite da API.
