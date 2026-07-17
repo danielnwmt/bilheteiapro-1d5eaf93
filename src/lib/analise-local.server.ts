@@ -598,8 +598,10 @@ function estrelasDaPick(score: number, ev: number, qualidadeDados: number) {
 function riscoMercado(tipo: MercadoTipo, odd: number) {
   let risco = 0;
   if (tipo === "resultado") risco += 4;
-  if (tipo === "cartoes" || tipo === "escanteios") risco += 3;
+  if (tipo === "cartoes" || tipo === "escanteios" || tipo === "chutes") risco += 3;
   if (tipo === "gols_1t") risco += 5;
+  if (tipo === "placar") risco += 8; // placar exato é volátil
+  if (tipo === "handicap") risco += 2;
   if (tipo === "dupla" || tipo === "dnb") risco -= 2;
   if (odd >= 3) risco += 5;
   else if (odd >= 2.4) risco += 3;
