@@ -177,6 +177,13 @@ ALTER TABLE public.banca_entradas ADD COLUMN IF NOT EXISTS esporte text NOT NULL
 -- "Could not find the 'arbitro' column of 'partidas' in the schema cache".
 ALTER TABLE public.partidas ADD COLUMN IF NOT EXISTS arbitro text;
 
+-- Identificador externo da odd (necessário para deep-links e pré-análise).
+-- Instalações locais antigas não têm essa coluna e o SELECT quebra com
+-- "column odds.external_odd_id does not exist" → pré-análise falha.
+ALTER TABLE public.odds ADD COLUMN IF NOT EXISTS external_odd_id text;
+ALTER TABLE public.odds ADD COLUMN IF NOT EXISTS deep_link text;
+NOTIFY pgrst, 'reload schema';
+
 -- GoTrue quebra em algumas instalações antigas quando colunas de token estão NULL.
 DO $$
 BEGIN

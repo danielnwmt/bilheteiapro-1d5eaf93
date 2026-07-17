@@ -73,13 +73,29 @@ export async function preAnalisarTodos(options: { coletarEstatisticas?: boolean 
   const partidaIdsParaOdds = baseRows.map((p) => p.id);
   const oddsByPartida = new Map<string, PartidaRow["odds"]>();
   if (partidaIdsParaOdds.length) {
-    const { data: odds, error: oddsErr } = await supabase
-      .from("odds")
-      .select("partida_id, casa, mercado, selecao, valor, external_odd_id")
-      .in("partida_id", partidaIdsParaOdds);
+    let odds: any[] | null = null;
+    let oddsErr: any = null;
+    {
+      const r = await supabase
+        .from("odds")
+        .select("partida_id, casa, mercado, selecao, valor, external_odd_id")
+        .in("partida_id", partidaIdsParaOdds);
+      odds = r.data as any[] | null;
+      oddsErr = r.error;
+    }
+    // Fallback para instalações locais antigas sem a coluna external_odd_id.
+    if (oddsErr && /external_odd_id/i.test(String(oddsErr.message ?? ""))) {
+      const r = await supabase
+        .from("odds")
+        .select("partida_id, casa, mercado, selecao, valor")
+        .in("partida_id", partidaIdsParaOdds);
+      odds = r.data as any[] | null;
+      oddsErr = r.error;
+      avisos.push("Coluna odds.external_odd_id ausente — rode selfhost/repair.sql para corrigir.");
+    }
     if (oddsErr) {
       console.error("pre-analise: erro ao ler odds", oddsErr);
-      throw new Error("Não foi possível ler as odds para pré-análise.");
+      throw new Error(`Não foi possível ler as odds para pré-análise: ${oddsErr.message ?? oddsErr}`);
     }
     for (const o of odds ?? []) {
       const partidaId = String((o as any).partida_id ?? "");
