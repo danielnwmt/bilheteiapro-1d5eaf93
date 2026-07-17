@@ -134,20 +134,20 @@ function AdminDashboard() {
   const mutOperacao = useMutation({
     mutationFn: () => iniciar(),
     onSuccess: (r: any) => {
-      if (r?.emSegundoPlano) {
-        toast.success("Operação iniciada em segundo plano. Aguarde alguns minutos e atualize os dados.", { duration: 8000 });
-        return;
-      }
+      const seg = Math.max(1, Math.round((r?.durationMs ?? 0) / 1000));
+      const resumo = `Jogos: ${r?.jogosHoje ?? 0} • Odds: ${r?.oddsCount ?? 0} • Analisados: ${r?.analisados ?? 0} • Tempo: ${seg}s`;
       const falhas = (r?.etapas ?? []).filter((e: any) => !e.ok);
       if (falhas.length === 0) {
-        toast.success("Operação concluída! Jogos, odds e análises atualizados.", { duration: 6000 });
+        toast.success(`Operação concluída! ${resumo}`, { duration: 8000 });
       } else {
         toast.warning(
-          "Operação concluída com avisos: " + falhas.map((e: any) => `${e.etapa}: ${e.info}`).join(" | "),
-          { duration: 12000 },
+          `Concluído com avisos (${resumo}): ` +
+            falhas.map((e: any) => `${e.etapa}: ${e.info}`).join(" | "),
+          { duration: 14000 },
         );
       }
     },
+
     onError: (e: any) =>
       toast.error(limparErroUI(e?.message, "Erro ao iniciar a operação"), { duration: 12000 }),
   });

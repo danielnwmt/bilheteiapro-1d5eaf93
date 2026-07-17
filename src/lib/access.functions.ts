@@ -1839,42 +1839,54 @@ export const iniciarOperacao = createServerFn({ method: "POST" })
       throw new Error("Acesso restrito");
     }
 
-    // Não segura a requisição aguardando API-Football + análise. Em instalação
-    // local isso era o principal gerador de 504 e travava o painel admin.
-    void (async () => {
-      try {
-        const { syncFixtures, syncFixturesSemanaIncremental, syncOddsByLeagueDias } = await import("./football.server");
-        const { preAnalisarTodos } = await import("./pre-analise.server");
-        await syncFixturesSemanaIncremental();
-        try {
-          await syncFixtures("aovivo");
-        } catch {
-          /* ao vivo é opcional */
-        }
-        await syncOddsByLeagueDias("betano", 3, {
-          maxLigas: 2,
-          cursorKey: "odds_cursor_operacao",
-        });
-        await preAnalisarTodos({ coletarEstatisticas: true });
-      } catch (e) {
-        console.error("iniciarOperacao (segundo plano) falhou:", e);
-      }
-    })();
+    // Executa inline e devolve diagnóstico com tempo total.
+    const inicio = Date.now();
+    const etapas: Array<{ etapa: string; ok: boolean; info: string; ms: number }> = [];
+    let jogosHoje = 0;
+    let oddsCount = 0;
+    let analisados = 0;
 
+    const cron = async (nome: string, fn: () => Promise<any>) => {
+      const t0 = Date.now();
+      try {
+        const r = await fn();
+        etapas.push({ etapa: nome, ok: true, info: "OK", ms: Date.now() - t0 });
+        return r;
+      } catch (e: any) {
+        etapas.push({
+          etapa: nome,
+          ok: false,
+          info: String(e?.message ?? e).slice(0, 200),
+          ms: Date.now() - t0,
+        });
+        return null;
+      }
+    };
+
+    const { syncFixtures, syncFixturesSemanaIncremental, syncOddsByLeagueDias } = await import("./football.server");
+    const { preAnalisarTodos } = await import("./pre-analise.server");
+
+    const rFix = await cron("Sync jogos (semana)", () => syncFixturesSemanaIncremental());
+    if (rFix?.processed != null) jogosHoje = rFix.processed;
+    await cron("Sync ao vivo", () => syncFixtures("aovivo"));
+    const rOdds = await cron("Sync odds", () =>
+      syncOddsByLeagueDias("betano", 3, { maxLigas: 2, cursorKey: "odds_cursor_operacao" }),
+    );
+    if (rOdds?.oddsCount != null) oddsCount = rOdds.oddsCount;
+    const rAn = await cron("Pré-análise", () => preAnalisarTodos({ coletarEstatisticas: true }));
+    if (rAn?.analisados != null) analisados = rAn.analisados;
+
+    const durationMs = Date.now() - inicio;
     return {
-      ok: true,
-      emSegundoPlano: true,
-      jogosHoje: 0,
-      oddsCount: 0,
-      analisados: 0,
-      etapas: [
-        {
-          etapa: "Operação",
-          ok: true,
-          info: "Sincronização e análises iniciadas em segundo plano. Aguarde alguns minutos e atualize a tela.",
-        },
-      ],
+      ok: etapas.every((e) => e.ok),
+      emSegundoPlano: false,
+      durationMs,
+      jogosHoje,
+      oddsCount,
+      analisados,
+      etapas,
     };
   });
+
 
 
