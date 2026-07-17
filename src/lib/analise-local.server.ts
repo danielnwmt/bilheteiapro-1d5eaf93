@@ -730,6 +730,11 @@ export function analisarLocal(partida: PartidaRow, casa: string): AnalisePartida
       tipo: parsed.tipo,
     });
 
+    // Bloco 1: classifica a qualidade da análise da pick a partir do índice
+    // de qualidade dos dados do jogo (ctx.qualidadeDados: 0..1).
+    const dataQualityScore = Math.round(clamp(ctx.qualidadeDados, 0, 1) * 100);
+    const analysisQuality: AnalysisQuality = dataQualityScore >= 75 ? "complete" : "partial";
+
     const cand: Cand = {
       mercado: o.mercado || "Resultado Final",
       selecao: traduzPt(o.selecao),
@@ -743,6 +748,9 @@ export function analisarLocal(partida: PartidaRow, casa: string): AnalisePartida
       motivos,
       justificativa: motivos.join(" • "),
       external_odd_id: o.external_odd_id,
+      analysisQuality,
+      dataQualityScore,
+      calculationVersion: CALCULATION_VERSION,
       _score: score,
       _ev: ev,
       _bucket: bucketMercado(o.mercado || "", o.selecao || "", parsed.tipo),
