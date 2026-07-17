@@ -741,6 +741,9 @@ function montarMotivos(args: {
   if (tipo === "escanteios") motivos.push(`Modelo de escanteios projeta ~${round1(ctx.lambdaEscanteios)} cantos`);
   if (tipo === "cartoes") motivos.push(`Modelo de cartões projeta ~${round1(ctx.lambdaCartoes)} cartões`);
   if (tipo === "gols_1t") motivos.push(`1º tempo projetado em ~${round1(ctx.lambda1t)} gol(s)`);
+  if (tipo === "chutes") motivos.push(`Modelo projeta ~${round1(ctx.lambdaChutes)} chutes ao gol no total`);
+  if (tipo === "handicap") motivos.push(`Diferença esperada de gols: ${round1(ctx.lambdaCasa - ctx.lambdaFora)} (${casa} x ${fora})`);
+  if (tipo === "placar") motivos.push(`Distribuição Poisson ${round1(ctx.lambdaCasa)} x ${round1(ctx.lambdaFora)}`);
 
   if (lado === "casa" && ctx.formaCasa != null) motivos.push(`${casa}: forma recente ponderada ${percent(ctx.formaCasa)}`);
   if (lado === "fora" && ctx.formaFora != null) motivos.push(`${fora}: forma recente ponderada ${percent(ctx.formaFora)}`);
