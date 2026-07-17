@@ -394,7 +394,7 @@ function montarContexto(partida: PartidaRow): Contexto | null {
 // ------------------------------------------------------------
 // Interpretação de mercado/seleção
 // ------------------------------------------------------------
-type MercadoTipo = "resultado" | "dupla" | "dnb" | "btts" | "time_gol" | "gols" | "gols_1t" | "escanteios" | "cartoes" | "desconhecido";
+type MercadoTipo = "resultado" | "dupla" | "dnb" | "btts" | "time_gol" | "gols" | "gols_1t" | "escanteios" | "cartoes" | "chutes" | "handicap" | "placar" | "desconhecido";
 
 function tipoMercado(mercado: string, selecao: string): MercadoTipo {
   const m = normKey(mercado);
@@ -405,6 +405,9 @@ function tipoMercado(mercado: string, selecao: string): MercadoTipo {
   if (m.includes("marca gol") || m.includes("team to score") || m.includes("time marca")) return "time_gol";
   if (m.includes("escanteio") || m.includes("corner")) return "escanteios";
   if (m.includes("cart") || m.includes("card")) return "cartoes";
+  if (m.includes("chute") || m.includes("shot")) return "chutes";
+  if (m.includes("placar exato") || m.includes("correct score") || m.includes("resultado exato")) return "placar";
+  if (m.includes("handicap") || m.includes("asian") || m.includes("asiatico")) return "handicap";
   if ((m.includes("1") && m.includes("tempo")) || m.includes("1st half") || m.includes("first half")) return "gols_1t";
   if (m.includes("total de gols") || m.includes("over under") || (m.includes("gols") && (s.includes("mais de") || s.includes("menos de") || s.includes("over") || s.includes("under")))) return "gols";
   if (m.includes("resultado") || m.includes("match winner") || m.includes("winner") || m.includes("1x2")) return "resultado";
