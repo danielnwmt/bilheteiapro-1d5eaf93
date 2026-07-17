@@ -513,8 +513,57 @@ function probDaSelecao(mercado: string, selecao: string, ctx: Contexto, casa: st
     if (isUnder && linhaRelevante(false, linha, ctx.lambdaCartoes, "cartoes")) return { prob: probUnder(ctx.lambdaCartoes, linha), tipo };
     return null;
   }
+  if (tipo === "chutes") {
+    // Se seleção menciona um dos times, usa metade do lambda; caso contrário total.
+    let lam = ctx.lambdaChutes;
+    if (temCasa && !temFora) lam = ctx.lambdaChutes * (ctx.lambdaCasa / Math.max(0.01, ctx.lambdaTotal));
+    else if (temFora && !temCasa) lam = ctx.lambdaChutes * (ctx.lambdaFora / Math.max(0.01, ctx.lambdaTotal));
+    if (isOver && linhaRelevante(true, linha, lam, "chutes")) return { prob: probOver(lam, linha), tipo };
+    if (isUnder && linhaRelevante(false, linha, lam, "chutes")) return { prob: probUnder(lam, linha), tipo };
+    return null;
+  }
+  if (tipo === "handicap") {
+    // Suporta apenas linhas de meio ponto (sem push) para evitar aproximações de ½ vitória.
+    const hMatch = String(selecao).match(/([+-]?\s*\d+(?:[.,]\d+)?)/);
+    if (!hMatch) return null;
+    const handicap = Number(hMatch[1].replace(/\s+/g, "").replace(",", "."));
+    if (!Number.isFinite(handicap)) return null;
+    // Só linhas .5 (evita push do handicap inteiro/quarto).
+    if (Math.abs(handicap * 2 - Math.round(handicap * 2)) > 0.01) return null;
+    if (Math.abs(handicap - Math.round(handicap)) < 0.01) return null;
+    const lado: "casa" | "fora" | null = temCasa ? "casa" : temFora ? "fora" : null;
+    if (!lado) return null;
+    // Prob(diferença casa - fora > -handicap) para lado casa; simétrico para fora.
+    const p = probHandicap(ctx.lambdaCasa, ctx.lambdaFora, lado, handicap);
+    return { prob: p, tipo };
+  }
+  if (tipo === "placar") {
+    const pm = String(selecao).match(/(\d+)\s*(?:x|:|-)\s*(\d+)/i);
+    if (!pm) return null;
+    const gc = Number(pm[1]);
+    const gf = Number(pm[2]);
+    if (!Number.isFinite(gc) || !Number.isFinite(gf) || gc > 7 || gf > 7) return null;
+    const p = poissonPmf(ctx.lambdaCasa, gc) * poissonPmf(ctx.lambdaFora, gf);
+    return { prob: clamp(p, 0.001, 0.6), tipo };
+  }
 
   return null;
+}
+
+// Handicap asiático (linhas .5): probabilidade de o lado cobrir.
+function probHandicap(lamCasa: number, lamFora: number, lado: "casa" | "fora", handicap: number): number {
+  // Enumera placares até 8x8 (>99.9% da massa para lambdas típicos).
+  const MAX = 8;
+  let p = 0;
+  for (let i = 0; i <= MAX; i++) {
+    const pi = poissonPmf(lamCasa, i);
+    for (let j = 0; j <= MAX; j++) {
+      const pj = poissonPmf(lamFora, j);
+      const diff = lado === "casa" ? i - j + handicap : j - i + handicap;
+      if (diff > 0) p += pi * pj;
+    }
+  }
+  return clamp(p, 0.01, 0.99);
 }
 
 function bucketMercado(mercado: string, selecao: string, tipo: MercadoTipo) {
