@@ -123,7 +123,7 @@ export async function preAnalisarTodos(): Promise<PreAnaliseResult> {
   // Prioriza candidatos AINDA SEM cache (para rolar por toda a janela de 8 dias
   // ao longo dos ciclos do cron) e, se sobrar espaço, reanalisa os já cacheados
   // para refletir odds novas durante o dia.
-  const MAX_ANALISES_POR_RUN = 40;
+  const MAX_ANALISES_POR_RUN = 120;
   const semCache = candidatos.filter((c) => !cacheSet.has(c.partida.id));
   const comCache = candidatos.filter((c) => cacheSet.has(c.partida.id));
   const pendentes = [...semCache, ...comCache].slice(0, MAX_ANALISES_POR_RUN);
