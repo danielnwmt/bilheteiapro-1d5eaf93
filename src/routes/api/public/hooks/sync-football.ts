@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { DAILY_LIMIT_REACHED, hasApiFootballKey, MISSING_API_FOOTBALL_KEY, syncFixtures, syncFixturesSemanaIncremental, syncOddsByLeagueDias } from "@/lib/football.server";
+import { DAILY_LIMIT_REACHED, hasApiFootballKey, INVALID_API_FOOTBALL_KEY, MISSING_API_FOOTBALL_KEY, syncFixtures, syncFixturesSemanaIncremental, syncOddsByLeagueDias } from "@/lib/football.server";
 import { verificarCronSecret } from "@/lib/cron-auth";
 
 
@@ -150,6 +150,18 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
               hasLive,
               skipped: { API_FOOTBALL_KEY: "chave não configurada em Configurações → APIs" },
               requiresConfig: true,
+              fixturesHoje,
+              fixturesAoVivo,
+              oddsCount,
+            });
+          }
+          if (msg.includes(INVALID_API_FOOTBALL_KEY)) {
+            await liberarSyncReservado(supabaseAdmin, reservados);
+            return Response.json({
+              ok: true,
+              hasLive,
+              skipped: { API_FOOTBALL_KEY: "chave rejeitada pela API-Football" },
+              invalidKey: true,
               fixturesHoje,
               fixturesAoVivo,
               oddsCount,
