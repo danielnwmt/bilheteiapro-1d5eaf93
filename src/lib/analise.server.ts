@@ -25,7 +25,16 @@ export type PartidaRow = {
 };
 
 
-export type ValorLabel = "Excelente Valor" | "Bom Valor" | "Valor Moderado" | "Sem Valor";
+export type ValorLabel = "Excelente Valor" | "Bom Valor" | "Valor Moderado" | "Sem Valor" | "Leitura de mercado";
+
+// Qualidade da análise de uma pick.
+//  - complete    : estatísticas + odds suficientes, filtro rigoroso ok
+//  - partial     : passou pelo motor mas com dados limitados
+//  - market_only : sem estatísticas, apenas leitura das odds (NÃO é recomendação oficial)
+//  - unavailable : sem dados mínimos para análise
+export type AnalysisQuality = "complete" | "partial" | "market_only" | "unavailable";
+
+export const CALCULATION_VERSION = "2026.07.17-b1";
 
 export type PickAnalise = {
   mercado: string;
@@ -35,13 +44,16 @@ export type PickAnalise = {
   justificativa: string;
   external_odd_id: string | null;
   // --- Campos opcionais do motor inteligente (retrocompatíveis) ---
-  // Nenhum consumidor antigo depende deles; leitores novos podem usá-los.
-  estrelas?: number; // 1 a 5 (classificação da pick)
-  probModelo?: number; // 0-100 probabilidade do modelo (Poisson + fatores)
-  oddJusta?: number; // 1 / probModelo
-  evPct?: number; // valor esperado em % (prob*odd - 1) * 100
-  valorLabel?: ValorLabel; // classificação do valor esperado
-  motivos?: string[]; // justificativas geradas automaticamente
+  estrelas?: number;
+  probModelo?: number;
+  oddJusta?: number;
+  evPct?: number;
+  valorLabel?: ValorLabel;
+  motivos?: string[];
+  // --- Qualidade da análise (Bloco 1) ---
+  analysisQuality?: AnalysisQuality;
+  dataQualityScore?: number; // 0-100
+  calculationVersion?: string;
 };
 
 export type AnaliseJogoStats = {
