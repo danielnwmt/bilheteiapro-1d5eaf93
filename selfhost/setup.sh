@@ -177,6 +177,10 @@ if ! env_has_value SUPABASE_PUBLIC_URL; then echo "SUPABASE_PUBLIC_URL=http://12
 if ! env_has_value SITE_URL; then echo "SITE_URL=http://127.0.0.1:${APP_PORT:-3000}" >> "$ENV_FILE"; fi
 if ! env_has_value ANON_KEY; then echo "ANON_KEY=$(make_jwt anon "$JWT_SECRET")" >> "$ENV_FILE"; fi
 if ! env_has_value SERVICE_ROLE_KEY; then echo "SERVICE_ROLE_KEY=$(make_jwt service_role "$JWT_SECRET")" >> "$ENV_FILE"; fi
+if ! env_has_value API_FOOTBALL_KEY; then echo "API_FOOTBALL_KEY=" >> "$ENV_FILE"; fi
+if ! env_has_value ODDS_API_KEY; then echo "ODDS_API_KEY=" >> "$ENV_FILE"; fi
+if ! env_has_value ASAAS_API_KEY; then echo "ASAAS_API_KEY=" >> "$ENV_FILE"; fi
+if ! env_has_value ASAAS_ENV; then echo "ASAAS_ENV=producao" >> "$ENV_FILE"; fi
 chmod 600 "$ENV_FILE"
 set -a; . "$ENV_FILE"; set +a
 

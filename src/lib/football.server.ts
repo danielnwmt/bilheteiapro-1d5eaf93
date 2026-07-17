@@ -383,8 +383,7 @@ interface ApiOddResponse {
 }
 
 async function apiGetOdds(path: string, key: string): Promise<ApiOddResponse[]> {
-  await registrarChamada("API_FOOTBALL_KEY");
-  const res = await fetch(`${API_BASE}${path}`, { headers: { "x-apisports-key": key } });
+  const res = await apiFootballFetch(`${API_BASE}${path}`, key);
   if (!res.ok) throw new Error(`API-Football odds ${res.status}: ${await res.text()}`);
   const json = (await res.json()) as { errors?: unknown; response?: ApiOddResponse[] };
   const hasErr = json.errors && (Array.isArray(json.errors) ? json.errors.length : Object.keys(json.errors).length);
@@ -1351,7 +1350,6 @@ export async function getEstatisticasAoVivo(externalId: string): Promise<EstatAo
   };
 
   // 1) Placar e status.
-  await registrarChamada("API_FOOTBALL_KEY");
   type FixtureLive = {
     fixture?: { status?: { short?: string; elapsed?: number | null } };
     teams?: { home?: { id?: number }; away?: { id?: number } };
@@ -1359,9 +1357,7 @@ export async function getEstatisticasAoVivo(externalId: string): Promise<EstatAo
   };
   let fixture: FixtureLive | null = null;
   try {
-    const res = await fetch(`${API_BASE}/fixtures?id=${externalId}`, {
-      headers: { "x-apisports-key": key },
-    });
+    const res = await apiFootballFetch(`${API_BASE}/fixtures?id=${externalId}`, key);
     if (res.ok) {
       const json = (await res.json()) as { response?: FixtureLive[] };
       fixture = json.response?.[0] ?? null;
@@ -1385,12 +1381,8 @@ export async function getEstatisticasAoVivo(externalId: string): Promise<EstatAo
   };
 
   // 2) Estatísticas por time.
-  await sleep(API_THROTTLE_MS);
-  await registrarChamada("API_FOOTBALL_KEY");
   try {
-    const res = await fetch(`${API_BASE}/fixtures/statistics?fixture=${externalId}`, {
-      headers: { "x-apisports-key": key },
-    });
+    const res = await apiFootballFetch(`${API_BASE}/fixtures/statistics?fixture=${externalId}`, key);
     if (res.ok) {
       const json = (await res.json()) as {
         response?: Array<{
