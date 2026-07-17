@@ -1,0 +1,2 @@
+REVOKE EXECUTE ON FUNCTION public.acquire_sync_lock(text, integer, integer, text) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.release_sync_lock(text, text, boolean, text) FROM PUBLIC, anon, authenticated;
