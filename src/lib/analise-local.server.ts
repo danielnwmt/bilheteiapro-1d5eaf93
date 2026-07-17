@@ -606,6 +606,10 @@ function confiancaPorOddSegura(odd: number) {
   return 62;
 }
 
+// Fallback quando o motor não consegue montar contexto estatístico.
+// Bloco 1: não gera "Melhor Pick", não infla confiança, não inventa EV,
+// e marca cada pick com analysis_quality = "market_only". Os consumidores
+// (Melhores Picks, Super Múltipla, Melhores Entradas) filtram esse tipo.
 function picksSoOdds(partida: PartidaRow, casa: string): PickAnalise[] {
   const vistos = new Set<string>();
   const picks: PickAnalise[] = [];
@@ -617,8 +621,8 @@ function picksSoOdds(partida: PartidaRow, casa: string): PickAnalise[] {
     const chave = `${normKey(mercado)}|${normKey(selecao)}`;
     if (vistos.has(chave)) continue;
     vistos.add(chave);
-    const conf = confiancaPorOddSegura(o.valor);
     const implicita = Math.round((1 / o.valor) * 100);
+    const conf = Math.min(55, implicita);
     picks.push({
       mercado,
       selecao,
@@ -627,11 +631,18 @@ function picksSoOdds(partida: PartidaRow, casa: string): PickAnalise[] {
       probModelo: implicita,
       oddJusta: Number(o.valor.toFixed(2)),
       evPct: 0,
-      valorLabel: "Sem Valor",
-      estrelas: conf >= 84 ? 2 : 1,
-      motivos: ["Sem estatísticas suficientes: pick baseada somente em leitura de odds", `Chance implícita da casa: ${implicita}%`],
-      justificativa: `Sem estatísticas suficientes. Leitura conservadora pelas odds reais: chance implícita ${implicita}%.`,
+      valorLabel: "Leitura de mercado",
+      estrelas: 0,
+      motivos: [
+        "Dados estatísticos insuficientes",
+        `Chance implícita da casa: ${implicita}%`,
+      ],
+      justificativa:
+        "Dados estatísticos insuficientes. Esta seleção foi baseada apenas na leitura das odds e não deve ser tratada como recomendação principal.",
       external_odd_id: o.external_odd_id,
+      analysisQuality: "market_only",
+      dataQualityScore: 0,
+      calculationVersion: CALCULATION_VERSION,
     });
     if (picks.length >= 3) break;
   }
