@@ -111,22 +111,33 @@ function traduzSelecaoCache(selecao: string) {
     .replace(/\bNo\b/gi, "Não");
 }
 
-function confiancaPorOddSegura(odd: number) {
-  if (odd <= 1.35) return 94;
-  if (odd <= 1.6) return 92;
-  if (odd <= 1.9) return 90;
-  return 88;
-}
-
 function normalizarAnaliseCache(payload: AnalisePartida): AnalisePartida {
   return {
     ...payload,
     picks: (payload.picks ?? []).map((p) => {
-      const fallbackPorLimite = /limite tempor[aá]rio|odds reais salvas/i.test(p.justificativa ?? "");
+      // Detecta picks antigas do modo "só odds" salvas no cache antes do Bloco 1.
+      const fallbackPorLimite = /limite tempor[aá]rio|odds reais salvas|somente pelas odds|leitura de mercado|estat[ií]sticas insuficientes/i.test(
+        p.justificativa ?? "",
+      );
+      const quality = p.analysisQuality ?? (fallbackPorLimite ? "market_only" : undefined);
+      const confBase = Number(p.confianca ?? 0);
+      // Regra Bloco 1: pick sem estatísticas nunca pode passar de 55% de confiança
+      // e não tem EV / estrelas / valor. Limpa qualquer inflação antiga do cache.
+      if (quality === "market_only") {
+        return {
+          ...p,
+          selecao: traduzSelecaoCache(p.selecao),
+          confianca: Math.min(55, Math.round(confBase || 55)),
+          estrelas: 0,
+          evPct: 0,
+          valorLabel: "Leitura de mercado" as const,
+          analysisQuality: "market_only" as const,
+        };
+      }
       return {
         ...p,
         selecao: traduzSelecaoCache(p.selecao),
-        confianca: fallbackPorLimite ? Math.max(p.confianca ?? 0, confiancaPorOddSegura(Number(p.odd) || 0)) : p.confianca,
+        confianca: Math.round(confBase),
       };
     }),
   };
