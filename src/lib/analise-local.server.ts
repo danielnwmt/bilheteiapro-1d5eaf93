@@ -654,11 +654,12 @@ function probCalibradaComMercado(probModelo: number, odd: number, qualidadeDados
 function passaFiltroRigoroso(args: { prob: number; probCalibrada: number; ev: number; odd: number; score: number; tipo: MercadoTipo; qualidadeDados: number }) {
   const { prob, probCalibrada, ev, odd, score, tipo, qualidadeDados } = args;
   if (ev <= 0.005) return false;
-  if (odd < 1.22 || odd > 6.5) return false;
-  if (prob < 0.18 || probCalibrada < 0.18) return false;
+  if (odd < 1.22 || odd > (tipo === "placar" ? 15 : 6.5)) return false;
+  if (prob < (tipo === "placar" ? 0.06 : 0.18) || probCalibrada < (tipo === "placar" ? 0.06 : 0.18)) return false;
   if (score < 56) return false;
   if (qualidadeDados < 0.45 && tipo !== "dupla" && tipo !== "dnb") return false;
-  if ((tipo === "escanteios" || tipo === "cartoes" || tipo === "gols_1t") && score < 62) return false;
+  if ((tipo === "escanteios" || tipo === "cartoes" || tipo === "gols_1t" || tipo === "chutes") && score < 62) return false;
+  if ((tipo === "placar" || tipo === "handicap") && score < 64) return false;
   return true;
 }
 
