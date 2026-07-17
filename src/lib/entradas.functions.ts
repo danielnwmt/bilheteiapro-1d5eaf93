@@ -53,12 +53,10 @@ export type MelhorEntrada = {
   confianca: number;
 };
 
-function normalizarConfianca(odd: number, confianca: number, justificativa?: string) {
-  if (!/limite tempor[aá]rio|odds reais salvas/i.test(justificativa ?? "")) return Math.round(confianca || 0);
-  if (odd <= 1.35) return 94;
-  if (odd <= 1.6) return 92;
-  if (odd <= 1.9) return 90;
-  return Math.max(88, Math.round(confianca || 0));
+function normalizarConfianca(_odd: number, confianca: number) {
+  // Bloco 1: nunca infla confiança do fallback. picks "market_only" já vêm
+  // capadas em 55% do motor; aqui apenas arredondamos.
+  return Math.round(confianca || 0);
 }
 
 function traduzSelecao(selecao: string) {
