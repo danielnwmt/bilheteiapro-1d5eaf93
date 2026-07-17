@@ -91,13 +91,14 @@ function extrairLinha(texto: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-function linhaRelevante(isOver: boolean, linha: number, lambda: number, mercado: "gols" | "1t" | "escanteios" | "cartoes") {
+function linhaRelevante(isOver: boolean, linha: number, lambda: number, mercado: "gols" | "1t" | "escanteios" | "cartoes" | "chutes") {
   // Mantém linhas relevantes e corta armadilhas triviais/absurdas.
   const cfg = {
     gols: { minOver: 0.5, minUnder: 1.5, margem: 2.2 },
     "1t": { minOver: 0.5, minUnder: 0.5, margem: 1.7 },
     escanteios: { minOver: 6.5, minUnder: 6.5, margem: 3.2 },
     cartoes: { minOver: 2.5, minUnder: 2.5, margem: 2.6 },
+    chutes: { minOver: 2.5, minUnder: 2.5, margem: 3.5 },
   }[mercado];
   if (isOver && linha < cfg.minOver) return false;
   if (!isOver && linha < cfg.minUnder) return false;
