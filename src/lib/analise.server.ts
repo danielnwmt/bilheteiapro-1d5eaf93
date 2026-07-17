@@ -216,21 +216,37 @@ export function analiseDeEstatisticas(partida: PartidaRow): AnaliseJogoStats {
   return { escanteios, gols, chutesAoGol, cartoesTimes, cartoesArbitro };
 }
 
+// Fallback quando o motor local não consegue analisar (sem estatísticas / contexto).
+// IMPORTANTE (Bloco 1): não inventa valor, não vira "Melhor Pick", confiança máx. 55%,
+// marcado como analysis_quality = "market_only" para os filtros a jusante excluírem
+// da lista de recomendações premium.
 function montarAnaliseSemIa(partida: PartidaRow, casa: string): AnalisePartida {
   const oddsCasa = partida.odds
     .filter((o) => normKey(o.casa) === normKey(casa) && o.valor >= 1.2 && o.valor <= 4.5)
     .sort((a, b) => a.valor - b.valor)
-    .slice(0, 5);
+    .slice(0, 3);
 
   return {
-    picks: oddsCasa.map((o) => ({
-      mercado: o.mercado || "Resultado Final",
-      selecao: traduzSelecaoCache(o.selecao),
-      odd: o.valor,
-      confianca: confiancaPorOddSegura(o.valor),
-      justificativa: "",
-      external_odd_id: o.external_odd_id,
-    })),
+    picks: oddsCasa.map((o) => {
+      const implicita = Math.round((1 / o.valor) * 100);
+      return {
+        mercado: o.mercado || "Resultado Final",
+        selecao: traduzSelecaoCache(o.selecao),
+        odd: o.valor,
+        confianca: Math.min(55, implicita),
+        justificativa:
+          "Dados estatísticos insuficientes. Esta seleção foi baseada apenas na leitura das odds e não deve ser tratada como recomendação principal.",
+        external_odd_id: o.external_odd_id,
+        estrelas: 0,
+        probModelo: implicita,
+        oddJusta: Number(o.valor.toFixed(2)),
+        evPct: 0,
+        valorLabel: "Leitura de mercado" as const,
+        analysisQuality: "market_only" as const,
+        dataQualityScore: 0,
+        calculationVersion: CALCULATION_VERSION,
+      };
+    }),
     analise: analiseDeEstatisticas(partida),
   };
 }
