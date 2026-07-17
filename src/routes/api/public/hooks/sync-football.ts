@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { DAILY_LIMIT_REACHED, hasApiFootballKey, MISSING_API_FOOTBALL_KEY, syncFixtures, syncOddsByLeagueDias } from "@/lib/football.server";
+import { DAILY_LIMIT_REACHED, hasApiFootballKey, MISSING_API_FOOTBALL_KEY, syncFixtures, syncFixturesSemanaIncremental, syncOddsByLeagueDias } from "@/lib/football.server";
 import { verificarCronSecret } from "@/lib/cron-auth";
 
 
@@ -108,7 +108,7 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
           if (semanaSync.ok) {
             if (await reservarSync(supabaseAdmin, "football_semana", now)) {
               reservados.push("football_semana");
-              fixturesHoje = await syncFixtures("semana");
+              fixturesHoje = await syncFixturesSemanaIncremental();
               const result = await syncOddsByLeagueDias(CASA_PADRAO, 8, {
                 maxLigas: 2,
                 cursorKey: "odds_cursor_semana",
