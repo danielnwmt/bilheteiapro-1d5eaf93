@@ -122,8 +122,13 @@ export const getMelhoresEntradas = createServerFn({ method: "GET" })
       const payload = porPartida.get(r.id);
       const picks = Array.isArray(payload?.picks) ? payload.picks : [];
       if (!picks.length) continue;
-      // Melhor seleção (maior confiança) do jogo.
-      const best = [...picks].sort((a: any, b: any) => (b.confianca ?? 0) - (a.confianca ?? 0))[0];
+      // Bloco 1: Melhores Entradas exclui picks "market_only" (sem estatísticas).
+      const analisadas = picks.filter((p: any) => {
+        const q = p?.analysisQuality;
+        return q !== "market_only" && q !== "unavailable";
+      });
+      if (!analisadas.length) continue;
+      const best = [...analisadas].sort((a: any, b: any) => (b.confianca ?? 0) - (a.confianca ?? 0))[0];
       if (!best) continue;
       entradas.push({
         jogo: `${r.time_casa} x ${r.time_fora}`,
@@ -132,7 +137,7 @@ export const getMelhoresEntradas = createServerFn({ method: "GET" })
         mercado: best.mercado,
         selecao: traduzSelecao(best.selecao),
         odd: Number(best.odd) || 0,
-        confianca: normalizarConfianca(Number(best.odd) || 0, Number(best.confianca) || 0, best.justificativa),
+        confianca: normalizarConfianca(Number(best.odd) || 0, Number(best.confianca) || 0),
       });
     }
 
