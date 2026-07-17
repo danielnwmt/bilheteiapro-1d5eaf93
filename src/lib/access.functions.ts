@@ -1855,7 +1855,7 @@ export const iniciarOperacao = createServerFn({ method: "POST" })
           maxLigas: 2,
           cursorKey: "odds_cursor_operacao",
         });
-        await preAnalisarTodos({ coletarEstatisticas: false });
+        await preAnalisarTodos({ coletarEstatisticas: true });
       } catch (e) {
         console.error("iniciarOperacao (segundo plano) falhou:", e);
       }
