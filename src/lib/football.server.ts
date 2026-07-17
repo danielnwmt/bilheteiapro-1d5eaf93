@@ -138,7 +138,7 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 // Intervalo mínimo GLOBAL entre chamadas à API-Football (respeita o limite
 // por minuto do plano). Ajustável via env; padrão ~2s (~30 req/min).
-const API_FOOTBALL_MIN_INTERVAL_MS = Number(process.env.API_FOOTBALL_MIN_INTERVAL_MS) || 2100;
+const API_FOOTBALL_MIN_INTERVAL_MS = Number(process.env.API_FOOTBALL_MIN_INTERVAL_MS) || 1000;
 
 // Fila serial: garante que duas chamadas nunca disparem juntas e que haja um
 // espaçamento mínimo entre elas, mesmo com o loop de estatísticas.
@@ -215,20 +215,16 @@ const STATUS_MAP: Record<string, string> = {
  * Busca jogos na API-Football para o período e grava em "partidas".
  * Retorna a quantidade de partidas sincronizadas.
  */
-export async function syncFixtures(periodo: Periodo): Promise<number> {
-  const key = await getApiFootballKey();
-
+async function syncFixturesPorDatas(dates: string[], key: string): Promise<number> {
   const fixtures: ApiFixture[] = [];
-  if (periodo === "aovivo") {
-    fixtures.push(...(await apiGet(`/fixtures?live=all`, key)));
-  } else {
-    const dates = datesForPeriodo(periodo);
-    for (const d of dates) {
-      fixtures.push(...(await apiGet(`/fixtures?date=${d}&timezone=America/Sao_Paulo`, key)));
-      await sleep(API_THROTTLE_MS);
-    }
+  for (const d of dates) {
+    fixtures.push(...(await apiGet(`/fixtures?date=${d}&timezone=America/Sao_Paulo`, key)));
+    await sleep(API_THROTTLE_MS);
   }
+  return gravarFixtures(fixtures);
+}
 
+async function gravarFixtures(fixtures: ApiFixture[]): Promise<number> {
   if (!fixtures.length) return 0;
 
   const supabase = createClient<Database>(
@@ -261,6 +257,47 @@ export async function syncFixtures(periodo: Periodo): Promise<number> {
   if (error) throw new Error(`Erro ao gravar partidas: ${error.message}`);
 
   return rows.length;
+}
+
+export async function syncFixturesDias(offsetInicio = 0, quantidade = 1): Promise<number> {
+  const key = await getApiFootballKey();
+  const inicio = Math.max(0, Math.min(7, offsetInicio));
+  const total = Math.max(1, Math.min(8 - inicio, quantidade));
+  const dates = Array.from({ length: total }, (_, i) => spDateString(inicio + i));
+  return syncFixturesPorDatas(dates, key);
+}
+
+export async function syncFixturesSemanaIncremental(cursorKey = "fixtures_cursor_semana"): Promise<number> {
+  const supabase = createClient<Database>(
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false, autoRefreshToken: false } },
+  );
+  const { data } = await supabase
+    .from("sync_state")
+    .select("last_sync_at")
+    .eq("id", cursorKey)
+    .maybeSingle();
+  const raw = data?.last_sync_at ? Number(new Date(data.last_sync_at).getTime()) : 0;
+  const offset = Number.isFinite(raw) && raw >= 0 ? raw % 8 : 0;
+  const total = await syncFixturesDias(offset, 1);
+  await supabase
+    .from("sync_state")
+    .upsert({ id: cursorKey, last_sync_at: new Date((offset + 1) % 8).toISOString() }, { onConflict: "id" });
+  return total;
+}
+
+export async function syncFixtures(periodo: Periodo): Promise<number> {
+  const key = await getApiFootballKey();
+
+  const fixtures: ApiFixture[] = [];
+  if (periodo === "aovivo") {
+    fixtures.push(...(await apiGet(`/fixtures?live=all`, key)));
+  } else {
+    return syncFixturesPorDatas(datesForPeriodo(periodo), key);
+  }
+
+  return gravarFixtures(fixtures);
 }
 
 // ---------- Odds reais ----------
