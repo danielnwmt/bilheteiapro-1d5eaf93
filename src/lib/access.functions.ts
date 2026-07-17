@@ -1759,7 +1759,7 @@ export const chamarApiManual = createServerFn({ method: "POST" })
 
     try {
       if (data.chave === "API_FOOTBALL_KEY") {
-        const { hasApiFootballKey, syncFixtures, syncOddsByLeagueDias } = await import("./football.server");
+        const { hasApiFootballKey, syncFixturesSemanaIncremental, syncOddsByLeagueDias } = await import("./football.server");
         if (!(await hasApiFootballKey())) {
           return { ok: false, error: "API-Football não configurada. Salve a chave e clique em Ativar e testar." };
         }
@@ -1768,8 +1768,11 @@ export const chamarApiManual = createServerFn({ method: "POST" })
         // chamadas à API-Football (jogos da semana + odds de 8 dias).
         void (async () => {
           try {
-            await syncFixtures("semana");
-            await syncOddsByLeagueDias("Bet365", 8);
+            await syncFixturesSemanaIncremental();
+            await syncOddsByLeagueDias("Bet365", 8, {
+              maxLigas: 2,
+              cursorKey: "odds_cursor_manual",
+            });
           } catch (e) {
             console.error("chamarApiManual (segundo plano) falhou:", e);
           }
@@ -1840,16 +1843,19 @@ export const iniciarOperacao = createServerFn({ method: "POST" })
     // local isso era o principal gerador de 504 e travava o painel admin.
     void (async () => {
       try {
-        const { syncFixtures, syncOddsByLeagueDias } = await import("./football.server");
+        const { syncFixtures, syncFixturesSemanaIncremental, syncOddsByLeagueDias } = await import("./football.server");
         const { preAnalisarTodos } = await import("./pre-analise.server");
-        await syncFixtures("semana");
+        await syncFixturesSemanaIncremental();
         try {
           await syncFixtures("aovivo");
         } catch {
           /* ao vivo é opcional */
         }
-        await syncOddsByLeagueDias("betano", 3);
-        await preAnalisarTodos();
+        await syncOddsByLeagueDias("betano", 3, {
+          maxLigas: 2,
+          cursorKey: "odds_cursor_operacao",
+        });
+        await preAnalisarTodos({ coletarEstatisticas: false });
       } catch (e) {
         console.error("iniciarOperacao (segundo plano) falhou:", e);
       }

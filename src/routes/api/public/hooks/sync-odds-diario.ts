@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { DAILY_LIMIT_REACHED, hasApiFootballKey, MISSING_API_FOOTBALL_KEY, syncFixtures, syncOddsByLeagueDias } from "@/lib/football.server";
+import { DAILY_LIMIT_REACHED, hasApiFootballKey, MISSING_API_FOOTBALL_KEY, syncFixturesSemanaIncremental, syncOddsByLeagueDias } from "@/lib/football.server";
 import { verificarCronSecret } from "@/lib/cron-auth";
 
 
@@ -42,14 +42,25 @@ async function reservarSync(supabaseAdmin: any, id: string, now: number): Promis
   return true;
 }
 
+async function liberarSyncReservado(supabaseAdmin: any, ids: string[]) {
+  if (!ids.length) return;
+  const { error } = await supabaseAdmin
+    .from("sync_state")
+    .delete()
+    .in("id", ids);
+  if (error) console.error("Não foi possível liberar sync_state após falha", ids, error);
+}
+
 export const Route = createFileRoute("/api/public/hooks/sync-odds-diario")({
   server: {
     handlers: {
       POST: async ({ request }) => {
         const unauthorized = verificarCronSecret(request);
         if (unauthorized) return unauthorized;
+        const reservados: string[] = [];
+        let supabaseAdmin: any = null;
         try {
-          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          ({ supabaseAdmin } = await import("@/integrations/supabase/client.server"));
           const url = new URL(request.url);
           const casa = url.searchParams.get("casa") ?? CASA_PADRAO;
           const now = Date.now();
@@ -74,10 +85,14 @@ export const Route = createFileRoute("/api/public/hooks/sync-odds-diario")({
           let result = { ligas: 0, chamadas: 0, odds: 0 };
           if (footballSync.ok) {
             if (await reservarSync(supabaseAdmin, "football_semana", now)) {
+              reservados.push("football_semana");
               // Garante as partidas da SEMANA inteira (hoje + próximos 7 dias)
               // e coleta as odds de todos esses dias.
-              fixturesHoje = await syncFixtures("semana");
-              result = await syncOddsByLeagueDias(casa, 8);
+              fixturesHoje = await syncFixturesSemanaIncremental();
+              result = await syncOddsByLeagueDias(casa, 8, {
+                maxLigas: 2,
+                cursorKey: "odds_cursor_diario",
+              });
             } else {
               skipped.API_FOOTBALL_KEY = "controle de intervalo indisponível";
             }
@@ -89,6 +104,7 @@ export const Route = createFileRoute("/api/public/hooks/sync-odds-diario")({
         } catch (e) {
           const msg = String(e);
           if (msg.includes(MISSING_API_FOOTBALL_KEY)) {
+            if (supabaseAdmin) await liberarSyncReservado(supabaseAdmin, reservados);
             return Response.json({
               ok: true,
               skipped: { API_FOOTBALL_KEY: "chave não configurada em Configurações → APIs" },
@@ -102,6 +118,7 @@ export const Route = createFileRoute("/api/public/hooks/sync-odds-diario")({
               dailyLimit: true,
             });
           }
+          if (supabaseAdmin) await liberarSyncReservado(supabaseAdmin, reservados);
           console.error("Erro no robô diário de odds:", e);
           return Response.json({ ok: false, error: msg }, { status: 500 });
         }

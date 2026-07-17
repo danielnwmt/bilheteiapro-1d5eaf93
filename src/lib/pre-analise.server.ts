@@ -37,7 +37,7 @@ export interface PreAnaliseResult {
 }
 
 
-export async function preAnalisarTodos(): Promise<PreAnaliseResult> {
+export async function preAnalisarTodos(options: { coletarEstatisticas?: boolean } = {}): Promise<PreAnaliseResult> {
   const supabase = admin();
   // Análise 100% local: não precisa de modelo externo.
   const model = null;
@@ -50,6 +50,7 @@ export async function preAnalisarTodos(): Promise<PreAnaliseResult> {
   // odds salvas também é analisado, em vez de só os das próximas 48h — antes
   // jogos com odds a 2-3 dias apareciam sem análise.
   const liveFrom = new Date(now - 150 * 60_000).toISOString();
+  const upcomingFrom = new Date(now - 10 * 60_000).toISOString();
   const to = new Date(now + 8 * 24 * 3600_000).toISOString();
 
   const { data: partidas, error } = await supabase
@@ -59,7 +60,7 @@ export async function preAnalisarTodos(): Promise<PreAnaliseResult> {
     // simples, ambas cobertas por índice.
     .select("id, external_id, liga, time_casa, time_fora, inicio, status")
     .neq("status", "encerrado")
-    .or(`status.eq.ao_vivo,and(inicio.gte.${liveFrom},inicio.lte.${to})`)
+    .or(`and(status.eq.ao_vivo,inicio.gte.${liveFrom},inicio.lte.${to}),and(inicio.gte.${upcomingFrom},inicio.lte.${to})`)
     .order("inicio", { ascending: true })
     .limit(120);
 
@@ -146,7 +147,7 @@ export async function preAnalisarTodos(): Promise<PreAnaliseResult> {
   let estatisticas = 0;
   // Cada estatística passa pelo throttle da API-Football. Mantemos baixo para
   // nenhum ciclo do cron monopolizar CPU/rede nem estourar timeout.
-  const MAX_STATS_POR_RUN = 3;
+  const MAX_STATS_POR_RUN = options.coletarEstatisticas === false ? 0 : 1;
   const semStats = candidatos
     .filter((c) => c.partida.external_id && !statsMap.has(c.partida.id))
     .slice(0, MAX_STATS_POR_RUN)

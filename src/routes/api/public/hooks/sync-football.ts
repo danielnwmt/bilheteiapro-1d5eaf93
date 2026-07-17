@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { DAILY_LIMIT_REACHED, hasApiFootballKey, MISSING_API_FOOTBALL_KEY, syncFixtures, syncOddsByLeagueDias } from "@/lib/football.server";
+import { DAILY_LIMIT_REACHED, hasApiFootballKey, MISSING_API_FOOTBALL_KEY, syncFixtures, syncFixturesSemanaIncremental, syncOddsByLeagueDias } from "@/lib/football.server";
 import { verificarCronSecret } from "@/lib/cron-auth";
 
 
@@ -50,6 +50,15 @@ async function reservarSync(supabaseAdmin: any, id: string, now: number): Promis
   return true;
 }
 
+async function liberarSyncReservado(supabaseAdmin: any, ids: string[]) {
+  if (!ids.length) return;
+  const { error } = await supabaseAdmin
+    .from("sync_state")
+    .delete()
+    .in("id", ids);
+  if (error) console.error("Não foi possível liberar sync_state após falha", ids, error);
+}
+
 export const Route = createFileRoute("/api/public/hooks/sync-football")({
   server: {
     handlers: {
@@ -69,7 +78,7 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
         const { count: liveCount } = await supabaseAdmin
           .from("partidas")
           .select("id", { count: "exact", head: true })
-          .or(`status.eq.ao_vivo,and(inicio.gte.${liveFrom},inicio.lte.${liveTo})`);
+          .or(`and(status.eq.ao_vivo,inicio.gte.${liveFrom},inicio.lte.${liveTo}),and(inicio.gte.${liveFrom},inicio.lte.${liveTo})`);
 
         const hasLive = (liveCount ?? 0) > 0;
 
@@ -77,6 +86,7 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
         let fixturesHoje = 0;
         let oddsCount = 0;
         const skipped: Record<string, string> = {};
+        const reservados: string[] = [];
 
         if (!(await hasApiFootballKey())) {
           return Response.json({
@@ -97,8 +107,12 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
           // Ritmo LENTO (1x/hora): semana inteira de jogos + odds dos próximos dias.
           if (semanaSync.ok) {
             if (await reservarSync(supabaseAdmin, "football_semana", now)) {
-              fixturesHoje = await syncFixtures("semana");
-              const result = await syncOddsByLeagueDias(CASA_PADRAO, 8);
+              reservados.push("football_semana");
+              fixturesHoje = await syncFixturesSemanaIncremental();
+              const result = await syncOddsByLeagueDias(CASA_PADRAO, 8, {
+                maxLigas: 2,
+                cursorKey: "odds_cursor_semana",
+              });
               oddsCount = result.odds;
             } else {
               skipped.semana = "controle de intervalo indisponível";
@@ -110,10 +124,14 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
           // Ritmo RÁPIDO (a cada 4 min): só jogos ao vivo + odds de HOJE.
           if (rapidoSync.ok) {
             if (await reservarSync(supabaseAdmin, "football", now)) {
+              reservados.push("football");
               if (hasLive) {
                 fixturesAoVivo = await syncFixtures("aovivo");
               }
-              const result = await syncOddsByLeagueDias(CASA_PADRAO, 1);
+              const result = await syncOddsByLeagueDias(CASA_PADRAO, 1, {
+                maxLigas: 2,
+                cursorKey: "odds_cursor_hoje",
+              });
               oddsCount += result.odds;
             } else {
               skipped.rapido = "controle de intervalo indisponível";
@@ -126,6 +144,7 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
           // Chave da API-Football não configurada: não é falha do robô — apenas
           // avisa (evita erro 500 repetido no cron a cada 7 min).
           if (msg.includes(MISSING_API_FOOTBALL_KEY)) {
+            await liberarSyncReservado(supabaseAdmin, reservados);
             return Response.json({
               ok: true,
               hasLive,
@@ -149,6 +168,7 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
               oddsCount,
             });
           }
+          await liberarSyncReservado(supabaseAdmin, reservados);
           console.error("Erro no sync agendado:", e);
           return Response.json(
             { ok: false, error: msg },

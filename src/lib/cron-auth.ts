@@ -5,6 +5,10 @@
 // e sincronizações à vontade.
 export function verificarCronSecret(request: Request): Response | null {
   const secret = process.env.CRON_SECRET;
+  const publicKey = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  const providedApiKey = request.headers.get("apikey");
+  if (publicKey && providedApiKey === publicKey) return null;
+
   if (!secret) {
     return new Response(
       JSON.stringify({ error: "CRON_SECRET não configurado no servidor" }),
