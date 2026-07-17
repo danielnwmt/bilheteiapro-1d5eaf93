@@ -932,17 +932,29 @@ export type Database = {
       sync_state: {
         Row: {
           id: string
+          last_error: string | null
+          last_finished_at: string | null
           last_sync_at: string | null
+          lock_token: string | null
+          locked_until: string | null
           updated_at: string
         }
         Insert: {
           id: string
+          last_error?: string | null
+          last_finished_at?: string | null
           last_sync_at?: string | null
+          lock_token?: string | null
+          locked_until?: string | null
           updated_at?: string
         }
         Update: {
           id?: string
+          last_error?: string | null
+          last_finished_at?: string | null
           last_sync_at?: string | null
+          lock_token?: string | null
+          locked_until?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -994,6 +1006,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      acquire_sync_lock: {
+        Args: {
+          p_id: string
+          p_interval_seconds: number
+          p_lock_token: string
+          p_ttl_seconds: number
+        }
+        Returns: boolean
+      }
       admin_list_users: {
         Args: never
         Returns: {
@@ -1012,6 +1033,15 @@ export type Database = {
       }
       increment_api_usage: { Args: { _chave: string }; Returns: undefined }
       limpar_dados_antigos: { Args: never; Returns: undefined }
+      release_sync_lock: {
+        Args: {
+          p_error?: string
+          p_id: string
+          p_lock_token: string
+          p_success: boolean
+        }
+        Returns: boolean
+      }
       touch_last_seen: { Args: never; Returns: undefined }
     }
     Enums: {
