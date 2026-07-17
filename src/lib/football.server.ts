@@ -92,6 +92,7 @@ const LEAGUE_ID_TO_NAME: Record<number, string> = {
 };
 
 type Periodo = "hoje" | "amanha" | "semana" | "aovivo";
+export type SyncOddsScope = { maxLigas?: number; cursorKey?: string };
 
 function spDateString(offsetDays = 0) {
   const now = new Date();
@@ -798,6 +799,7 @@ function seasonForDate(dateStr: string): number {
 export async function syncOddsByLeagueDias(
   casa: string = CASA_PADRAO_ODDS,
   dias: number = 1,
+  scope: SyncOddsScope = {},
 ): Promise<{ ligas: number; chamadas: number; odds: number }> {
   const key = await getApiFootballKey();
 
@@ -825,6 +827,20 @@ export async function syncOddsByLeagueDias(
 
   let chamadas = 0;
   const ligasVistas = new Set<string>();
+
+  const cursorKey = scope.cursorKey;
+  let cursorIndex = 0;
+  if (cursorKey) {
+    const { data } = await supabase
+      .from("sync_state")
+      .select("last_sync_at")
+      .eq("id", cursorKey)
+      .maybeSingle();
+    const value = data?.last_sync_at ? Number(new Date(data.last_sync_at).getTime()) : 0;
+    cursorIndex = Number.isFinite(value) && value > 0 ? value : 0;
+  }
+
+  const tarefas: Array<{ date: string; leagueId: number; partidas: Array<{ id: string; external_id: string | null; liga: string | null; time_casa: string; time_fora: string }> }> = [];
 
   for (const date of dates) {
     const start = `${date}T00:00:00-03:00`;
@@ -854,10 +870,25 @@ export async function syncOddsByLeagueDias(
       if (id) ligaIds.add(id);
     }
 
+    for (const leagueId of ligaIds) {
+      tarefas.push({ date, leagueId, partidas: partidas as any });
+    }
+  }
+
+  const maxLigas = Math.max(1, Math.min(scope.maxLigas ?? tarefas.length || 1, tarefas.length || 1));
+  const selecionadas = tarefas.length
+    ? Array.from({ length: Math.min(maxLigas, tarefas.length) }, (_, i) => tarefas[(cursorIndex + i) % tarefas.length])
+    : [];
+
+  for (const tarefa of selecionadas) {
+    const { date, leagueId, partidas } = tarefa;
     const season = seasonForDate(date);
 
-    // Uma chamada por liga (com paginação interna da API).
-    for (const leagueId of ligaIds) {
+    const byFixture = new Map<string, (typeof partidas)[number]>();
+    for (const p of partidas) {
+      if (p.external_id) byFixture.set(String(p.external_id), p);
+    }
+
       ligasVistas.add(`${date}:${leagueId}`);
       let page = 1;
       let totalPages = 1;
@@ -924,7 +955,13 @@ export async function syncOddsByLeagueDias(
         page++;
         await sleep(API_THROTTLE_MS);
       } while (page <= totalPages);
-    }
+  }
+
+  if (cursorKey && tarefas.length) {
+    const next = (cursorIndex + selecionadas.length) % tarefas.length;
+    await supabase
+      .from("sync_state")
+      .upsert({ id: cursorKey, last_sync_at: new Date(next).toISOString() }, { onConflict: "id" });
   }
 
   if (!rows.length) return { ligas: ligasVistas.size, chamadas, odds: 0 };
