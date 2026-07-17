@@ -542,6 +542,13 @@ export const gerarBilhete = createServerFn({ method: "POST" })
         )
       )
         return false;
+      // Impede duas seleções do MESMO jogo no MESMO grupo (ex.: "Menos de 9.5
+      // escanteios" + "Menos de 10 escanteios"), exceto no modo "mesmo jogo".
+      if (
+        data.tipoBilhete !== "mesmojogo" &&
+        chosen.some((c) => c._partidaId === p._partidaId && grupoDe(c) === grupoDe(p))
+      )
+        return false;
       if (chosen.some((c) => selecoesConflitam(c, p))) return false;
       return true;
     };
