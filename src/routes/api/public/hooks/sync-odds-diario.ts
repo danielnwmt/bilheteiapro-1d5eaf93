@@ -42,6 +42,15 @@ async function reservarSync(supabaseAdmin: any, id: string, now: number): Promis
   return true;
 }
 
+async function liberarSyncReservado(supabaseAdmin: any, ids: string[]) {
+  if (!ids.length) return;
+  const { error } = await supabaseAdmin
+    .from("sync_state")
+    .delete()
+    .in("id", ids);
+  if (error) console.error("Não foi possível liberar sync_state após falha", ids, error);
+}
+
 export const Route = createFileRoute("/api/public/hooks/sync-odds-diario")({
   server: {
     handlers: {
@@ -55,6 +64,7 @@ export const Route = createFileRoute("/api/public/hooks/sync-odds-diario")({
           const now = Date.now();
           const footballSync = await podeSincronizar(supabaseAdmin, "football_semana", "API_FOOTBALL_KEY", now);
           const skipped: Record<string, string> = {};
+          const reservados: string[] = [];
 
           if (!(await hasApiFootballKey())) {
             return Response.json({
@@ -74,6 +84,7 @@ export const Route = createFileRoute("/api/public/hooks/sync-odds-diario")({
           let result = { ligas: 0, chamadas: 0, odds: 0 };
           if (footballSync.ok) {
             if (await reservarSync(supabaseAdmin, "football_semana", now)) {
+              reservados.push("football_semana");
               // Garante as partidas da SEMANA inteira (hoje + próximos 7 dias)
               // e coleta as odds de todos esses dias.
               fixturesHoje = await syncFixtures("semana");
@@ -89,6 +100,7 @@ export const Route = createFileRoute("/api/public/hooks/sync-odds-diario")({
         } catch (e) {
           const msg = String(e);
           if (msg.includes(MISSING_API_FOOTBALL_KEY)) {
+            await liberarSyncReservado(supabaseAdmin, reservados);
             return Response.json({
               ok: true,
               skipped: { API_FOOTBALL_KEY: "chave não configurada em Configurações → APIs" },
@@ -102,6 +114,7 @@ export const Route = createFileRoute("/api/public/hooks/sync-odds-diario")({
               dailyLimit: true,
             });
           }
+          await liberarSyncReservado(supabaseAdmin, reservados);
           console.error("Erro no robô diário de odds:", e);
           return Response.json({ ok: false, error: msg }, { status: 500 });
         }

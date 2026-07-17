@@ -78,7 +78,7 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
         const { count: liveCount } = await supabaseAdmin
           .from("partidas")
           .select("id", { count: "exact", head: true })
-          .or(`status.eq.ao_vivo,and(inicio.gte.${liveFrom},inicio.lte.${liveTo})`);
+          .or(`and(status.eq.ao_vivo,inicio.gte.${liveFrom},inicio.lte.${liveTo}),and(inicio.gte.${liveFrom},inicio.lte.${liveTo})`);
 
         const hasLive = (liveCount ?? 0) > 0;
 
