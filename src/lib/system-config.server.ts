@@ -1,5 +1,5 @@
-// Server-only: lê chaves de configuração (APIs) do ambiente OU do banco.
-// Prioridade: process.env -> tabela system_config (preenchida no painel admin).
+// Server-only: lê chaves de configuração (APIs) do banco OU do ambiente.
+// Prioridade: tabela system_config (painel admin) -> process.env.
 // Assim as chaves podem ser adicionadas manualmente após a instalação.
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
@@ -27,15 +27,13 @@ export async function getApiFlow(): Promise<Record<string, string>> {
 }
 
 export async function getConfigKey(chave: string): Promise<string | undefined> {
-  const env = readEnvConfig(chave);
-  if (env) return env;
-
   const cached = cache.get(chave);
   if (cached && Date.now() - cached.at < TTL) return cached.value || undefined;
 
+  const env = readEnvConfig(chave);
   const url = process.env.SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceKey) return undefined;
+  if (!url || !serviceKey) return env;
 
   try {
     const supabase = createClient<Database>(url, serviceKey, {
@@ -46,11 +44,12 @@ export async function getConfigKey(chave: string): Promise<string | undefined> {
       .select("valor")
       .eq("chave", chave)
       .maybeSingle();
-    const value = data?.valor ?? "";
-    cache.set(chave, { value, at: Date.now() });
-    return value || undefined;
+    const value = (data?.valor ?? "").trim();
+    const resolved = value || env || "";
+    cache.set(chave, { value: resolved, at: Date.now() });
+    return resolved || undefined;
   } catch {
-    return undefined;
+    return env;
   }
 }
 
