@@ -57,7 +57,7 @@ export const Route = createFileRoute("/api/public/hooks/sync-odds-diario")({
             // e coleta as odds de todos esses dias.
             fixturesHoje = await syncFixturesSemanaIncremental();
             result = await syncOddsByLeagueDias(casa, 8, {
-              maxLigas: 2,
+              maxLigas: 10,
               cursorKey: "odds_cursor_diario",
             });
           } else {
