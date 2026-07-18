@@ -508,3 +508,77 @@ $$;
 GRANT EXECUTE ON FUNCTION public.touch_last_seen() TO authenticated;
 
 NOTIFY pgrst, 'reload schema';
+
+-- ============================================================
+--  Sessão ativa (single-session enforcement) + Sync locks atômicos.
+--  Instalações antigas do selfhost não têm active_session nem as
+--  funções acquire_sync_lock/release_sync_lock — sem elas o robô
+--  falha com "column profiles.active_session does not exist" e
+--  "Could not find function public.acquire_sync_lock" (PGRST202).
+-- ============================================================
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS active_session text;
+
+CREATE TABLE IF NOT EXISTS public.sync_state (
+  id text PRIMARY KEY,
+  last_sync_at timestamptz,
+  last_finished_at timestamptz,
+  locked_until timestamptz,
+  lock_token text,
+  last_error text,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+GRANT ALL ON public.sync_state TO service_role;
+ALTER TABLE public.sync_state ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Service role only sync_state" ON public.sync_state;
+CREATE POLICY "Service role only sync_state" ON public.sync_state FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+CREATE OR REPLACE FUNCTION public.acquire_sync_lock(
+  p_id text,
+  p_interval_seconds integer,
+  p_ttl_seconds integer,
+  p_lock_token text
+) RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+DECLARE acquired boolean := false;
+BEGIN
+  INSERT INTO public.sync_state (id, last_sync_at, locked_until, lock_token, updated_at)
+  VALUES (p_id, NULL, now() + make_interval(secs => p_ttl_seconds), p_lock_token, now())
+  ON CONFLICT (id) DO UPDATE
+  SET locked_until = EXCLUDED.locked_until, lock_token = EXCLUDED.lock_token, updated_at = now()
+  WHERE (sync_state.locked_until IS NULL OR sync_state.locked_until <= now())
+    AND (sync_state.last_sync_at IS NULL OR sync_state.last_sync_at <= now() - make_interval(secs => p_interval_seconds));
+  GET DIAGNOSTICS acquired = ROW_COUNT;
+  RETURN acquired;
+END; $$;
+REVOKE ALL ON FUNCTION public.acquire_sync_lock(text, integer, integer, text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.acquire_sync_lock(text, integer, integer, text) TO service_role;
+
+CREATE OR REPLACE FUNCTION public.release_sync_lock(
+  p_id text,
+  p_lock_token text,
+  p_success boolean,
+  p_error text DEFAULT NULL
+) RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+DECLARE released boolean := false;
+BEGIN
+  UPDATE public.sync_state
+  SET locked_until = NULL, lock_token = NULL,
+      last_sync_at = CASE WHEN p_success THEN now() ELSE last_sync_at END,
+      last_finished_at = now(),
+      last_error = CASE WHEN p_success THEN NULL ELSE p_error END,
+      updated_at = now()
+  WHERE id = p_id AND lock_token = p_lock_token;
+  GET DIAGNOSTICS released = ROW_COUNT;
+  RETURN released;
+END; $$;
+REVOKE ALL ON FUNCTION public.release_sync_lock(text, text, boolean, text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.release_sync_lock(text, text, boolean, text) TO service_role;
+
+NOTIFY pgrst, 'reload schema';
