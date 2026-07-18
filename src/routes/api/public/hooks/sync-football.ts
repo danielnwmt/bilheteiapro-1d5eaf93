@@ -73,7 +73,7 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
             reservados.push(semanaLock);
             fixturesHoje = await syncFixturesSemanaIncremental();
             const result = await syncOddsByLeagueDias(CASA_PADRAO, 8, {
-              maxLigas: 2,
+              maxLigas: 10,
               cursorKey: "odds_cursor_semana",
             });
             oddsCount = result.odds;
