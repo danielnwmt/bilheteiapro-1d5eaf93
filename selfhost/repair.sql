@@ -42,6 +42,14 @@ CREATE TABLE IF NOT EXISTS public.sync_state (
   last_sync_at TIMESTAMP WITH TIME ZONE,
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
+-- Instalações antigas já têm a tabela acima sem as colunas novas de lock.
+-- CREATE TABLE IF NOT EXISTS não altera tabela existente, então garantimos
+-- explicitamente o schema usado pelos crons atuais antes de qualquer SELECT/RPC.
+ALTER TABLE public.sync_state
+  ADD COLUMN IF NOT EXISTS last_finished_at TIMESTAMP WITH TIME ZONE,
+  ADD COLUMN IF NOT EXISTS locked_until TIMESTAMP WITH TIME ZONE,
+  ADD COLUMN IF NOT EXISTS lock_token text,
+  ADD COLUMN IF NOT EXISTS last_error text;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.sync_state TO authenticated;
 GRANT ALL ON public.sync_state TO service_role;
 
@@ -68,6 +76,8 @@ END $$;
 
 INSERT INTO public.sync_state (id, last_sync_at) VALUES
   ('football', NULL),
+  ('football_semana', NULL),
+  ('pre_analise', NULL),
   ('odds_api', NULL)
 ON CONFLICT (id) DO NOTHING;
 
@@ -527,6 +537,11 @@ CREATE TABLE IF NOT EXISTS public.sync_state (
   last_error text,
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+ALTER TABLE public.sync_state
+  ADD COLUMN IF NOT EXISTS last_finished_at timestamptz,
+  ADD COLUMN IF NOT EXISTS locked_until timestamptz,
+  ADD COLUMN IF NOT EXISTS lock_token text,
+  ADD COLUMN IF NOT EXISTS last_error text;
 GRANT ALL ON public.sync_state TO service_role;
 ALTER TABLE public.sync_state ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Service role only sync_state" ON public.sync_state;
