@@ -125,6 +125,10 @@ ALTER TABLE public.odds
 CREATE TABLE public.sync_state (
   id TEXT PRIMARY KEY,
   last_sync_at TIMESTAMP WITH TIME ZONE,
+  last_finished_at TIMESTAMP WITH TIME ZONE,
+  locked_until TIMESTAMP WITH TIME ZONE,
+  lock_token TEXT,
+  last_error TEXT,
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
@@ -142,6 +146,8 @@ WITH CHECK (true);
 
 INSERT INTO public.sync_state (id, last_sync_at) VALUES
   ('football', NULL),
+  ('football_semana', NULL),
+  ('pre_analise', NULL),
   ('odds_api', NULL)
 ON CONFLICT (id) DO NOTHING;
 
