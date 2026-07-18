@@ -201,19 +201,16 @@ export const getMelhoresPicks = createServerFn({ method: "POST" })
       return { picks: [] as MelhorPick[], geradoEm: new Date().toISOString() };
     }
 
-    const candidatos: MelhorPick[] = [];
+    const candidatosStrict: MelhorPick[] = [];
+    const candidatosFallback: MelhorPick[] = [];
     for (const r of aAnalisar) {
       const a = analises.get(r.id);
       if (!a) continue;
       const jogo = `${r.time_casa} x ${r.time_fora}`;
       for (const p of a.picks) {
-        // Bloco 1: Melhores Picks NUNCA aceita fallback "só odds".
-        // Precisa ter analisado com estatísticas (complete/partial) e EV positivo.
-        const q = (p as any).analysisQuality as string | undefined;
-        if (q === "market_only" || q === "unavailable") continue;
         if (p.confianca < data.minConfianca) continue;
-        if (typeof p.evPct === "number" && p.evPct <= 0) continue;
-        candidatos.push({
+        const q = (p as any).analysisQuality as string | undefined;
+        const item: MelhorPick = {
           partidaId: r.id,
           jogo,
           liga: r.liga,
@@ -227,15 +224,23 @@ export const getMelhoresPicks = createServerFn({ method: "POST" })
           estrelas: p.estrelas ?? 0,
           evPct: typeof p.evPct === "number" ? p.evPct : null,
           valorLabel: p.valorLabel ?? null,
-        });
+        };
+        // Estrito: análise com estatísticas (complete/partial) e EV positivo.
+        if (q !== "market_only" && q !== "unavailable" && (typeof p.evPct !== "number" || p.evPct > 0)) {
+          candidatosStrict.push(item);
+        } else {
+          // Fallback: quando não há estatísticas (chave inválida/robô ainda
+          // não puxou), evita tela vazia mostrando picks só por odds.
+          candidatosFallback.push(item);
+        }
       }
     }
 
-    // Ranqueia: prioriza valor esperado (EV) quando disponível, depois
-    // estrelas, depois confiança. Empate pela odd (maior primeiro).
     const score = (p: MelhorPick) =>
       (p.evPct ?? 0) * 1.5 + p.estrelas * 8 + p.confianca;
-    candidatos.sort((x, y) => score(y) - score(x) || y.odd - x.odd);
+    candidatosStrict.sort((x, y) => score(y) - score(x) || y.odd - x.odd);
+    candidatosFallback.sort((x, y) => score(y) - score(x) || y.odd - x.odd);
+    const candidatos = [...candidatosStrict, ...candidatosFallback];
 
     // No máximo 1 pick por jogo, para dar variedade à lista.
     const vistos = new Set<string>();

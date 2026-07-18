@@ -969,8 +969,14 @@ export async function syncOddsByLeagueDias(
           resp = json.response ?? [];
           raw = json;
         } catch (e) {
-          // Limite diário: aborta o ciclo inteiro (não adianta seguir para outras ligas hoje).
-          if (String(e).includes(DAILY_LIMIT_REACHED)) throw e;
+          const msg = String(e);
+          // Limite diário / chave inválida / ausente: aborta o ciclo inteiro —
+          // não adianta seguir para outras ligas e não polui o log com N cópias.
+          if (
+            msg.includes(DAILY_LIMIT_REACHED) ||
+            msg.includes(INVALID_API_FOOTBALL_KEY) ||
+            msg.includes(MISSING_API_FOOTBALL_KEY)
+          ) throw e;
           console.error("Falha ao buscar odds da liga", leagueId, "dia", date, "pág", page, e);
           break;
         }
