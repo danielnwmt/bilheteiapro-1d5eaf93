@@ -92,7 +92,7 @@ export const Route = createFileRoute("/api/public/hooks/sync-football")({
               fixturesAoVivo = await syncFixtures("aovivo");
             }
             const result = await syncOddsByLeagueDias(CASA_PADRAO, 1, {
-              maxLigas: 2,
+              maxLigas: 10,
               cursorKey: "odds_cursor_hoje",
             });
             oddsCount += result.odds;
