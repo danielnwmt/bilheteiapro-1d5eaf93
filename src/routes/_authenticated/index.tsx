@@ -456,6 +456,7 @@ function Index() {
   const [statsMap, setStatsMap] = useState<Record<string, { pc: number; pe: number; pf: number }>>(
     {},
   );
+  const [analiseMap, setAnaliseMap] = useState<Record<string, boolean>>({});
   const [oddMin, setOddMin] = useState("1.2");
   const [limiteJogos, setLimiteJogos] = useState("4");
   const [tipoBilhete, setTipoBilhete] = useState<"simples" | "multipla" | "mesmojogo">("multipla");
@@ -719,6 +720,39 @@ function Index() {
         setStatsMap(map);
       } catch {
         if (ativo) setStatsMap({});
+      }
+    })();
+    return () => {
+      ativo = false;
+    };
+  }, [jogos]);
+
+  // Status real da análise: vem do analise_cache. Estatísticas externas podem
+  // faltar, mas se o motor local salvou picks o jogo não deve aparecer pendente.
+  useEffect(() => {
+    let ativo = true;
+    const ids = jogos.map((j) => j.id);
+    if (ids.length === 0) {
+      setAnaliseMap({});
+      return;
+    }
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from("analise_cache")
+          .select("partida_id, payload")
+          .in("partida_id", ids);
+        if (!ativo) return;
+        const map: Record<string, boolean> = {};
+        for (const row of data ?? []) {
+          const payload = (row as { payload?: { picks?: unknown[] }; partida_id: string }).payload;
+          if (Array.isArray(payload?.picks) && payload.picks.length > 0) {
+            map[(row as { partida_id: string }).partida_id] = true;
+          }
+        }
+        setAnaliseMap(map);
+      } catch {
+        if (ativo) setAnaliseMap({});
       }
     })();
     return () => {
@@ -1089,6 +1123,7 @@ function Index() {
                 <div className="grid content-start gap-4 sm:grid-cols-2">
                   {jogosFiltrados.map((j) => {
                     const st = statsMap[j.id];
+                    const temAnalise = !!st || !!analiseMap[j.id];
                     const soma = st ? st.pc + st.pe + st.pf || 1 : 1;
                     const confAlta = !!st && (st.pc >= 55 || st.pf >= 55);
                     const oficial = escalacaoConfirmada(j);
@@ -1182,7 +1217,7 @@ function Index() {
                         )}
 
                         <div className="mt-3 flex items-center justify-between">
-                          {st ? (
+                          {temAnalise ? (
                             <Badge
                               className={`gap-1 border text-[11px] ${
                                 confAlta
@@ -1190,7 +1225,7 @@ function Index() {
                                   : "border-amber-500/30 bg-amber-500/15 text-amber-500"
                               }`}
                             >
-                              <Sparkles className="h-3 w-3" /> {confAlta ? "Confiança alta" : "Confiança média"}
+                              <Sparkles className="h-3 w-3" /> {st ? (confAlta ? "Confiança alta" : "Confiança média") : "Análise pronta"}
                             </Badge>
                           ) : (
                             <Badge variant="outline" className="text-[11px] text-muted-foreground">
