@@ -208,8 +208,9 @@ export async function preAnalisarTodos(
     const comCache = candidatos.filter((c) => cacheSet.has(cacheKey(c.partida.id, c.casa)));
     const pendentes = [...semCache, ...comCache].slice(0, MAX_ANALISES_POR_RUN);
 
-    // Coleta estatísticas reais (API-Football /predictions) dos jogos que serão
-    // analisados e ainda não têm estatísticas salvas. 1 chamada por jogo.
+    // Lê estatísticas já existentes. A análise NÃO pode depender de chamada
+    // externa neste ponto: se a API-Football atrasar/recusar, o cache precisa
+    // ser gerado mesmo assim com a leitura estatística local + odds.
     const partidaIds = [...new Set(candidatos.map((c) => c.partida.id))];
     const statsMap = new Map<string, EstatisticasResumo>();
     if (partidaIds.length) {
@@ -223,19 +224,42 @@ export async function preAnalisarTodos(
       }
     }
 
+    // Anexa as estatísticas já salvas a cada jogo (quando existirem).
+    for (const c of candidatos) {
+      c.partida.estatisticas = statsMap.get(c.partida.id) ?? null;
+    }
+
+    // Análise LOCAL primeiro: preenche analise_cache sem esperar a API externa.
+    // Isso evita cards presos em "Análise pendente" quando /predictions demora,
+    // estoura limite ou a chave local está instável.
+    let analisados = 0;
+    for (const c of pendentes) {
+      try {
+        const a = await obterAnalisePartida(supabase, model, c.partida, c.casa, dia, false, true);
+        if (a.picks.length) analisados++;
+      } catch (e) {
+        console.error("pre-analise: falha ao analisar", c.partida.id, c.casa, e);
+      }
+    }
+
     let estatisticas = 0;
     // Cada estatística passa pelo throttle da API-Football. Mantemos baixo para
     // nenhum ciclo do cron monopolizar CPU/rede nem estourar timeout.
-    const configuredStatsLimit = Number(process.env.MAX_STATS_PER_RUN ?? 6);
+    const configuredStatsLimit = Number(process.env.MAX_STATS_PER_RUN ?? 1);
     const MAX_STATS_POR_RUN =
       options.coletarEstatisticas === false
         ? 0
         : Math.max(
             1,
-            Math.min(20, Number.isFinite(configuredStatsLimit) ? configuredStatsLimit : 6),
+            Math.min(5, Number.isFinite(configuredStatsLimit) ? configuredStatsLimit : 1),
           );
-    const semStats = candidatos
-      .filter((c) => c.partida.external_id && !statsMap.has(c.partida.id))
+    const semStats = Array.from(
+      new Map(
+        candidatos
+          .filter((c) => c.partida.external_id && !statsMap.has(c.partida.id))
+          .map((c) => [c.partida.id, c]),
+      ).values(),
+    )
       .slice(0, MAX_STATS_POR_RUN)
       .map((c) => ({
         id: c.partida.id,
@@ -271,23 +295,6 @@ export async function preAnalisarTodos(
         } else {
           console.error("pre-analise: falha ao coletar estatísticas", e);
         }
-      }
-    }
-
-    // Anexa as estatísticas reais a cada jogo (usadas pelo motor estatístico local).
-    for (const c of candidatos) {
-      c.partida.estatisticas = statsMap.get(c.partida.id) ?? null;
-    }
-
-    // Análise LOCAL: é grátis e instantânea, então reanalisamos TODOS os jogos
-    // numa só passada e sobrescrevemos o cache do dia (forcar = true).
-    let analisados = 0;
-    for (const c of pendentes) {
-      try {
-        const a = await obterAnalisePartida(supabase, model, c.partida, c.casa, dia, false, true);
-        if (a.picks.length) analisados++;
-      } catch (e) {
-        console.error("pre-analise: falha ao analisar", c.partida.id, c.casa, e);
       }
     }
 
