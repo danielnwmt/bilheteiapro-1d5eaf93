@@ -738,9 +738,16 @@ function Index() {
     }
     (async () => {
       try {
+        const hojeSp = new Intl.DateTimeFormat("en-CA", {
+          timeZone: "America/Sao_Paulo",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        }).format(new Date());
         const { data } = await supabase
           .from("analise_cache")
           .select("partida_id, payload")
+          .eq("dia", hojeSp)
           .in("partida_id", ids);
         if (!ativo) return;
         const map: Record<string, boolean> = {};
