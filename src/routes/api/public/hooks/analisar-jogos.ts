@@ -11,7 +11,7 @@ export const Route = createFileRoute("/api/public/hooks/analisar-jogos")({
         if (unauthorized) return unauthorized;
         try {
           const { preAnalisarTodos } = await import("@/lib/pre-analise.server");
-          const result = await preAnalisarTodos({ coletarEstatisticas: true });
+          const result = await preAnalisarTodos({ coletarEstatisticas: false });
           return Response.json(result);
         } catch (e) {
           console.error("Erro no robô de análise:", e);

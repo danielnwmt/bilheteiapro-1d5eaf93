@@ -99,7 +99,7 @@ export async function preAnalisarTodos(
   const supabase = admin();
   const executionLock = await acquireSyncLock(supabase, "pre_analise", {
     intervalMinutes: 2,
-    ttlSeconds: 14 * 60,
+    ttlSeconds: 4 * 60,
   });
   if (!executionLock) {
     return {
